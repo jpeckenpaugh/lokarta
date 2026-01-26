@@ -96,6 +96,7 @@ Game data is externalized into JSON:
 - `data/spells.json` — spell definitions and costs
 - `data/commands.json` — global action commands
 - `data/menus.json` — inventory/spellbook UI text and actions
+- `data/text.json` — message templates for battle text
 
 ---
 

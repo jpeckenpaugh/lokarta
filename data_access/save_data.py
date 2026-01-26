@@ -55,4 +55,4 @@ class SaveData:
             import os
             os.remove(self._path)
         except OSError:
-            pass
+            return

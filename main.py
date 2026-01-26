@@ -20,6 +20,7 @@ from commands.scene_commands import scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
 from data_access.menus_data import MenusData
+from data_access.text_data import TextData
 from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
 from data_access.npcs_data import NpcsData
@@ -42,6 +43,7 @@ from ui.rendering import (
     render_frame,
 )
 from ui.screens import ScreenContext, generate_frame
+from ui.text import format_text
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
@@ -54,6 +56,7 @@ VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
 SPELLS = SpellsData(os.path.join(DATA_DIR, "spells.json"))
 COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
+TEXTS = TextData(os.path.join(DATA_DIR, "text.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 COMMANDS = build_registry()
 ROUTER_CTX = RouterContext(
@@ -76,6 +79,7 @@ SCREEN_CTX = ScreenContext(
     menus=MENUS,
     commands=COMMANDS_DATA,
     spells=SPELLS,
+    text=TEXTS,
 )
 
 
@@ -109,103 +113,25 @@ def main():
     spell_mode = False
     quit_confirm = False
     title_mode = True
-    title_confirm = False
+    player.location = "Title"
     while True:
         if title_mode:
-            title_scene = SCENES.get("title", {})
-            title_art = title_scene.get("art", [])
-            title_color = COLOR_BY_NAME.get(title_scene.get("color", "cyan").lower(), ANSI.FG_WHITE)
-            if title_confirm:
-                title_body = [
-                    "World Builder",
-                    "",
-                    "Overwrite existing save?",
-                    "",
-                    "[Y] Yes, start new",
-                    "[N] No, go back",
-                ]
-            elif SAVE_DATA.exists():
-                title_body = [
-                    "World Builder",
-                    "",
-                    "A modular engine for world creation",
-                ]
-            else:
-                title_body = [
-                    "World Builder",
-                    "",
-                    "A modular engine for world creation",
-                ]
-            if title_confirm:
-                actions = [
-                    "  [Y] Yes, start new",
-                    "  [N] No, go back",
-                    "  [Q] Quit",
-                ]
-            elif SAVE_DATA.exists():
-                actions = [
-                    "  [C] Continue",
-                    "  [N] New Game",
-                    "  [Q] Quit",
-                ]
-            else:
-                actions = [
-                    "  [N] New Game",
-                    "  [Q] Quit",
-                ]
-
-            if SAVE_DATA.exists():
-                saved_player = SAVE_DATA.load_player()
-                if saved_player:
-                    hp_text = color(
-                        f"HP: {saved_player.hp} / {saved_player.max_hp}",
-                        ANSI.FG_GREEN
-                    )
-                    mp_text = color(
-                        f"MP: {saved_player.mp} / {saved_player.max_mp}",
-                        ANSI.FG_MAGENTA
-                    )
-                    atk_text = color(f"ATK: {saved_player.atk}", ANSI.DIM)
-                    def_text = color(f"DEF: {saved_player.defense}", ANSI.DIM)
-                    stats = [
-                        f"{hp_text}  {mp_text}  {atk_text}  {def_text}",
-                        (
-                            f"Level: {saved_player.level}  XP: {saved_player.xp}  "
-                            f"GP: {saved_player.gold}"
-                        ),
-                    ]
-                else:
-                    stats = ["", ""]
-            else:
-                stats = ["", ""]
-
-            frame = Frame(
-                title="World Builder — PROTOTYPE",
-                body_lines=title_body,
-                action_lines=format_action_lines(actions),
-                stat_lines=stats,
-                footer_hint="",
-                location="World Builder",
-                art_lines=title_art,
-                art_color=title_color,
-                status_lines=[],
-            )
-        else:
-            if inventory_mode:
-                inventory_items = player.list_inventory_items(ITEMS)
-            frame = generate_frame(
-                SCREEN_CTX,
-                player,
-                opponents,
-                last_message,
-                leveling_mode,
-                shop_mode,
-                inventory_mode,
-                inventory_items,
-                hall_mode,
-                hall_view,
-                spell_mode
-            )
+            player.has_save = SAVE_DATA.exists()
+        if inventory_mode:
+            inventory_items = player.list_inventory_items(ITEMS)
+        frame = generate_frame(
+            SCREEN_CTX,
+            player,
+            opponents,
+            last_message,
+            leveling_mode,
+            shop_mode,
+            inventory_mode,
+            inventory_items,
+            hall_mode,
+            hall_view,
+            spell_mode
+        )
         render_frame(frame)
 
         if boost_prompt:
@@ -250,54 +176,6 @@ def main():
                 continue
             last_message = "Quit? (Y/N)"
             continue
-        if title_mode:
-            if title_confirm:
-                if ch.lower() == "y":
-                    SAVE_DATA.delete()
-                    player = Player.from_dict({})
-                    opponents = []
-                    loot_bank = {"xp": 0, "gold": 0}
-                    title_mode = False
-                    title_confirm = False
-                    last_message = "You arrive in town."
-                    continue
-                if ch.lower() == "n":
-                    title_confirm = False
-                    continue
-                if ch.lower() == "q":
-                    clear_screen()
-                    print("Goodbye.")
-                    return
-                last_message = "Choose Y to confirm or N to cancel."
-                continue
-            if ch.lower() == "c" and SAVE_DATA.exists():
-                loaded = SAVE_DATA.load_player()
-                if loaded:
-                    player = loaded
-                else:
-                    player = Player.from_dict({})
-            elif ch.lower() == "n":
-                if SAVE_DATA.exists():
-                    title_confirm = True
-                    continue
-                player = Player.from_dict({})
-            elif ch.lower() == "q":
-                clear_screen()
-                print("Goodbye.")
-                return
-            else:
-                last_message = "Choose C to continue, N for a new game, or Q to quit."
-                continue
-            opponents = []
-            loot_bank = {"xp": 0, "gold": 0}
-            player.location = "Town"
-            title_mode = False
-            shop_mode = False
-            inventory_mode = False
-            hall_mode = False
-            spell_mode = False
-            last_message = "You arrive in town."
-            continue
         action_cmd = None
         handled_boost = False
         handled_by_router = False
@@ -328,9 +206,20 @@ def main():
 
         if not handled_boost:
             available_commands = None
-            if not any(
+            if title_mode:
+                title_scene = SCENES.get("title", {})
+                if getattr(player, "title_confirm", False):
+                    available_commands = title_scene.get("confirm_commands", [])
+                else:
+                    available_commands = scene_commands(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "title",
+                        player,
+                        opponents
+                    )
+            elif not any(
                 [
-                    title_mode,
                     leveling_mode,
                     shop_mode,
                     inventory_mode,
@@ -411,6 +300,9 @@ def main():
             hall_view = state.hall_view
             spell_mode = state.spell_mode
             action_cmd = state.action_cmd
+            if player.location == "Title" and state.player.location != "Title":
+                title_mode = False
+            player = state.player
             handled_by_router = True
             if action_cmd not in ("ATTACK", "SPARK", "HEAL"):
                 continue
@@ -522,21 +414,24 @@ def main():
             for idx, (opp_index, m) in enumerate(acting):
                 if m.stunned_turns > 0:
                     m.stunned_turns -= 1
-                    last_message += f" The {m.name} is stunned."
+                    template = TEXTS.get("battle", "opponent_stunned", "The {name} is stunned.")
+                    last_message += " " + format_text(template, name=m.name)
                 elif random.random() > m.action_chance:
-                    last_message += f" The {m.name} hesitates."
+                    template = TEXTS.get("battle", "opponent_hesitates", "The {name} hesitates.")
+                    last_message += " " + format_text(template, name=m.name)
                 else:
                     damage, crit, miss = roll_damage(m.atk, player.defense)
                     if miss:
-                        last_message += f" The {m.name} misses you."
+                        template = TEXTS.get("battle", "opponent_miss", "The {name} misses you.")
+                        last_message += " " + format_text(template, name=m.name)
                     else:
                         player.hp = max(0, player.hp - damage)
                         if crit:
-                            last_message += (
-                                f" Critical hit! The {m.name} hits you for {damage}."
-                            )
+                            template = TEXTS.get("battle", "opponent_crit", "Critical hit! The {name} hits you for {damage}.")
+                            last_message += " " + format_text(template, name=m.name, damage=damage)
                         else:
-                            last_message += f" The {m.name} hits you for {damage}."
+                            template = TEXTS.get("battle", "opponent_hit", "The {name} hits you for {damage}.")
+                            last_message += " " + format_text(template, name=m.name, damage=damage)
                     flash_opponent(
                         SCENES,
                         COMMANDS_DATA,

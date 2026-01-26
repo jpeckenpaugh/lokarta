@@ -42,7 +42,8 @@
       {
         "key": "I",
         "label": "Inn (Rest, 10 GP)",
-        "command": "REST",
+        "command": "USE_SERVICE",
+        "target": "town_inn",
         "when": "needs_rest"
       }
     ]
@@ -100,6 +101,54 @@
       "          /     /  /\\ /\\  \\     \\      ",
       "         /_____/__/  V  \\__\\_____\\     ",
       "             |      ____      |        "
+    ],
+    "narrative": [
+      "World Builder",
+      "",
+      "A modular engine for world creation"
+    ],
+    "commands": [
+      {
+        "key": "C",
+        "label": "Continue",
+        "command": "TITLE_CONTINUE",
+        "when": "has_save"
+      },
+      {
+        "key": "N",
+        "label": "New Game",
+        "command": "TITLE_NEW"
+      },
+      {
+        "key": "Q",
+        "label": "Quit",
+        "command": "QUIT"
+      }
+    ],
+    "confirm_narrative": [
+      "World Builder",
+      "",
+      "Overwrite existing save?",
+      "",
+      "[Y] Yes, start new",
+      "[N] No, go back"
+    ],
+    "confirm_commands": [
+      {
+        "key": "Y",
+        "label": "Yes, start new",
+        "command": "TITLE_CONFIRM_YES"
+      },
+      {
+        "key": "N",
+        "label": "No, go back",
+        "command": "TITLE_CONFIRM_NO"
+      },
+      {
+        "key": "Q",
+        "label": "Quit",
+        "command": "QUIT"
+      }
     ]
   }
 }

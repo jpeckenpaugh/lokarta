@@ -119,5 +119,17 @@
       "      |  |  {GAP}  |  |      ",
       "      |__|  {GAP}  |__|      "
     ]
+  },
+  "town_inn": {
+    "name": "Town Inn",
+    "scene_id": "inn",
+    "service": {
+      "type": "rest",
+      "cost": 10,
+      "heal_full": true,
+      "message": "You rest at the inn and feel fully restored.",
+      "insufficient_message": "Not enough GP to rest at the inn.",
+      "location_message": "The inn is only in town."
+    }
   }
 }

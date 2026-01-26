@@ -9,6 +9,7 @@ from models import Player, Opponent
 
 def filter_commands(commands: List[dict], player: Player, opponents: List[Opponent]) -> List[dict]:
     has_opponents = any(opponent.hp > 0 for opponent in opponents)
+    has_save = bool(getattr(player, "has_save", False))
     filtered = []
     for command in commands:
         when = command.get("when")
@@ -19,6 +20,8 @@ def filter_commands(commands: List[dict], player: Player, opponents: List[Oppone
         if when == "needs_rest":
             if not (player.hp < player.max_hp or player.mp < player.max_mp):
                 continue
+        if when == "has_save" and not has_save:
+            continue
         filtered.append(command)
     return filtered
 

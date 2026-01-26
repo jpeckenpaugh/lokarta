@@ -51,6 +51,9 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
     if command_id is None:
         return False
 
+    if state.player.location == "Title":
+        return _handle_title(command_id, state, ctx, key)
+
     if command_id == "ENTER_VENUE":
         venue_id = _command_target(ctx.scenes, ctx.commands, state, command_id, key)
         if not venue_id:
@@ -149,7 +152,7 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         menu = ctx.menus.get("inventory", {})
         state.inventory_items = state.player.list_inventory_items(ctx.items)
         if not state.inventory_items:
-            state.last_message = "Inventory is empty."
+            state.last_message = menu.get("empty", "Inventory is empty.")
             return True
         state.inventory_mode = True
         state.shop_mode = False
@@ -158,17 +161,27 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         state.last_message = menu.get("open_message", "Choose an item to use.")
         return True
 
-    if command_id == "REST":
+    if command_id == "USE_SERVICE":
+        service_id = _command_target(ctx.scenes, ctx.commands, state, command_id)
+        if not service_id:
+            return False
+        venue = ctx.venues.get(service_id, {})
+        service = venue.get("service", {})
+        service_type = service.get("type")
+        if service_type != "rest":
+            return False
         if state.player.location != "Town":
-            state.last_message = "The inn is only in town."
+            state.last_message = service.get("location_message", "The inn is only in town.")
             return True
-        if state.player.gold < 10:
-            state.last_message = "Not enough GP to rest at the inn."
+        cost = int(service.get("cost", 0))
+        if state.player.gold < cost:
+            state.last_message = service.get("insufficient_message", "Not enough GP to rest at the inn.")
             return True
-        state.player.gold -= 10
-        state.player.hp = state.player.max_hp
-        state.player.mp = state.player.max_mp
-        state.last_message = "You rest at the inn and feel fully restored."
+        state.player.gold -= cost
+        if service.get("heal_full", True):
+            state.player.hp = state.player.max_hp
+            state.player.mp = state.player.max_mp
+        state.last_message = service.get("message", "You rest at the inn and feel fully restored.")
         ctx.save_data.save_player(state.player)
         return True
 
@@ -186,6 +199,62 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
             state.action_cmd = command_id
         return True
 
+    return False
+
+
+def _handle_title(command_id: str, state: CommandState, ctx: RouterContext, key: Optional[str]) -> bool:
+    if command_id == "QUIT":
+        state.action_cmd = "QUIT"
+        return True
+    if command_id == "TITLE_CONFIRM_YES":
+        ctx.save_data.delete()
+        state.player = Player.from_dict({})
+        state.player.location = "Town"
+        state.player.title_confirm = False
+        state.player.has_save = False
+        state.opponents = []
+        state.loot_bank = {"xp": 0, "gold": 0}
+        state.shop_mode = False
+        state.inventory_mode = False
+        state.hall_mode = False
+        state.spell_mode = False
+        state.last_message = "You arrive in town."
+        return True
+    if command_id == "TITLE_CONFIRM_NO":
+        state.player.title_confirm = False
+        return True
+    if command_id == "TITLE_NEW":
+        if ctx.save_data.exists():
+            state.player.title_confirm = True
+            return True
+        state.player = Player.from_dict({})
+        state.player.location = "Town"
+        state.player.title_confirm = False
+        state.player.has_save = False
+        state.opponents = []
+        state.loot_bank = {"xp": 0, "gold": 0}
+        state.shop_mode = False
+        state.inventory_mode = False
+        state.hall_mode = False
+        state.spell_mode = False
+        state.last_message = "You arrive in town."
+        return True
+    if command_id == "TITLE_CONTINUE":
+        if not ctx.save_data.exists():
+            return True
+        loaded = ctx.save_data.load_player()
+        state.player = loaded if loaded else Player.from_dict({})
+        state.player.location = "Town"
+        state.player.title_confirm = False
+        state.player.has_save = ctx.save_data.exists()
+        state.opponents = []
+        state.loot_bank = {"xp": 0, "gold": 0}
+        state.shop_mode = False
+        state.inventory_mode = False
+        state.hall_mode = False
+        state.spell_mode = False
+        state.last_message = "You arrive in town."
+        return True
     return False
 
 

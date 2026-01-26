@@ -13,6 +13,7 @@ from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
 from data_access.spells_data import SpellsData
 from data_access.venues_data import VenuesData
+from data_access.text_data import TextData
 from models import Frame, Player, Opponent
 from ui.ansi import ANSI
 from ui.layout import format_action_lines, format_command_lines, format_menu_actions
@@ -23,6 +24,7 @@ from ui.rendering import (
     render_scene_art,
     render_venue_art,
 )
+from ui.text import format_text
 
 
 @dataclass
@@ -35,6 +37,7 @@ class ScreenContext:
     menus: MenusData
     commands: CommandsData
     spells: SpellsData
+    text: TextData
 
 
 def generate_frame(
@@ -163,6 +166,18 @@ def generate_frame(
         actions = format_command_lines(
             scene_commands(ctx.scenes, ctx.commands, "town", player, opponents)
         )
+    elif player.location == "Title":
+        scene_data = ctx.scenes.get("title", {})
+        art_lines = scene_data.get("art", [])
+        art_color = COLOR_BY_NAME.get(scene_data.get("color", "cyan").lower(), ANSI.FG_WHITE)
+        if getattr(player, "title_confirm", False):
+            body = scene_data.get("confirm_narrative", [])
+            actions = format_command_lines(scene_data.get("confirm_commands", []))
+        else:
+            body = scene_data.get("narrative", [])
+            actions = format_command_lines(
+                scene_commands(ctx.scenes, ctx.commands, "title", player, opponents)
+            )
     else:
         scene_data = ctx.scenes.get("forest", {})
         forest_art, art_color = render_scene_art(scene_data, opponents)
@@ -173,9 +188,11 @@ def generate_frame(
                 line += f" (Stun {m.stunned_turns})"
             opponent_lines.append(line)
         primary = next((o for o in opponents if o.hp > 0), None)
-        default_narrative = scene_data.get("narrative", ["All is quiet. No enemies in sight."])
+        default_text = ctx.text.get("battle", "quiet", "All is quiet. No enemies in sight.")
+        default_narrative = scene_data.get("narrative", [default_text])
         if primary:
-            body = [f"A {primary.name} {primary.arrival}.", "", *opponent_lines]
+            arrival = ctx.text.get("battle", "opponent_arrival", "A {name} {arrival}.")
+            body = [format_text(arrival, name=primary.name, arrival=primary.arrival), "", *opponent_lines]
         else:
             body = [*default_narrative, "", *opponent_lines]
         actions = format_command_lines(

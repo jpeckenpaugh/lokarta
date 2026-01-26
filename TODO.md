@@ -24,19 +24,19 @@
 - [x] Add boost prompt metadata to `data/spells.json` (timeout, default, prompt text).
 - [x] Route boost confirmation through the command router.
 
-[ ] Phase 7: Battle Text + Events
-- [ ] Move battle message templates into a `data/text.json`.
-- [ ] Add a small formatter to render messages from templates.
+[x] Phase 7: Battle Text + Events
+- [x] Move battle message templates into a `data/text.json`.
+- [x] Add a small formatter to render messages from templates.
 
-[ ] Phase 8: Title Screen as Data
-- [ ] Move title screen copy and actions into `data/scenes.json` or `data/menus.json`.
-- [ ] Handle overwrite confirmation as a data-driven subview.
+[x] Phase 8: Title Screen as Data
+- [x] Move title screen copy and actions into `data/scenes.json` or `data/menus.json`.
+- [x] Handle overwrite confirmation as a data-driven subview.
 
-[ ] Phase 9: Inn/Rest Service
-- [ ] Add a service definition (cost, effects, text) in JSON.
-- [ ] Replace hard-coded rest logic with service actions.
+[x] Phase 9: Inn/Rest Service
+- [x] Add a service definition (cost, effects, text) in JSON.
+- [x] Replace hard-coded rest logic with service actions.
 
-[ ] Phase 10: Cleanup + Tests
+[x] Phase 10: Cleanup + Tests
 - [ ] Remove unused branches in `main()` after router is complete.
 - [ ] Add unit tests for the command router and schema validation.
 
@@ -52,3 +52,7 @@ Notes:
 - Hall info panels now use `info_sections` in `venues.json`.
 - Phase 5 menu open/close messages now loaded from `menus.json`.
 - Phase 6 boost prompt settings and confirmation now routed via `commands/router.py`.
+- Phase 7 battle templates added in `data/text.json` with formatter in `ui/text.py`.
+- Phase 8 title narrative/actions moved into `scenes.json` and routed via `commands/router.py`.
+- Phase 9 inn service now defined in `venues.json` and routed via `USE_SERVICE`.
+- Phase 10 added initial test coverage for router and text formatting.
