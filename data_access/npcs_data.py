@@ -22,3 +22,15 @@ class NpcsData:
         if default is None:
             default = {}
         return self._npcs.get(key, default)
+
+    def format_greeting(self, npc_id: str) -> list[str]:
+        npc = self.get(npc_id, {})
+        name = npc.get("name", "")
+        role = npc.get("role", "")
+        greeting = npc.get("greeting", "")
+        if greeting:
+            speaker = name or role
+            if speaker:
+                return [f"{speaker}: {greeting}"]
+            return [greeting]
+        return []

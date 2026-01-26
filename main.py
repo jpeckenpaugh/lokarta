@@ -5,7 +5,7 @@ import random
 import time
 import json
 import textwrap
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import List, Optional
 
 from data_access.items_data import ItemsData
@@ -14,6 +14,7 @@ from data_access.scenes_data import ScenesData
 from data_access.npcs_data import NpcsData
 from data_access.venues_data import VenuesData
 from data_access.save_data import SaveData
+from models import Frame, Player, Opponent
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
@@ -48,61 +49,6 @@ def color(text: str, *codes: str) -> str:
     return "".join(codes) + text + ANSI.RESET
 
 
-# -----------------------------
-# Frame model (engine output)
-# -----------------------------
-
-@dataclass
-class Frame:
-    title: str
-    body_lines: List[str]
-    action_lines: List[str]
-    stat_lines: List[str]
-    footer_hint: str  # shows available keys
-    location: str
-    art_lines: List[str]
-    art_color: str
-    status_lines: List[str]
-
-
-# -----------------------------
-# Engine (pure)
-# -----------------------------
-
-@dataclass
-class Player:
-    name: str
-    level: int
-    xp: int
-    stat_points: int
-    gold: int
-    battle_speed: str
-    hp: int
-    max_hp: int
-    mp: int
-    max_mp: int
-    atk: int
-    defense: int
-    location: str
-    inventory: dict
-
-
-@dataclass
-class Opponent:
-    name: str
-    level: int
-    hp: int
-    max_hp: int
-    atk: int
-    defense: int
-    stunned_turns: int
-    action_chance: float
-    melted: bool
-    art_lines: List[str]
-    art_color: str
-    arrival: str
-
-
 def create_opponent(data: dict) -> Opponent:
     name = data.get("name", "Slime")
     level = int(data.get("level", 1))
@@ -129,27 +75,7 @@ def create_opponent(data: dict) -> Opponent:
 
 
 def spawn_opponents(player_level: int) -> List[Opponent]:
-    opponents = load_opponent_data()
-    if not opponents:
-        return []
-    candidates = list(opponents.values())
-    total_level = 0
-    spawned = []
-    attempts = 0
-    while len(spawned) < 3 and attempts < 10:
-        attempts += 1
-        remaining = max(1, player_level - total_level)
-        choices = [m for m in candidates if int(m.get("level", 1)) <= remaining]
-        if not choices:
-            break
-        data = random.choice(choices)
-        spawned.append(create_opponent(data))
-        total_level += int(data.get("level", 1))
-        if total_level >= player_level:
-            break
-    if not spawned:
-        spawned.append(create_opponent(candidates[0]))
-    return spawned
+    return OPPONENTS.spawn(player_level, create_opponent)
 
 
 def load_opponent_data() -> dict:
@@ -188,16 +114,7 @@ def load_venue_data() -> dict:
 
 
 def format_npc_greeting(npc_id: str) -> List[str]:
-    npc = load_npc_data().get(npc_id, {})
-    name = npc.get("name", "")
-    role = npc.get("role", "")
-    greeting = npc.get("greeting", "")
-    if greeting:
-        speaker = name or role
-        if speaker:
-            return [f"{speaker}: {greeting}"]
-        return [greeting]
-    return []
+    return NPCS.format_greeting(npc_id)
 
 
 def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:

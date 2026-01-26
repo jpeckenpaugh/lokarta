@@ -1,4 +1,5 @@
 import json
+import random
 from typing import Dict, List, Optional
 
 
@@ -30,3 +31,32 @@ class OpponentsData:
             desc = data.get("desc", "")
             lines.append(f"{name}: {desc}")
         return lines
+
+    def spawn(
+        self,
+        player_level: int,
+        create_opponent
+    ) -> List:
+        if not self._opponents:
+            return []
+        candidates = list(self._opponents.values())
+        total_level = 0
+        spawned = []
+        attempts = 0
+        while len(spawned) < 3 and attempts < 10:
+            attempts += 1
+            remaining = max(1, player_level - total_level)
+            choices = [
+                m for m in candidates
+                if int(m.get("level", 1)) <= remaining
+            ]
+            if not choices:
+                break
+            data = random.choice(choices)
+            spawned.append(create_opponent(data))
+            total_level += int(data.get("level", 1))
+            if total_level >= player_level:
+                break
+        if not spawned:
+            spawned.append(create_opponent(candidates[0]))
+        return spawned
