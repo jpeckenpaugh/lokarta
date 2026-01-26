@@ -94,7 +94,7 @@ def render_scene_art(
         if manual_lines_indices and i in manual_lines_indices:
             art_lines = opponent.art_lines
         elif opponent.hp > 0 and is_visible:
-            art_lines = [line[:OPPONENT_ART_WIDTH].center(OPPONENT_ART_WIDTH) for line in opponent.art_lines]
+            art_lines = [line[:OPPONENT_ART_WIDTH].ljust(OPPONENT_ART_WIDTH) for line in opponent.art_lines]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
                 art_lines.append(format_opponent_bar(opponent))
@@ -159,8 +159,8 @@ def render_scene_art(
                 gap_pad = 2
                 content = (" " * inter_pad).join(segments)
                 content_width = (gap_pad * 2) + len(content)
-                pad_left = max(0, (gap_width - content_width) // 2)
-                pad_right = max(0, gap_width - content_width - pad_left)
+                pad_left = 0
+                pad_right = max(0, gap_width - content_width)
                 gap_fill = (
                     (" " * pad_left)
                     + (" " * gap_pad)
@@ -193,8 +193,8 @@ def render_scene_art(
                 content = (" " * inter_pad).join(segments)
                 content_width = (gap_pad * 2) + len(content)
                 gap_width = max(gap_width, content_width)
-                pad_left = max(0, (gap_width - content_width) // 2)
-                pad_right = max(0, gap_width - content_width - pad_left)
+                pad_left = 0
+                pad_right = max(0, gap_width - content_width)
                 gap_fill = (
                     (" " * pad_left)
                     + (" " * gap_pad)

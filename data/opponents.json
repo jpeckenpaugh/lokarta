@@ -9,12 +9,12 @@
     "arrival": "oozes into view",
     "desc": "A wobbling blob that absorbs weak blows.",
     "art": [
-      "  ____  ",
-      " / oo \\ ",
+      " o____o",
+      " / oo \\",
       "|  ..  |",
       "|      |",
-      " \\____/ ",
-      "  /\\_/\\ "
+      " \\____/",
+      " ()  ()"
     ]
   },
   "rat": {
