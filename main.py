@@ -881,17 +881,28 @@ def read_keypress() -> str:
     Read a single keypress without requiring Enter (POSIX terminals).
     Returns a single-character string.
     """
-    import termios
-    import tty
+    if os.name == "nt":
+        import msvcrt
+        ch = msvcrt.getch()
+        if ch in (b"\x00", b"\xe0"):
+            msvcrt.getch()
+            return ""
+        try:
+            return ch.decode("utf-8", errors="ignore")
+        except Exception:
+            return ""
+    else:
+        import termios
+        import tty
 
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setcbreak(fd)  # cbreak: immediate input, but still handles signals
-        ch = sys.stdin.read(1)
-        return ch
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)  # cbreak: immediate input, but still handles signals
+            ch = sys.stdin.read(1)
+            return ch
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 def map_key_to_command(ch: str) -> Optional[str]:
