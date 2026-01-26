@@ -9,6 +9,11 @@ from dataclasses import dataclass, replace
 from typing import List, Optional
 
 from data_access.items_data import ItemsData
+from data_access.opponents_data import OpponentsData
+from data_access.scenes_data import ScenesData
+from data_access.npcs_data import NpcsData
+from data_access.venues_data import VenuesData
+from data_access.save_data import SaveData
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
@@ -148,32 +153,11 @@ def spawn_opponents(player_level: int) -> List[Opponent]:
 
 
 def load_opponent_data() -> dict:
-    path = os.path.join(DATA_DIR, "opponents.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return OPPONENTS.all()
 
 
 def load_scene_data() -> dict:
-    path = os.path.join(DATA_DIR, "scenes.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        forest = data.get("forest")
-        if isinstance(forest, dict):
-            left = forest.get("left")
-            right = forest.get("right")
-            if isinstance(left, list) and left:
-                max_left = max(len(line) for line in left)
-                forest["left"] = [line.ljust(max_left) for line in left]
-            if isinstance(right, list) and right:
-                max_right = max(len(line) for line in right)
-                forest["right"] = [line.ljust(max_right) for line in right]
-        return data
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return SCENES.all()
 
 
 def color_from_name(name: str) -> str:
@@ -188,24 +172,19 @@ def color_from_name(name: str) -> str:
 
 
 ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
+OPPONENTS = OpponentsData(os.path.join(DATA_DIR, "opponents.json"))
+SCENES = ScenesData(os.path.join(DATA_DIR, "scenes.json"))
+NPCS = NpcsData(os.path.join(DATA_DIR, "npcs.json"))
+VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
+SAVE_DATA = SaveData(SAVE_PATH)
 
 
 def load_npc_data() -> dict:
-    path = os.path.join(DATA_DIR, "npcs.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return NPCS.all()
 
 
 def load_venue_data() -> dict:
-    path = os.path.join(DATA_DIR, "venues.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return VENUES.all()
 
 
 def format_npc_greeting(npc_id: str) -> List[str]:
@@ -481,7 +460,6 @@ def render_forest_art(
 
 
 def save_game(player: Player):
-    path = SAVE_PATH
     data = {
         "name": player.name,
         "level": player.level,
@@ -498,44 +476,38 @@ def save_game(player: Player):
         "location": player.location,
         "inventory": player.inventory,
     }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    SAVE_DATA.save({"player": data})
 
 
 def load_game() -> Optional[Player]:
-    path = SAVE_PATH
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
+    data = SAVE_DATA.load()
+    if not data:
         return None
+    player_data = data.get("player", {})
     return Player(
-        name=data.get("name", "WARRIOR"),
-        level=int(data.get("level", 1)),
-        xp=int(data.get("xp", 0)),
-        stat_points=int(data.get("stat_points", 0)),
-        gold=int(data.get("gold", 10)),
-        battle_speed=data.get("battle_speed", "normal"),
-        hp=int(data.get("hp", 10)),
-        max_hp=int(data.get("max_hp", 10)),
-        mp=int(data.get("mp", 10)),
-        max_mp=int(data.get("max_mp", 10)),
-        atk=int(data.get("atk", 10)),
-        defense=int(data.get("defense", 10)),
+        name=player_data.get("name", "WARRIOR"),
+        level=int(player_data.get("level", 1)),
+        xp=int(player_data.get("xp", 0)),
+        stat_points=int(player_data.get("stat_points", 0)),
+        gold=int(player_data.get("gold", 10)),
+        battle_speed=player_data.get("battle_speed", "normal"),
+        hp=int(player_data.get("hp", 10)),
+        max_hp=int(player_data.get("max_hp", 10)),
+        mp=int(player_data.get("mp", 10)),
+        max_mp=int(player_data.get("max_mp", 10)),
+        atk=int(player_data.get("atk", 10)),
+        defense=int(player_data.get("defense", 10)),
         location="Town",
-        inventory=data.get("inventory", {}),
+        inventory=player_data.get("inventory", {}),
     )
 
 
 def has_save() -> bool:
-    return os.path.exists(SAVE_PATH)
+    return SAVE_DATA.exists()
 
 
 def delete_save():
-    try:
-        os.remove(SAVE_PATH)
-    except OSError:
-        pass
+    SAVE_DATA.delete()
 
 
 def new_player() -> Player:
@@ -642,13 +614,7 @@ def use_item(player: Player, key: str) -> str:
 
 
 def list_opponent_descriptions() -> List[str]:
-    opponents = load_opponent_data()
-    lines = []
-    for data in opponents.values():
-        name = data.get("name", "Unknown")
-        desc = data.get("desc", "")
-        lines.append(f"{name}: {desc}")
-    return lines
+    return OPPONENTS.list_descriptions()
 
 
 def list_item_descriptions() -> List[str]:
