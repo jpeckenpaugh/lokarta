@@ -83,19 +83,26 @@ def render_scene_art(
     gap_width = gap_override if gap_override is not None else gap_base
     opponent_blocks = []
     for i, opponent in enumerate(opponents):
-        if visible_indices is not None and i not in visible_indices:
-            continue
-        if opponent.hp <= 0:
-            continue
         if not opponent.art_lines:
             continue
+        is_visible = visible_indices is None or i in visible_indices
         if manual_lines_indices and i in manual_lines_indices:
             art_lines = opponent.art_lines
-        else:
+        elif opponent.hp > 0 and is_visible:
             art_lines = [line[:OPPONENT_ART_WIDTH].center(OPPONENT_ART_WIDTH) for line in opponent.art_lines]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
                 art_lines.append(format_opponent_bar(opponent))
+        elif is_visible:
+            art_lines = [" " * OPPONENT_ART_WIDTH for _ in opponent.art_lines]
+            if include_bars:
+                art_lines.append(" " * OPPONENT_ART_WIDTH)
+                art_lines.append(" " * OPPONENT_ART_WIDTH)
+        else:
+            art_lines = [" " * OPPONENT_ART_WIDTH for _ in opponent.art_lines]
+            if include_bars:
+                art_lines.append(" " * OPPONENT_ART_WIDTH)
+                art_lines.append(" " * OPPONENT_ART_WIDTH)
         color_to_use = opponent.art_color
         if flash_index == i and flash_color:
             color_to_use = flash_color
@@ -111,12 +118,52 @@ def render_scene_art(
         right = scene_data.get("right", [])
         if not right:
             right = [mirror_line(line) for line in left]
-        left = [line.ljust(max(len(line) for line in left)) for line in left]
-        right = [line.ljust(max(len(line) for line in right)) for line in right]
+        max_left = max((len(line) for line in left), default=0)
+        max_right = max((len(line) for line in right), default=0)
+        left = [line.ljust(max_left) for line in left]
+        right = [line.ljust(max_right) for line in right]
+        if opponent_blocks:
+            gap_pad = 2
+            inter_pad = 2
+            content_width = (
+                (gap_pad * 2)
+                + sum(block["width"] for block in opponent_blocks)
+                + (inter_pad * (len(opponent_blocks) - 1))
+            )
+            gap_width = max(gap_width, content_width)
         art_lines = []
-        for i in range(len(left)):
-            line = left[i] + (" " * gap_width) + right[i]
-            art_lines.append(line)
+        max_rows = max(len(left), len(right))
+        max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
+        start_row = (max_rows - max_opp_rows) // 2 if max_opp_rows else 0
+        for i in range(max_rows):
+            left_line = left[i] if i < len(left) else (" " * max_left)
+            right_line = right[i] if i < len(right) else (" " * max_right)
+            gap_fill = " " * gap_width
+            if opponent_blocks and start_row <= i < start_row + max_opp_rows:
+                row_index = i - start_row
+                segments = []
+                for block in opponent_blocks:
+                    art_line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
+                    width = block["width"]
+                    art_line = art_line.ljust(width)
+                    if art_line.strip():
+                        segments.append(block["color"] + art_line + art_color)
+                    else:
+                        segments.append(" " * width)
+                inter_pad = 2
+                gap_pad = 2
+                content = (" " * inter_pad).join(segments)
+                content_width = (gap_pad * 2) + len(content)
+                pad_left = max(0, (gap_width - content_width) // 2)
+                pad_right = max(0, gap_width - content_width - pad_left)
+                gap_fill = (
+                    (" " * pad_left)
+                    + (" " * gap_pad)
+                    + content
+                    + (" " * gap_pad)
+                    + (" " * pad_right)
+                )
+            art_lines.append(left_line + gap_fill + right_line)
         return art_lines, art_color
     forest_template = scene_data.get("art", [])
     forest_art = []
@@ -162,11 +209,7 @@ def compute_scene_gap_target(scene_data: dict, opponents: List[Opponent]) -> int
         if scene_data.get("left")
         else int(scene_data.get("gap_width", 20))
     )
-    opponent_blocks = [
-        m
-        for m in opponents
-        if m.hp > 0 and m.art_lines
-    ]
+    opponent_blocks = [m for m in opponents if m.art_lines]
     if not opponent_blocks:
         return gap_base
     widest_block = max(OPPONENT_ART_WIDTH, 0)

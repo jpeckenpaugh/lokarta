@@ -412,7 +412,6 @@ def melt_opponent(
             message,
             gap_target,
             art_opponents=art_overrides,
-            visible_indices={index},
             manual_lines_indices={index},
             suppress_actions=True
         )
