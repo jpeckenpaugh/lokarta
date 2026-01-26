@@ -258,6 +258,7 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         loot=state.loot_bank,
         spells_data=ctx.spells,
         items_data=ctx.items,
+        target_index=state.target_index,
     )
     message = dispatch_command(ctx.registry, command_id, ctx_data)
     if message != "Unknown action.":

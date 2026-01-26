@@ -104,6 +104,12 @@ def main():
         if cmd == "X_KEY":
             continue
 
+        if maybe_begin_target_select(APP, state, cmd):
+            confirmed = run_target_select(APP, render_frame, state, generate_frame, read_keypress_timeout)
+            if not confirmed:
+                continue
+            cmd = confirmed
+
         handled_by_router, action_cmd, cmd, should_continue = apply_router_command(
             APP,
             state,
@@ -114,12 +120,6 @@ def main():
         )
         if should_continue:
             continue
-
-        if maybe_begin_target_select(APP, state, cmd):
-            confirmed = run_target_select(APP, render_frame, state, generate_frame, read_keypress_timeout)
-            if not confirmed:
-                continue
-            cmd = confirmed
 
         action_cmd = resolve_player_action(
             APP,
