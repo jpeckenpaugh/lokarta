@@ -1,0 +1,18 @@
+{
+  "rations": {
+    "name": "Rations",
+    "type": "healing",
+    "hp": 5,
+    "mp": 5,
+    "price": 6,
+    "desc": "A small meal that restores a bit of strength."
+  },
+  "elixir": {
+    "name": "Elixir",
+    "type": "healing",
+    "hp": 20,
+    "mp": 20,
+    "price": 20,
+    "desc": "A strong tonic that revitalizes body and mind."
+  }
+}
