@@ -1,7 +1,7 @@
 """Load spell data from JSON."""
 
 import json
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 
 class SpellsData:
@@ -24,3 +24,15 @@ class SpellsData:
         if default is None:
             default = {}
         return self._spells.get(key, default)
+
+    def by_command_id(self, command_id: str) -> Optional[Tuple[str, dict]]:
+        for spell_id, spell in self._spells.items():
+            if spell.get("command_id") == command_id:
+                return spell_id, spell
+        return None
+
+    def by_menu_key(self, menu_key: str) -> Optional[Tuple[str, dict]]:
+        for spell_id, spell in self._spells.items():
+            if spell.get("menu_key") == menu_key:
+                return spell_id, spell
+        return None

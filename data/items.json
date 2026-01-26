@@ -14,5 +14,13 @@
     "mp": 20,
     "price": 20,
     "desc": "A strong tonic that revitalizes body and mind."
+  },
+  "hot_meal": {
+    "name": "Hot Meal",
+    "type": "healing",
+    "hp": 3,
+    "mp": 3,
+    "price": 3,
+    "desc": "A warm plate that restores a little strength."
   }
 }

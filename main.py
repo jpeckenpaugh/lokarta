@@ -58,6 +58,18 @@ COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 TEXTS = TextData(os.path.join(DATA_DIR, "text.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
+SPELL_COMMANDS = {
+    spell.get("command_id")
+    for spell in SPELLS.all().values()
+    if isinstance(spell, dict) and spell.get("command_id")
+}
+TARGETED_SPELL_COMMANDS = {
+    spell.get("command_id")
+    for spell in SPELLS.all().values()
+    if isinstance(spell, dict) and spell.get("command_id") and spell.get("requires_target")
+}
+COMBAT_ACTIONS = {"ATTACK"} | SPELL_COMMANDS
+OFFENSIVE_ACTIONS = {"ATTACK"} | TARGETED_SPELL_COMMANDS
 COMMANDS = build_registry()
 ROUTER_CTX = RouterContext(
     items=ITEMS,
@@ -110,6 +122,7 @@ def main():
     inventory_items: List[tuple[str, str]] = []
     hall_mode = False
     hall_view = "menu"
+    inn_mode = False
     spell_mode = False
     quit_confirm = False
     title_mode = True
@@ -130,13 +143,14 @@ def main():
             inventory_items,
             hall_mode,
             hall_view,
+            inn_mode,
             spell_mode
         )
         render_frame(frame)
 
         if boost_prompt:
             choice = None
-            spell_id = "healing" if boost_prompt == "HEAL" else "spark"
+            spell_id = boost_prompt
             spell_data = SPELLS.get(spell_id, {})
             prompt_seconds = int(spell_data.get("boost_prompt_seconds", 3))
             prompt_text = spell_data.get("boost_prompt_text", "Boost {name}? (Y/N)")
@@ -155,6 +169,7 @@ def main():
                     inventory_items,
                     hall_mode,
                     hall_view,
+                    inn_mode,
                     spell_mode
                 )
                 render_frame(frame)
@@ -194,10 +209,10 @@ def main():
                 inventory_items=inventory_items,
                 hall_mode=hall_mode,
                 hall_view=hall_view,
+                inn_mode=inn_mode,
                 spell_mode=spell_mode,
                 action_cmd=action_cmd,
             )
-            spell_id = "healing" if boost_prompt == "HEAL" else "spark"
             handle_boost_confirm(state, ROUTER_CTX, spell_id, boosted)
             last_message = state.last_message
             action_cmd = state.action_cmd
@@ -218,12 +233,16 @@ def main():
                         player,
                         opponents
                     )
+            elif inn_mode:
+                venue = VENUES.get("town_inn", {})
+                available_commands = venue.get("commands", [])
             elif not any(
                 [
                     leveling_mode,
                     shop_mode,
                     inventory_mode,
                     hall_mode,
+                    inn_mode,
                     spell_mode,
                     boost_prompt,
                 ]
@@ -271,7 +290,7 @@ def main():
                     last_message = "Invalid item selection."
             continue
 
-        if cmd == "B_KEY" and not (shop_mode or hall_mode or spell_mode):
+        if cmd == "B_KEY" and not (shop_mode or hall_mode or inn_mode or spell_mode):
             continue
         if cmd == "X_KEY":
             continue
@@ -286,6 +305,7 @@ def main():
             inventory_items=inventory_items,
             hall_mode=hall_mode,
             hall_view=hall_view,
+            inn_mode=inn_mode,
             spell_mode=spell_mode,
             action_cmd=action_cmd,
         )
@@ -298,53 +318,42 @@ def main():
             inventory_items = state.inventory_items
             hall_mode = state.hall_mode
             hall_view = state.hall_view
+            inn_mode = state.inn_mode
             spell_mode = state.spell_mode
             action_cmd = state.action_cmd
             if player.location == "Title" and state.player.location != "Title":
                 title_mode = False
             player = state.player
             handled_by_router = True
-            if action_cmd not in ("ATTACK", "SPARK", "HEAL"):
+            if action_cmd not in COMBAT_ACTIONS:
                 continue
-            if action_cmd in ("HEAL", "SPARK"):
+            if action_cmd in SPELL_COMMANDS:
                 cmd = action_cmd
                 handled_by_router = False
 
         if not handled_boost and not handled_by_router:
-            if cmd == "HEAL":
-                if player.hp == player.max_hp:
-                    last_message = "Your HP is already full."
-                    continue
-                healing = SPELLS.get("healing", {})
-                heal_cost = int(healing.get("mp_cost", 2))
-                boosted_heal_cost = int(healing.get("boosted_mp_cost", 4))
-                if player.mp < heal_cost:
-                    last_message = f"Not enough MP to cast {healing.get('name', 'Healing')}."
-                    continue
-                if player.mp >= boosted_heal_cost:
-                    boost_prompt = "HEAL"
-                    prompt = healing.get("boost_prompt_text", "Boost {name}? (Y/N)")
-                    last_message = prompt.replace("{name}", healing.get("name", "Healing"))
-                    continue
-                last_message = cast_spell(player, opponents, "healing", boosted=False, loot=loot_bank, spells_data=SPELLS)
-                action_cmd = "HEAL"
-            elif cmd == "SPARK":
-                if not any(opponent.hp > 0 for opponent in opponents):
+            spell_entry = SPELLS.by_command_id(cmd)
+            if spell_entry:
+                spell_id, spell = spell_entry
+                name = spell.get("name", spell_id.title())
+                if spell.get("requires_target") and not any(opponent.hp > 0 for opponent in opponents):
                     last_message = "There is nothing to target."
                     continue
-                spark = SPELLS.get("spark", {})
-                spark_cost = int(spark.get("mp_cost", 2))
-                boosted_spark_cost = int(spark.get("boosted_mp_cost", 4))
-                if player.mp < spark_cost:
-                    last_message = f"Not enough MP to cast {spark.get('name', 'Spark')}."
+                if spell_id == "healing" and player.hp == player.max_hp:
+                    last_message = "Your HP is already full."
                     continue
-                if player.mp >= boosted_spark_cost:
-                    boost_prompt = "SPARK"
-                    prompt = spark.get("boost_prompt_text", "Boost {name}? (Y/N)")
-                    last_message = prompt.replace("{name}", spark.get("name", "Spark"))
+                mp_cost = int(spell.get("mp_cost", 2))
+                boosted_mp_cost = int(spell.get("boosted_mp_cost", mp_cost))
+                if player.mp < mp_cost:
+                    last_message = f"Not enough MP to cast {name}."
                     continue
-                last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank, spells_data=SPELLS)
-                action_cmd = "SPARK"
+                if player.mp >= boosted_mp_cost:
+                    boost_prompt = spell_id
+                    prompt = spell.get("boost_prompt_text", "Boost {name}? (Y/N)")
+                    last_message = prompt.replace("{name}", name)
+                    continue
+                last_message = cast_spell(player, opponents, spell_id, boosted=False, loot=loot_bank, spells_data=SPELLS)
+                action_cmd = cmd
             else:
                 last_message = dispatch_command(
                     COMMANDS,
@@ -363,7 +372,7 @@ def main():
         if player.needs_level_up() and not any(opponent.hp > 0 for opponent in opponents):
             leveling_mode = True
 
-        if action_cmd in ("ATTACK", "SPARK"):
+        if action_cmd in OFFENSIVE_ACTIONS:
             target_index = primary_opponent_index(opponents)
             flash_opponent(
                 SCENES,
@@ -392,7 +401,7 @@ def main():
                 opponents[index].melted = True
 
         player_defeated = False
-        if action_cmd in ("ATTACK", "SPARK", "HEAL") and any(opponent.hp > 0 for opponent in opponents):
+        if action_cmd in COMBAT_ACTIONS and any(opponent.hp > 0 for opponent in opponents):
             if player.location == "Forest":
                 frame = generate_frame(
                     SCREEN_CTX,
@@ -405,6 +414,7 @@ def main():
                     inventory_items,
                     hall_mode,
                     hall_view,
+                    inn_mode,
                     spell_mode,
                     suppress_actions=True
                 )
@@ -468,6 +478,7 @@ def main():
                         inventory_items,
                         hall_mode,
                         hall_view,
+                        inn_mode,
                         spell_mode,
                         suppress_actions=True
                     )
@@ -478,7 +489,7 @@ def main():
             SAVE_DATA.save_player(player)
             continue
 
-        if action_cmd in ("ATTACK", "SPARK"):
+        if action_cmd in OFFENSIVE_ACTIONS:
             if not any(opponent.hp > 0 for opponent in opponents):
                 animate_battle_end(
                     SCENES,
@@ -502,7 +513,7 @@ def main():
                     last_message = ""
                 loot_bank = {"xp": 0, "gold": 0}
 
-        if action_cmd in ("ATTACK", "SPARK", "HEAL"):
+        if action_cmd in COMBAT_ACTIONS:
             SAVE_DATA.save_player(player)
 
 

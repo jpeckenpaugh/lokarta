@@ -30,6 +30,7 @@ class CommandState:
     inventory_items: List[tuple[str, str]]
     hall_mode: bool
     hall_view: str
+    inn_mode: bool
     spell_mode: bool
     action_cmd: Optional[str]
 
@@ -62,12 +63,20 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         if venue_id == "town_shop":
             state.shop_mode = True
             state.hall_mode = False
+            state.inn_mode = False
             state.inventory_mode = False
             state.spell_mode = False
         elif venue_id == "town_hall":
             state.hall_mode = True
             state.hall_view = "menu"
             state.shop_mode = False
+            state.inn_mode = False
+            state.inventory_mode = False
+            state.spell_mode = False
+        elif venue_id == "town_inn":
+            state.inn_mode = True
+            state.shop_mode = False
+            state.hall_mode = False
             state.inventory_mode = False
             state.spell_mode = False
         else:
@@ -98,15 +107,17 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
+        state.inn_mode = False
         state.last_message = menu.get("open_message", "Open spellbook.")
         return True
 
-    if state.spell_mode and command_id in ("NUM1", "NUM2"):
+    if state.spell_mode and command_id.startswith("NUM"):
+        spell_entry = ctx.spells.by_menu_key(command_id)
+        if not spell_entry:
+            return False
+        _, spell = spell_entry
         state.spell_mode = False
-        if command_id == "NUM1":
-            state.action_cmd = "HEAL"
-        else:
-            state.action_cmd = "SPARK"
+        state.action_cmd = spell.get("command_id")
         return True
 
     if command_id in ("NUM1", "NUM2") and state.hall_mode:
@@ -126,6 +137,12 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         venue = ctx.venues.get("town_hall", {})
         state.hall_mode = False
         state.last_message = venue.get("leave_message", "You leave the hall.")
+        return True
+
+    if command_id == "B_KEY" and state.inn_mode:
+        venue = ctx.venues.get("town_inn", {})
+        state.inn_mode = False
+        state.last_message = venue.get("leave_message", "You leave the inn.")
         return True
 
     if command_id == "B_KEY" and state.shop_mode:
@@ -162,14 +179,35 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         return True
 
     if command_id == "USE_SERVICE":
-        service_id = _command_target(ctx.scenes, ctx.commands, state, command_id)
-        if not service_id:
+        service_key = "rest"
+        venue_id = None
+        if state.inn_mode:
+            venue = ctx.venues.get("town_inn", {})
+            for entry in venue.get("commands", []):
+                if entry.get("command") != command_id:
+                    continue
+                cmd_key = str(entry.get("key", "")).lower()
+                if key and cmd_key and cmd_key != key.lower():
+                    continue
+                venue_id = entry.get("target", "town_inn")
+                service_key = entry.get("service_id", service_key)
+                break
+        if not venue_id:
+            venue_id = _command_target(ctx.scenes, ctx.commands, state, command_id, key)
+        if not venue_id:
             return False
-        venue = ctx.venues.get(service_id, {})
-        service = venue.get("service", {})
+        venue = ctx.venues.get(venue_id, {})
+        services = venue.get("services")
+        if isinstance(services, dict):
+            service = services.get(service_key, {})
+        else:
+            service = venue.get("service", {})
         service_type = service.get("type")
-        if service_type != "rest":
+        if service_type not in ("rest", "meal"):
             return False
+        if not (state.player.hp < state.player.max_hp or state.player.mp < state.player.max_mp):
+            state.last_message = service.get("full_message", "You're already fully rested.")
+            return True
         if state.player.location != "Town":
             state.last_message = service.get("location_message", "The inn is only in town.")
             return True
@@ -178,10 +216,19 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
             state.last_message = service.get("insufficient_message", "Not enough GP to rest at the inn.")
             return True
         state.player.gold -= cost
-        if service.get("heal_full", True):
-            state.player.hp = state.player.max_hp
-            state.player.mp = state.player.max_mp
-        state.last_message = service.get("message", "You rest at the inn and feel fully restored.")
+        if service_type == "meal":
+            item_id = service.get("item_id")
+            item = ctx.items.get(item_id, {}) if item_id else {}
+            hp_gain = int(item.get("hp", service.get("hp", 0)))
+            mp_gain = int(item.get("mp", service.get("mp", 0)))
+            state.player.hp = min(state.player.max_hp, state.player.hp + hp_gain)
+            state.player.mp = min(state.player.max_mp, state.player.mp + mp_gain)
+            state.last_message = service.get("message", "You enjoy a hot meal.")
+        else:
+            if service.get("heal_full", True):
+                state.player.hp = state.player.max_hp
+                state.player.mp = state.player.max_mp
+            state.last_message = service.get("message", "You rest at the inn and feel fully restored.")
         ctx.save_data.save_player(state.player)
         return True
 
@@ -217,6 +264,7 @@ def _handle_title(command_id: str, state: CommandState, ctx: RouterContext, key:
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
+        state.inn_mode = False
         state.spell_mode = False
         state.last_message = "You arrive in town."
         return True
@@ -236,6 +284,7 @@ def _handle_title(command_id: str, state: CommandState, ctx: RouterContext, key:
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
+        state.inn_mode = False
         state.spell_mode = False
         state.last_message = "You arrive in town."
         return True
@@ -252,6 +301,7 @@ def _handle_title(command_id: str, state: CommandState, ctx: RouterContext, key:
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
+        state.inn_mode = False
         state.spell_mode = False
         state.last_message = "You arrive in town."
         return True
@@ -272,7 +322,8 @@ def handle_boost_confirm(
         state.loot_bank,
         ctx.spells,
     )
-    state.action_cmd = "HEAL" if spell_id == "healing" else "SPARK"
+    spell = ctx.spells.get(spell_id, {})
+    state.action_cmd = spell.get("command_id")
 
 
 def _command_target(
@@ -313,6 +364,7 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
+        state.inn_mode = False
         state.spell_mode = False
         state.last_message = "You return to town."
         ctx.save_data.save_player(state.player)
@@ -330,6 +382,7 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
             state.shop_mode = False
             state.inventory_mode = False
             state.hall_mode = False
+            state.inn_mode = False
             state.spell_mode = False
             ctx.save_data.save_player(state.player)
             return True

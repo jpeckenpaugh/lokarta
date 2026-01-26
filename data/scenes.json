@@ -39,13 +39,12 @@
         "command": "ENTER_VENUE",
         "target": "town_hall"
       },
-      {
-        "key": "I",
-        "label": "Inn (Rest, 10 GP)",
-        "command": "USE_SERVICE",
-        "target": "town_inn",
-        "when": "needs_rest"
-      }
+    {
+      "key": "I",
+      "label": "Inn",
+      "command": "ENTER_VENUE",
+      "target": "town_inn"
+    }
     ]
   },
   "forest": {

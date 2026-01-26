@@ -51,6 +51,7 @@ def generate_frame(
     inventory_items: Optional[List[tuple[str, str]]] = None,
     hall_mode: bool = False,
     hall_view: str = "menu",
+    inn_mode: bool = False,
     spell_mode: bool = False,
     suppress_actions: bool = False
 ) -> Frame:
@@ -123,6 +124,20 @@ def generate_frame(
         if npc_lines:
             body += npc_lines + [""]
         body += info_lines
+        body += venue.get("narrative", [])
+        actions = format_command_lines(venue.get("commands", []))
+        art_lines, art_color = render_venue_art(venue, npc)
+    elif player.location == "Town" and inn_mode:
+        venue = ctx.venues.get("town_inn", {})
+        npc_lines = []
+        npc_ids = venue.get("npc_ids", [])
+        npc = {}
+        if npc_ids:
+            npc_lines = ctx.npcs.format_greeting(npc_ids[0])
+            npc = ctx.npcs.get(npc_ids[0], {})
+        body = []
+        if npc_lines:
+            body += npc_lines + [""]
         body += venue.get("narrative", [])
         actions = format_command_lines(venue.get("commands", []))
         art_lines, art_color = render_venue_art(venue, npc)

@@ -3,17 +3,23 @@
     {
       "key": "M",
       "label": "Magic",
-      "command": "SPELLBOOK"
+      "command": "SPELLBOOK",
+      "type": "menu_open",
+      "target": "spellbook"
     },
     {
       "key": "O",
       "label": "Open inventory",
-      "command": "INVENTORY"
+      "command": "INVENTORY",
+      "type": "menu_open",
+      "target": "inventory"
     },
     {
       "key": "Q",
       "label": "Quit",
-      "command": "QUIT"
+      "command": "QUIT",
+      "type": "system",
+      "target": "quit"
     }
   ]
 }

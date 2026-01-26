@@ -12,6 +12,10 @@ Commands are defined in JSON (global, scenes, venues, menus) and merged at runti
 
 - `target`: string target used by the command (e.g., `"forest"`, `"town_shop"`)
 - `when`: string condition for filtering (e.g., `"has_opponents"`, `"no_opponents"`, `"needs_rest"`, `"has_save"`)
+- `type`: string categorizing the command (e.g., `"menu_open"`, `"combat"`, `"system"`)
+- `anim`: string animation hint (e.g., `"flash"`, `"melt"`, `"battle_start"`, `"battle_end"`)
+- `requires_target`: boolean to indicate a target is required
+- `suppress_actions`: boolean to hide the action panel during a command
 
 ## Examples
 

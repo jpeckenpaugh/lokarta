@@ -1,58 +1,31 @@
-# TODO: Data-Driven Command Overhaul
+# Overhaul Roadmap
 
-[x] Phase 1: Command Schema
-- [x] Define a shared command schema with `command`, `target`, and `when` fields in JSON.
-- [x] Document the schema in `README.md` or a small `docs/commands.md`.
+[x] Phase 1: Command Metadata Schema
+- Add action metadata to `data/commands.json` (type, target, anim, requires_target, suppress_actions).
+- Document schema updates in `docs/commands.md`.
 
-[x] Phase 2: Global Command Routing
-- [x] Introduce a `CommandRouter` that dispatches JSON actions to handlers.
-- [x] Replace remaining hard-coded `main()` command branches with router calls.
+[x] Phase 2: Spell Command Unification
+- Link spell commands to `data/spells.json` (command_id, mp_cost, boost settings).
+- Route spell actions generically in command handling.
 
-[x] Phase 3: Scene Transitions
-- [x] Move `Town/Forest` transitions into `data/scenes.json` using `ENTER_SCENE`.
-- [x] Add `scene_id`-driven actions for scene changes, including default messages.
+[ ] Phase 3: Combat Action Table
+- Encode `ATTACK` as data-driven (type=combat, anim=flash/melt).
+- Remove hard-coded action branches in `main.py` for attack flow where possible.
 
-[x] Phase 4: Venue Interactions
-- [x] Move shop/hall open/close actions into `data/venues.json` via `ENTER_VENUE` and `EXIT_VENUE`.
-- [x] Express hall views as venue sub-views with commands and dynamic sources.
+[ ] Phase 4: Menu/Scene Navigation Cleanup
+- Encode menu navigation actions in JSON (open/close/inventory/spellbook).
+- Reduce direct key branching in `main.py` for menu handling.
 
-[x] Phase 5: Menu Actions
-- [x] Add `open_message` and `close_message` to `data/menus.json`.
-- [x] Route menu open/close actions through JSON commands.
+[ ] Phase 5: Animation + Timing Rules
+- Move battle timing/animation triggers into command metadata.
+- Centralize delays in a single action pipeline.
 
-[x] Phase 6: Spell Boost Flow
-- [x] Add boost prompt metadata to `data/spells.json` (timeout, default, prompt text).
-- [x] Route boost confirmation through the command router.
-
-[x] Phase 7: Battle Text + Events
-- [x] Move battle message templates into a `data/text.json`.
-- [x] Add a small formatter to render messages from templates.
-
-[x] Phase 8: Title Screen as Data
-- [x] Move title screen copy and actions into `data/scenes.json` or `data/menus.json`.
-- [x] Handle overwrite confirmation as a data-driven subview.
-
-[x] Phase 9: Inn/Rest Service
-- [x] Add a service definition (cost, effects, text) in JSON.
-- [x] Replace hard-coded rest logic with service actions.
-
-[x] Phase 10: Cleanup + Tests
-- [ ] Remove unused branches in `main()` after router is complete.
-- [ ] Add unit tests for the command router and schema validation.
-
----
+[ ] Phase 6: End-to-End Cleanup + Tests
+- Remove dead branches in `main.py`.
+- Add tests for command metadata and spell routing.
 
 Notes:
-- Phase 1 docs captured in `docs/commands.md` with base fields and examples.
-- README now points to the command schema notes.
-- Phase 2 routing added in `commands/router.py` and wired in `main.py`.
-- Menu-specific handlers (shop/hall/inventory/spellbook) now live in `commands/router.py`.
-- Phase 3 ENTER_SCENE/ENTER_VENUE commands added to scene JSON and handled in router.
-- Phase 4 venue open/close now driven by `venues.json` with `welcome_message`/`leave_message`.
-- Hall info panels now use `info_sections` in `venues.json`.
-- Phase 5 menu open/close messages now loaded from `menus.json`.
-- Phase 6 boost prompt settings and confirmation now routed via `commands/router.py`.
-- Phase 7 battle templates added in `data/text.json` with formatter in `ui/text.py`.
-- Phase 8 title narrative/actions moved into `scenes.json` and routed via `commands/router.py`.
-- Phase 9 inn service now defined in `venues.json` and routed via `USE_SERVICE`.
-- Phase 10 added initial test coverage for router and text formatting.
+- Keep JSON backward-compatible when possible.
+- Preserve single-key input behavior and 100x30 layout constraints.
+- Phase 1 added basic metadata fields to global commands and documented schema.
+- Phase 2 linked spell commands and menu keys in `data/spells.json` and routed via `SpellsData`.

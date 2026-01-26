@@ -26,5 +26,19 @@
       "  |  |  ",
       "  |_|_|  "
     ]
+  },
+  "innkeeper_1": {
+    "name": "Mira",
+    "role": "Innkeeper",
+    "greeting": "Rooms are warm and quiet.",
+    "color": "cyan",
+    "art": [
+      "  .--.   ",
+      " / ^  \\  ",
+      " \\_=_/   ",
+      " /|  |\\ ",
+      "  |  |  ",
+      "  |_|_|  "
+    ]
   }
 }

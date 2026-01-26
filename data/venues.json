@@ -123,13 +123,73 @@
   "town_inn": {
     "name": "Town Inn",
     "scene_id": "inn",
-    "service": {
-      "type": "rest",
-      "cost": 10,
-      "heal_full": true,
-      "message": "You rest at the inn and feel fully restored.",
-      "insufficient_message": "Not enough GP to rest at the inn.",
-      "location_message": "The inn is only in town."
+    "npc_ids": ["innkeeper_1"],
+    "actions": ["rest", "leave"],
+    "welcome_message": "Warm lights and quiet rooms await.",
+    "leave_message": "You step back into the street.",
+    "commands": [
+      {
+        "key": "R",
+        "label": "Rest (10 GP)",
+        "command": "USE_SERVICE",
+        "target": "town_inn",
+        "service_id": "rest"
+      },
+      {
+        "key": "M",
+        "label": "Hot meal (3 GP)",
+        "command": "USE_SERVICE",
+        "target": "town_inn",
+        "service_id": "meal"
+      },
+      {
+        "key": "B",
+        "label": "Back",
+        "command": "B_KEY"
+      },
+      {
+        "key": "Q",
+        "label": "Quit",
+        "command": "QUIT"
+      }
+    ],
+    "narrative": [
+      "Rest by the hearth for the night.",
+      "A bed costs 10 GP. A hot meal is 3 GP."
+    ],
+    "color": "yellow",
+    "gap_width": 13,
+    "art": [
+      "      _______{GAP}______      ",
+      "     /      {GAP}      \\     ",
+      "    /  TOWN {GAP}  INN   \\    ",
+      "   |  REST  {GAP}  HERE  |   ",
+      "   |________{GAP}________|   ",
+      "      |  |  {GAP}  |  |      ",
+      "      |  |  {GAP}  |  |      ",
+      "      |__|  {GAP}  |__|      ",
+      "      |  |  {GAP}  |  |      ",
+      "      |__|  {GAP}  |__|      "
+    ],
+    "services": {
+      "rest": {
+        "type": "rest",
+        "cost": 10,
+        "heal_full": true,
+        "full_message": "You're already fully rested.",
+        "message": "You rest at the inn and feel fully restored.",
+        "insufficient_message": "Not enough GP to rest at the inn.",
+        "location_message": "The inn is only in town."
+      },
+      "meal": {
+        "type": "meal",
+        "item_id": "hot_meal",
+        "cost": 3,
+        "full_message": "You're already fully rested.",
+        "message": "You enjoy a hot meal and feel refreshed.",
+        "insufficient_message": "Not enough GP for a hot meal.",
+        "location_message": "The inn is only in town."
+      }
     }
   }
 }

@@ -79,6 +79,7 @@ class RouterTests(unittest.TestCase):
             inventory_items=[],
             hall_mode=False,
             hall_view="menu",
+            inn_mode=False,
             spell_mode=False,
             action_cmd=None,
         )
@@ -99,6 +100,7 @@ class RouterTests(unittest.TestCase):
             inventory_items=[],
             hall_mode=False,
             hall_view="menu",
+            inn_mode=False,
             spell_mode=False,
             action_cmd=None,
         )
