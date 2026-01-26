@@ -1,35 +1,25 @@
-# Overhaul Roadmap
+# Main Loop Streamlining Plan
 
-[x] Phase 1: Command Metadata Schema
-- Add action metadata to `data/commands.json` (type, target, anim, requires_target, suppress_actions).
-- Document schema updates in `docs/commands.md`.
+[ ] Phase 1: Extract GameState
+- Create a `GameState` dataclass to hold loop state (modes, message, opponents, loot).
+- Replace local variables in `main()` with `GameState` fields.
 
-[x] Phase 2: Spell Command Unification
-- Link spell commands to `data/spells.json` (command_id, mp_cost, boost settings).
-- Route spell actions generically in command handling.
+[ ] Phase 2: Frame + Input Pipeline
+- Extract `render_frame(state, ctx)` and `read_input(state, ctx)` helpers.
+- Encapsulate boost prompt countdown as its own state handler.
 
-[x] Phase 3: Combat Action Table
-- Encode `ATTACK` as data-driven (type=combat, anim=flash/melt).
-- Remove hard-coded action branches in `main.py` for attack flow where possible.
+[ ] Phase 3: Command Resolution
+- Add `resolve_command(state, ctx, key)` to map inputs to command ids.
+- Centralize router dispatch and state sync into a single function.
 
-[x] Phase 4: Menu/Scene Navigation Cleanup
-- Encode menu navigation actions in JSON (open/close/inventory/spellbook).
-- Reduce direct key branching in `main.py` for menu handling.
+[ ] Phase 4: Combat Turn Handler
+- Move battle/offense animations and opponent turns into `run_combat_round(state, ctx)`.
+- Make combat flow callable from `main()` with minimal branching.
 
-[x] Phase 5: Animation + Timing Rules
-- Move battle timing/animation triggers into command metadata.
-- Centralize delays in a single action pipeline.
-
-[x] Phase 6: End-to-End Cleanup + Tests
-- Remove dead branches in `main.py`.
-- Add tests for command metadata and spell routing.
+[ ] Phase 5: Cleanup + Tests
+- Remove dead branches and unused imports from `main.py`.
+- Add or update tests covering state transitions and command routing.
 
 Notes:
-- Keep JSON backward-compatible when possible.
-- Preserve single-key input behavior and 100x30 layout constraints.
-- Phase 1 added basic metadata fields to global commands and documented schema.
-- Phase 2 linked spell commands and menu keys in `data/spells.json` and routed via `SpellsData`.
-- Phase 3 tagged combat commands in `scenes.json` and used metadata to drive combat action sets.
-- Phase 4 moved inventory menu handling into the router to reduce main-loop branching.
-- Phase 5 tagged battle start/spell animations in JSON and centralized battle delay rendering.
-- Phase 6 removed unused imports and added tests for spell lookup and title command filtering.
+- Preserve current behavior and timings.
+- Keep JSON-driven command flow intact.
