@@ -1,4 +1,3 @@
-import os
 import shutil
 import random
 import time
@@ -11,22 +10,11 @@ from app.combat import (
     primary_opponent_index,
     roll_damage,
 )
-from app.commands import build_registry
+from app.bootstrap import create_app
 from app.commands.keymap import map_key_to_command
 from app.commands.registry import CommandContext, dispatch_command
-from app.commands.router import CommandState, RouterContext, handle_boost_confirm, handle_command
-from app.commands.scene_commands import scene_commands, command_ids_by_anim, command_ids_by_type
-from app.data_access.commands_data import CommandsData
-from app.data_access.items_data import ItemsData
-from app.data_access.menus_data import MenusData
-from app.data_access.text_data import TextData
-from app.data_access.opponents_data import OpponentsData
-from app.data_access.scenes_data import ScenesData
-from app.data_access.npcs_data import NpcsData
-from app.data_access.venues_data import VenuesData
-from app.data_access.spells_data import SpellsData
-from app.data_access.save_data import SaveData
-from app.config import DATA_DIR, SAVE_PATH
+from app.commands.router import CommandState, handle_boost_confirm, handle_command
+from app.commands.scene_commands import scene_commands
 from app.input import read_keypress, read_keypress_timeout
 from app.models import Player, Opponent
 from app.ui.ansi import ANSI
@@ -39,61 +27,29 @@ from app.ui.rendering import (
     melt_opponent,
     render_frame,
 )
-from app.ui.screens import ScreenContext, generate_frame
+from app.ui.screens import generate_frame
 from app.ui.text import format_text
 
-ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
-OPPONENTS = OpponentsData(os.path.join(DATA_DIR, "opponents.json"))
-SCENES = ScenesData(os.path.join(DATA_DIR, "scenes.json"))
-NPCS = NpcsData(os.path.join(DATA_DIR, "npcs.json"))
-VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
-SPELLS = SpellsData(os.path.join(DATA_DIR, "spells.json"))
-COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
-MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
-TEXTS = TextData(os.path.join(DATA_DIR, "text.json"))
-SAVE_DATA = SaveData(SAVE_PATH)
-
-SPELL_COMMANDS = {
-    spell.get("command_id")
-    for spell in SPELLS.all().values()
-    if isinstance(spell, dict) and spell.get("command_id")
-}
-TARGETED_SPELL_COMMANDS = {
-    spell.get("command_id")
-    for spell in SPELLS.all().values()
-    if isinstance(spell, dict) and spell.get("command_id") and spell.get("requires_target")
-}
-FLASH_SPELL_COMMANDS = {
-    spell.get("command_id")
-    for spell in SPELLS.all().values()
-    if isinstance(spell, dict) and spell.get("command_id") and spell.get("anim") == "flash_melt"
-}
-COMBAT_ACTIONS = command_ids_by_type(SCENES, "combat") | SPELL_COMMANDS
-OFFENSIVE_ACTIONS = command_ids_by_anim(SCENES, "flash_melt") | FLASH_SPELL_COMMANDS
-BATTLE_END_COMMANDS = {"BATTLE_END"}
-COMMANDS = build_registry()
-ROUTER_CTX = RouterContext(
-    items=ITEMS,
-    opponents_data=OPPONENTS,
-    scenes=SCENES,
-    commands=COMMANDS_DATA,
-    venues=VENUES,
-    save_data=SAVE_DATA,
-    spells=SPELLS,
-    menus=MENUS,
-    registry=COMMANDS,
-)
-SCREEN_CTX = ScreenContext(
-    items=ITEMS,
-    opponents=OPPONENTS,
-    scenes=SCENES,
-    npcs=NPCS,
-    venues=VENUES,
-    menus=MENUS,
-    commands=COMMANDS_DATA,
-    spells=SPELLS,
-    text=TEXTS,
-)
+APP = create_app()
+ITEMS = APP.items
+OPPONENTS = APP.opponents
+SCENES = APP.scenes
+NPCS = APP.npcs
+VENUES = APP.venues
+SPELLS = APP.spells
+COMMANDS_DATA = APP.commands_data
+MENUS = APP.menus
+TEXTS = APP.texts
+SAVE_DATA = APP.save_data
+COMMANDS = APP.registry
+ROUTER_CTX = APP.router_ctx
+SCREEN_CTX = APP.screen_ctx
+SPELL_COMMANDS = APP.spell_commands
+TARGETED_SPELL_COMMANDS = APP.targeted_spell_commands
+FLASH_SPELL_COMMANDS = APP.flash_spell_commands
+COMBAT_ACTIONS = APP.combat_actions
+OFFENSIVE_ACTIONS = APP.offensive_actions
+BATTLE_END_COMMANDS = APP.battle_end_commands
 
 
 
