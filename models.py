@@ -111,6 +111,65 @@ class Player:
             self.inventory.pop(key, None)
         return f"Used {item.get('name', key)}."
 
+    def gain_xp(self, amount: int) -> int:
+        self.xp += amount
+        levels_gained = 0
+        while self.xp >= self.level * 50:
+            self.level += 1
+            self.stat_points += 10
+            levels_gained += 1
+        return levels_gained
+
+    def needs_level_up(self) -> bool:
+        return self.stat_points > 0
+
+    def apply_stat_point(self, stat: str):
+        if stat == "HP":
+            self.max_hp += 1
+            self.hp += 1
+        elif stat == "MP":
+            self.max_mp += 1
+            self.mp += 1
+        elif stat == "ATK":
+            self.atk += 1
+        elif stat == "DEF":
+            self.defense += 1
+
+    def spend_stat_point(self, stat: str) -> bool:
+        if self.stat_points <= 0:
+            return False
+        self.stat_points -= 1
+        self.apply_stat_point(stat)
+        return True
+
+    def allocate_balanced(self):
+        points = self.stat_points
+        if points <= 0:
+            return
+        per_stat = points // 4
+        remainder = points % 4
+        if per_stat > 0:
+            self.max_hp += per_stat
+            self.hp += per_stat
+            self.max_mp += per_stat
+            self.mp += per_stat
+            self.atk += per_stat
+            self.defense += per_stat
+        for stat in ["HP", "MP", "ATK", "DEF"][:remainder]:
+            self.apply_stat_point(stat)
+        self.stat_points = 0
+
+    def allocate_random(self):
+        import random
+        stats = ["HP", "MP", "ATK", "DEF"]
+        while self.stat_points > 0:
+            self.apply_stat_point(random.choice(stats))
+            self.stat_points -= 1
+
+    def finish_level_up(self):
+        self.hp = self.max_hp
+        self.mp = self.max_mp
+
 
 @dataclass
 class Opponent:

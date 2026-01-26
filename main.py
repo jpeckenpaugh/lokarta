@@ -370,16 +370,6 @@ def purchase_item(player: Player, key: str) -> str:
     return f"Purchased {item.get('name', key)}."
 
 
-def grant_xp(player: Player, amount: int) -> int:
-    player.xp += amount
-    levels_gained = 0
-    while player.xp >= player.level * 50:
-        player.level += 1
-        player.stat_points += 10
-        levels_gained += 1
-    return levels_gained
-
-
 def generate_demo_frame(
     player: Player,
     opponents: List[Opponent],
@@ -607,44 +597,6 @@ def roll_damage(attacker_atk: int, defender_def: int) -> tuple[int, bool, bool]:
     if crit:
         damage *= 2
     return damage, crit, False
-
-
-def apply_stat_point(player: Player, stat: str):
-    if stat == "HP":
-        player.max_hp += 1
-        player.hp += 1
-    elif stat == "MP":
-        player.max_mp += 1
-        player.mp += 1
-    elif stat == "ATK":
-        player.atk += 1
-    elif stat == "DEF":
-        player.defense += 1
-
-
-def allocate_balanced(player: Player):
-    points = player.stat_points
-    if points <= 0:
-        return
-    per_stat = points // 4
-    remainder = points % 4
-    if per_stat > 0:
-        player.max_hp += per_stat
-        player.hp += per_stat
-        player.max_mp += per_stat
-        player.mp += per_stat
-        player.atk += per_stat
-        player.defense += per_stat
-    for stat in ["HP", "MP", "ATK", "DEF"][:remainder]:
-        apply_stat_point(player, stat)
-    player.stat_points = 0
-
-
-def allocate_random(player: Player):
-    stats = ["HP", "MP", "ATK", "DEF"]
-    while player.stat_points > 0:
-        apply_stat_point(player, random.choice(stats))
-        player.stat_points -= 1
 
 
 def try_stun(opponent: Opponent, chance: float) -> int:
@@ -1406,35 +1358,33 @@ def main():
 
         if leveling_mode and not handled_boost:
             if cmd == "B_KEY":
-                allocate_balanced(player)
+                player.allocate_balanced()
                 last_message = "Balanced allocation complete."
             elif cmd == "X_KEY":
-                allocate_random(player)
+                player.allocate_random()
                 last_message = "Random allocation complete."
             elif cmd in ("NUM1", "NUM2", "NUM3", "NUM4"):
                 if player.stat_points <= 0:
                     last_message = "No stat points to spend."
                 else:
-                    player.stat_points -= 1
                     if cmd == "NUM1":
-                        apply_stat_point(player, "HP")
+                        player.spend_stat_point("HP")
                         last_message = "HP increased by 1."
                     elif cmd == "NUM2":
-                        apply_stat_point(player, "MP")
+                        player.spend_stat_point("MP")
                         last_message = "MP increased by 1."
                     elif cmd == "NUM3":
-                        apply_stat_point(player, "ATK")
+                        player.spend_stat_point("ATK")
                         last_message = "ATK increased by 1."
                     else:
-                        apply_stat_point(player, "DEF")
+                        player.spend_stat_point("DEF")
                         last_message = "DEF increased by 1."
             else:
                 last_message = "Spend all stat points to continue."
 
             if player.stat_points == 0:
                 leveling_mode = False
-                player.hp = player.max_hp
-                player.mp = player.max_mp
+                player.finish_level_up()
                 last_message = "Level up complete."
             continue
 
@@ -1657,7 +1607,7 @@ def main():
                 if cmd == "ATTACK":
                     action_cmd = "ATTACK"
 
-        if player.stat_points > 0 and not any(opponent.hp > 0 for opponent in opponents):
+        if player.needs_level_up() and not any(opponent.hp > 0 for opponent in opponents):
             leveling_mode = True
 
         if action_cmd in ("ATTACK", "SPARK"):
@@ -1759,13 +1709,13 @@ def main():
                 animate_battle_end(player, opponents, last_message)
                 opponents = []
                 if loot_bank["xp"] or loot_bank["gold"]:
-                    grant_xp(player, loot_bank["xp"])
+                    player.gain_xp(loot_bank["xp"])
                     player.gold += loot_bank["gold"]
                     last_message += (
                         f" You gain {loot_bank['xp']} XP and "
                         f"{loot_bank['gold']} gold."
                     )
-                    if player.stat_points > 0:
+                    if player.needs_level_up():
                         leveling_mode = True
                 loot_bank = {"xp": 0, "gold": 0}
 
