@@ -31,17 +31,23 @@ def scene_commands(
     commands_data: CommandsData,
     scene_id: str,
     player: Player,
-    opponents: List[Opponent]
+    opponents: List[Opponent],
+    include_hidden: bool = False,
 ) -> List[dict]:
     scene_data = scenes_data.get(scene_id, {})
     scene_list = scene_data.get("commands", [])
     if not isinstance(scene_list, list):
         scene_list = []
     scene_list = filter_commands(scene_list, player, opponents)
-    global_list = filter_commands(commands_data.global_commands(), player, opponents)
+    if scene_id == "title":
+        global_list = []
+    else:
+        global_list = filter_commands(commands_data.global_commands(), player, opponents)
     merged = []
     seen = set()
     for command in scene_list + global_list:
+        if not include_hidden and command.get("key") == "_":
+            continue
         key = str(command.get("key", "")).lower()
         if not key or key in seen:
             continue

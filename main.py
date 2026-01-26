@@ -1,5 +1,4 @@
 import os
-import sys
 import shutil
 import random
 import time
@@ -28,13 +27,10 @@ from data_access.venues_data import VenuesData
 from data_access.spells_data import SpellsData
 from data_access.save_data import SaveData
 from input import read_keypress, read_keypress_timeout
-from models import Frame, Player, Opponent
-from shop import purchase_item
-from ui.ansi import ANSI, color
+from models import Player, Opponent
+from ui.ansi import ANSI
 from ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
-from ui.layout import format_action_lines
 from ui.rendering import (
-    COLOR_BY_NAME,
     clear_screen,
     animate_battle_end,
     animate_battle_start,
@@ -58,6 +54,28 @@ COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 TEXTS = TextData(os.path.join(DATA_DIR, "text.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
+def _scene_command_ids_by_type(command_type: str) -> set:
+    ids = set()
+    for scene in SCENES.all().values():
+        for command in scene.get("commands", []) if isinstance(scene, dict) else []:
+            if command.get("type") == command_type:
+                cmd_id = command.get("command")
+                if cmd_id:
+                    ids.add(cmd_id)
+    return ids
+
+
+def _scene_command_ids_by_anim(anim: str) -> set:
+    ids = set()
+    for scene in SCENES.all().values():
+        for command in scene.get("commands", []) if isinstance(scene, dict) else []:
+            if command.get("anim") == anim:
+                cmd_id = command.get("command")
+                if cmd_id:
+                    ids.add(cmd_id)
+    return ids
+
+
 SPELL_COMMANDS = {
     spell.get("command_id")
     for spell in SPELLS.all().values()
@@ -68,8 +86,14 @@ TARGETED_SPELL_COMMANDS = {
     for spell in SPELLS.all().values()
     if isinstance(spell, dict) and spell.get("command_id") and spell.get("requires_target")
 }
-COMBAT_ACTIONS = {"ATTACK"} | SPELL_COMMANDS
-OFFENSIVE_ACTIONS = {"ATTACK"} | TARGETED_SPELL_COMMANDS
+FLASH_SPELL_COMMANDS = {
+    spell.get("command_id")
+    for spell in SPELLS.all().values()
+    if isinstance(spell, dict) and spell.get("command_id") and spell.get("anim") == "flash_melt"
+}
+COMBAT_ACTIONS = _scene_command_ids_by_type("combat") | SPELL_COMMANDS
+OFFENSIVE_ACTIONS = _scene_command_ids_by_anim("flash_melt") | FLASH_SPELL_COMMANDS
+BATTLE_END_COMMANDS = {"BATTLE_END"}
 COMMANDS = build_registry()
 ROUTER_CTX = RouterContext(
     items=ITEMS,
@@ -127,6 +151,25 @@ def main():
     quit_confirm = False
     title_mode = True
     player.location = "Title"
+    def render_battle_pause(message: str):
+        frame = generate_frame(
+            SCREEN_CTX,
+            player,
+            opponents,
+            message,
+            leveling_mode,
+            shop_mode,
+            inventory_mode,
+            inventory_items,
+            hall_mode,
+            hall_view,
+            inn_mode,
+            spell_mode,
+            suppress_actions=True
+        )
+        render_frame(frame)
+        time.sleep(battle_action_delay(player))
+
     while True:
         if title_mode:
             player.has_save = SAVE_DATA.exists()
@@ -192,6 +235,7 @@ def main():
             last_message = "Quit? (Y/N)"
             continue
         action_cmd = None
+        command_meta = None
         handled_boost = False
         handled_by_router = False
         if boost_prompt:
@@ -256,6 +300,11 @@ def main():
                     opponents
                 )
             cmd = map_key_to_command(ch, available_commands)
+            if available_commands and cmd:
+                command_meta = next(
+                    (entry for entry in available_commands if entry.get("command") == cmd),
+                    None
+                )
         else:
             cmd = None
 
@@ -273,24 +322,7 @@ def main():
                 leveling_mode = False
             continue
 
-        if inventory_mode and not handled_boost:
-            if cmd == "B_KEY":
-                inventory_mode = False
-                last_message = "Closed inventory."
-            elif cmd and cmd.startswith("NUM"):
-                idx = int(cmd.replace("NUM", "")) - 1
-                if 0 <= idx < len(inventory_items):
-                    key, _ = inventory_items[idx]
-                    last_message = player.use_item(key, ITEMS)
-                    SAVE_DATA.save_player(player)
-                    inventory_items = player.list_inventory_items(ITEMS)
-                    if not inventory_items:
-                        inventory_mode = False
-                else:
-                    last_message = "Invalid item selection."
-            continue
-
-        if cmd == "B_KEY" and not (shop_mode or hall_mode or inn_mode or spell_mode):
+        if cmd == "B_KEY" and not (shop_mode or hall_mode or inn_mode or spell_mode or inventory_mode):
             continue
         if cmd == "X_KEY":
             continue
@@ -325,6 +357,15 @@ def main():
                 title_mode = False
             player = state.player
             handled_by_router = True
+            if command_meta and command_meta.get("anim") == "battle_start" and opponents:
+                animate_battle_start(
+                    SCENES,
+                    COMMANDS_DATA,
+                    "forest",
+                    player,
+                    opponents,
+                    last_message
+                )
             if action_cmd not in COMBAT_ACTIONS:
                 continue
             if action_cmd in SPELL_COMMANDS:
@@ -366,8 +407,10 @@ def main():
                         items_data=ITEMS,
                     ),
                 )
-                if cmd == "ATTACK":
-                    action_cmd = "ATTACK"
+                if command_meta and command_meta.get("type") == "combat":
+                    action_cmd = cmd
+                if command_meta and command_meta.get("anim") == "battle_start":
+                    action_cmd = cmd
 
         if player.needs_level_up() and not any(opponent.hp > 0 for opponent in opponents):
             leveling_mode = True
@@ -403,23 +446,7 @@ def main():
         player_defeated = False
         if action_cmd in COMBAT_ACTIONS and any(opponent.hp > 0 for opponent in opponents):
             if player.location == "Forest":
-                frame = generate_frame(
-                    SCREEN_CTX,
-                    player,
-                    opponents,
-                    last_message,
-                    leveling_mode,
-                    shop_mode,
-                    inventory_mode,
-                    inventory_items,
-                    hall_mode,
-                    hall_view,
-                    inn_mode,
-                    spell_mode,
-                    suppress_actions=True
-                )
-                render_frame(frame)
-                time.sleep(battle_action_delay(player))
+                render_battle_pause(last_message)
             acting = [(i, m) for i, m in enumerate(opponents) if m.hp > 0]
             for idx, (opp_index, m) in enumerate(acting):
                 if m.stunned_turns > 0:
@@ -467,23 +494,7 @@ def main():
                         player_defeated = True
                         break
                 if player.location == "Forest" and idx < len(acting) - 1:
-                    frame = generate_frame(
-                        SCREEN_CTX,
-                        player,
-                        opponents,
-                        last_message,
-                        leveling_mode,
-                        shop_mode,
-                        inventory_mode,
-                        inventory_items,
-                        hall_mode,
-                        hall_view,
-                        inn_mode,
-                        spell_mode,
-                        suppress_actions=True
-                    )
-                    render_frame(frame)
-                    time.sleep(battle_action_delay(player))
+                    render_battle_pause(last_message)
 
         if player_defeated:
             SAVE_DATA.save_player(player)
@@ -491,14 +502,15 @@ def main():
 
         if action_cmd in OFFENSIVE_ACTIONS:
             if not any(opponent.hp > 0 for opponent in opponents):
-                animate_battle_end(
-                    SCENES,
-                    COMMANDS_DATA,
-                    "forest",
-                    player,
-                    opponents,
-                    last_message
-                )
+                if BATTLE_END_COMMANDS:
+                    animate_battle_end(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "forest",
+                        player,
+                        opponents,
+                        last_message
+                    )
                 opponents = []
                 if loot_bank["xp"] or loot_bank["gold"]:
                     player.gain_xp(loot_bank["xp"])

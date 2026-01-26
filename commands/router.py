@@ -178,6 +178,25 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         state.last_message = menu.get("open_message", "Choose an item to use.")
         return True
 
+    if state.inventory_mode:
+        menu = ctx.menus.get("inventory", {})
+        if command_id == "B_KEY":
+            state.inventory_mode = False
+            state.last_message = menu.get("close_message", "Closed inventory.")
+            return True
+        if command_id.startswith("NUM"):
+            idx = int(command_id.replace("NUM", "")) - 1
+            if 0 <= idx < len(state.inventory_items):
+                item_id, _ = state.inventory_items[idx]
+                state.last_message = state.player.use_item(item_id, ctx.items)
+                ctx.save_data.save_player(state.player)
+                state.inventory_items = state.player.list_inventory_items(ctx.items)
+                if not state.inventory_items:
+                    state.inventory_mode = False
+            else:
+                state.last_message = "Invalid item selection."
+            return True
+
     if command_id == "USE_SERVICE":
         service_key = "rest"
         venue_id = None
@@ -376,7 +395,6 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
             state.loot_bank = {"xp": 0, "gold": 0}
             if state.opponents:
                 state.last_message = f"A {state.opponents[0].name} appears."
-                animate_battle_start(ctx.scenes, ctx.commands, "forest", state.player, state.opponents, state.last_message)
             else:
                 state.last_message = "All is quiet. No enemies in sight."
             state.shop_mode = False
@@ -397,7 +415,6 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         state.loot_bank = {"xp": 0, "gold": 0}
         if state.opponents:
             state.last_message = f"A {state.opponents[0].name} appears."
-            animate_battle_start(ctx.scenes, ctx.commands, "forest", state.player, state.opponents, state.last_message)
         else:
             state.last_message = "All is quiet. No enemies in sight."
         ctx.save_data.save_player(state.player)

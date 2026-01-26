@@ -21,12 +21,13 @@
       "If you are lost, check the town hall for instructions."
     ],
     "commands": [
-      {
-        "key": "F",
-        "label": "Set out for the Forest",
-        "command": "ENTER_SCENE",
-        "target": "forest"
-      },
+    {
+      "key": "F",
+      "label": "Set out for the Forest",
+      "command": "ENTER_SCENE",
+      "target": "forest",
+      "anim": "battle_start"
+    },
       {
         "key": "S",
         "label": "Shop",
@@ -66,19 +67,22 @@
       "All is quiet. No enemies in sight."
     ],
     "commands": [
-      {
-        "key": "A",
-        "label": "Attack",
-        "command": "ATTACK",
-        "when": "has_opponents"
-      },
-      {
-        "key": "F",
-        "label": "Find an opponent to fight",
-        "command": "ENTER_SCENE",
-        "target": "forest",
-        "when": "no_opponents"
-      },
+    {
+      "key": "A",
+      "label": "Attack",
+      "command": "ATTACK",
+      "type": "combat",
+      "anim": "flash_melt",
+      "when": "has_opponents"
+    },
+    {
+      "key": "F",
+      "label": "Find an opponent to fight",
+      "command": "ENTER_SCENE",
+      "target": "forest",
+      "anim": "battle_start",
+      "when": "no_opponents"
+    },
       {
         "key": "T",
         "label": "Return to Town",
