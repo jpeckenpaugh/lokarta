@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from combat import primary_opponent
+from combat import cast_spell, primary_opponent
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
 from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
 from data_access.venues_data import VenuesData
+from data_access.menus_data import MenusData
 from data_access.save_data import SaveData
 from models import Player, Opponent
 from commands.registry import CommandContext, CommandRegistry, dispatch_command
@@ -42,6 +43,7 @@ class RouterContext:
     venues: VenuesData
     save_data: SaveData
     spells: SpellsData
+    menus: MenusData
     registry: CommandRegistry
 
 
@@ -77,20 +79,23 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         return _enter_scene(scene_id, state, ctx)
 
     if command_id == "B_KEY" and state.inventory_mode:
+        menu = ctx.menus.get("inventory", {})
         state.inventory_mode = False
-        state.last_message = "Closed inventory."
+        state.last_message = menu.get("close_message", "Closed inventory.")
         return True
 
     if command_id == "B_KEY" and state.spell_mode:
+        menu = ctx.menus.get("spellbook", {})
         state.spell_mode = False
-        state.last_message = "Closed spellbook."
+        state.last_message = menu.get("close_message", "Closed spellbook.")
         return True
     if command_id == "SPELLBOOK":
+        menu = ctx.menus.get("spellbook", {})
         state.spell_mode = True
         state.shop_mode = False
         state.inventory_mode = False
         state.hall_mode = False
-        state.last_message = "Open spellbook."
+        state.last_message = menu.get("open_message", "Open spellbook.")
         return True
 
     if state.spell_mode and command_id in ("NUM1", "NUM2"):
@@ -141,6 +146,7 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         return False
 
     if command_id == "INVENTORY":
+        menu = ctx.menus.get("inventory", {})
         state.inventory_items = state.player.list_inventory_items(ctx.items)
         if not state.inventory_items:
             state.last_message = "Inventory is empty."
@@ -149,7 +155,7 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         state.shop_mode = False
         state.hall_mode = False
         state.spell_mode = False
-        state.last_message = "Choose an item to use."
+        state.last_message = menu.get("open_message", "Choose an item to use.")
         return True
 
     if command_id == "REST":
@@ -181,6 +187,23 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         return True
 
     return False
+
+
+def handle_boost_confirm(
+    state: CommandState,
+    ctx: RouterContext,
+    spell_id: str,
+    boosted: bool
+) -> None:
+    state.last_message = cast_spell(
+        state.player,
+        state.opponents,
+        spell_id,
+        boosted,
+        state.loot_bank,
+        ctx.spells,
+    )
+    state.action_cmd = "HEAL" if spell_id == "healing" else "SPARK"
 
 
 def _command_target(

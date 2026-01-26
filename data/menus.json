@@ -1,6 +1,8 @@
 {
   "inventory": {
     "title": "Inventory",
+    "open_message": "Choose an item to use.",
+    "close_message": "Closed inventory.",
     "empty": "Inventory is empty.",
     "actions": [
       {
@@ -22,6 +24,8 @@
   },
   "spellbook": {
     "title": "Spellbook",
+    "open_message": "Open spellbook.",
+    "close_message": "Closed spellbook.",
     "actions": [
       {
         "key": "1",

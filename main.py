@@ -15,7 +15,7 @@ from combat import (
 from commands import build_registry
 from commands.keymap import map_key_to_command
 from commands.registry import CommandContext, dispatch_command
-from commands.router import CommandState, RouterContext, handle_command
+from commands.router import CommandState, RouterContext, handle_boost_confirm, handle_command
 from commands.scene_commands import scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
@@ -64,6 +64,7 @@ ROUTER_CTX = RouterContext(
     venues=VENUES,
     save_data=SAVE_DATA,
     spells=SPELLS,
+    menus=MENUS,
     registry=COMMANDS,
 )
 SCREEN_CTX = ScreenContext(
@@ -209,7 +210,13 @@ def main():
 
         if boost_prompt:
             choice = None
-            for remaining in range(3, 0, -1):
+            spell_id = "healing" if boost_prompt == "HEAL" else "spark"
+            spell_data = SPELLS.get(spell_id, {})
+            prompt_seconds = int(spell_data.get("boost_prompt_seconds", 3))
+            prompt_text = spell_data.get("boost_prompt_text", "Boost {name}? (Y/N)")
+            prompt_text = prompt_text.replace("{name}", spell_data.get("name", spell_id.title()))
+            default_choice = str(spell_data.get("boost_default", "N")).lower()
+            for remaining in range(prompt_seconds, 0, -1):
                 countdown_message = f"{last_message} ({remaining})"
                 frame = generate_frame(
                     SCREEN_CTX,
@@ -228,7 +235,7 @@ def main():
                 choice = read_keypress_timeout(1.0)
                 if choice and choice.lower() in ("y", "n"):
                     break
-            ch = choice if choice else "n"
+            ch = choice if choice else default_choice
         else:
             ch = read_keypress()
         if quit_confirm:
@@ -295,20 +302,27 @@ def main():
         handled_boost = False
         handled_by_router = False
         if boost_prompt:
-            if ch.lower() == "y":
-                boosted = True
-            elif ch.lower() == "n":
-                boosted = False
-            else:
+            if ch.lower() not in ("y", "n"):
                 last_message = "Choose Y or N to boost the spell."
                 continue
-
-            if boost_prompt == "HEAL":
-                last_message = cast_spell(player, opponents, "healing", boosted, loot_bank, SPELLS)
-                action_cmd = "HEAL"
-            else:
-                last_message = cast_spell(player, opponents, "spark", boosted, loot_bank, SPELLS)
-                action_cmd = "SPARK"
+            boosted = ch.lower() == "y"
+            state = CommandState(
+                player=player,
+                opponents=opponents,
+                loot_bank=loot_bank,
+                last_message=last_message,
+                shop_mode=shop_mode,
+                inventory_mode=inventory_mode,
+                inventory_items=inventory_items,
+                hall_mode=hall_mode,
+                hall_view=hall_view,
+                spell_mode=spell_mode,
+                action_cmd=action_cmd,
+            )
+            spell_id = "healing" if boost_prompt == "HEAL" else "spark"
+            handle_boost_confirm(state, ROUTER_CTX, spell_id, boosted)
+            last_message = state.last_message
+            action_cmd = state.action_cmd
             boost_prompt = None
             handled_boost = True
 
@@ -417,7 +431,8 @@ def main():
                     continue
                 if player.mp >= boosted_heal_cost:
                     boost_prompt = "HEAL"
-                    last_message = f"Boost {healing.get('name', 'Healing')}? (Y/N)"
+                    prompt = healing.get("boost_prompt_text", "Boost {name}? (Y/N)")
+                    last_message = prompt.replace("{name}", healing.get("name", "Healing"))
                     continue
                 last_message = cast_spell(player, opponents, "healing", boosted=False, loot=loot_bank, spells_data=SPELLS)
                 action_cmd = "HEAL"
@@ -433,7 +448,8 @@ def main():
                     continue
                 if player.mp >= boosted_spark_cost:
                     boost_prompt = "SPARK"
-                    last_message = f"Boost {spark.get('name', 'Spark')}? (Y/N)"
+                    prompt = spark.get("boost_prompt_text", "Boost {name}? (Y/N)")
+                    last_message = prompt.replace("{name}", spark.get("name", "Spark"))
                     continue
                 last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank, spells_data=SPELLS)
                 action_cmd = "SPARK"

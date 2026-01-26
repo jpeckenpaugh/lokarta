@@ -12,17 +12,17 @@
 - [x] Move `Town/Forest` transitions into `data/scenes.json` using `ENTER_SCENE`.
 - [x] Add `scene_id`-driven actions for scene changes, including default messages.
 
-[ ] Phase 4: Venue Interactions
-- [ ] Move shop/hall open/close actions into `data/venues.json` via `ENTER_VENUE` and `EXIT_VENUE`.
-- [ ] Express hall views as venue sub-views with commands and dynamic sources.
+[x] Phase 4: Venue Interactions
+- [x] Move shop/hall open/close actions into `data/venues.json` via `ENTER_VENUE` and `EXIT_VENUE`.
+- [x] Express hall views as venue sub-views with commands and dynamic sources.
 
-[ ] Phase 5: Menu Actions
-- [ ] Add `open_message` and `close_message` to `data/menus.json`.
-- [ ] Route menu open/close actions through JSON commands.
+[x] Phase 5: Menu Actions
+- [x] Add `open_message` and `close_message` to `data/menus.json`.
+- [x] Route menu open/close actions through JSON commands.
 
-[ ] Phase 6: Spell Boost Flow
-- [ ] Add boost prompt metadata to `data/spells.json` (timeout, default, prompt text).
-- [ ] Route boost confirmation through the command router.
+[x] Phase 6: Spell Boost Flow
+- [x] Add boost prompt metadata to `data/spells.json` (timeout, default, prompt text).
+- [x] Route boost confirmation through the command router.
 
 [ ] Phase 7: Battle Text + Events
 - [ ] Move battle message templates into a `data/text.json`.
@@ -48,3 +48,7 @@ Notes:
 - Phase 2 routing added in `commands/router.py` and wired in `main.py`.
 - Menu-specific handlers (shop/hall/inventory/spellbook) now live in `commands/router.py`.
 - Phase 3 ENTER_SCENE/ENTER_VENUE commands added to scene JSON and handled in router.
+- Phase 4 venue open/close now driven by `venues.json` with `welcome_message`/`leave_message`.
+- Hall info panels now use `info_sections` in `venues.json`.
+- Phase 5 menu open/close messages now loaded from `menus.json`.
+- Phase 6 boost prompt settings and confirmation now routed via `commands/router.py`.
