@@ -94,7 +94,10 @@ def render_scene_art(
         if manual_lines_indices and i in manual_lines_indices:
             art_lines = opponent.art_lines
         elif opponent.hp > 0 and is_visible:
-            art_lines = [line[:OPPONENT_ART_WIDTH].ljust(OPPONENT_ART_WIDTH) for line in opponent.art_lines]
+            raw_lines = [line[:OPPONENT_ART_WIDTH].rstrip() for line in opponent.art_lines]
+            max_len = max((len(line) for line in raw_lines), default=0)
+            left_aligned = [line.ljust(max_len) for line in raw_lines]
+            art_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_aligned]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
                 art_lines.append(format_opponent_bar(opponent))

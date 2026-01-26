@@ -27,12 +27,12 @@
     "arrival": "scurries into view",
     "desc": "A quick scavenger with a nasty bite.",
     "art": [
-      " /\\_/\\ ",
-      "( o.o )",
-      " > ^ < ",
-      "  / \\  ",
-      " /___\\ ",
-      " +   +  "
+      " /\\__/\\",
+      "( o..o )",
+      " > [] < ",
+      "  /  \\",
+      " /____\\",
+      "=+    +="
     ]
   },
   "ant": {
