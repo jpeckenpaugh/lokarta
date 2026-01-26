@@ -396,18 +396,8 @@ def format_action_lines(actions: List[str]) -> List[str]:
     return lines
 
 
-def add_item(inventory: dict, key: str, amount: int = 1):
-    inventory[key] = int(inventory.get(key, 0)) + amount
-
-
 def format_inventory(player: Player) -> str:
-    if not player.inventory:
-        return "Inventory is empty."
-    parts = []
-    for key, count in player.inventory.items():
-        item = ITEMS.get(key, {"name": key})
-        parts.append(f"{item.get('name', key)} x{count}")
-    return "Inventory: " + ", ".join(parts)
+    return player.format_inventory(ITEMS)
 
 
 def purchase_item(player: Player, key: str) -> str:
@@ -418,40 +408,16 @@ def purchase_item(player: Player, key: str) -> str:
     if player.gold < price:
         return "Not enough GP."
     player.gold -= price
-    add_item(player.inventory, key, 1)
+    player.add_item(key, 1)
     return f"Purchased {item.get('name', key)}."
 
 
 def list_inventory_items(player: Player) -> List[tuple[str, str]]:
-    entries = []
-    for key in sorted(player.inventory.keys()):
-        count = int(player.inventory.get(key, 0))
-        if count <= 0:
-            continue
-        item = ITEMS.get(key, {"name": key})
-        name = item.get("name", key)
-        hp = int(item.get("hp", 0))
-        mp = int(item.get("mp", 0))
-        entries.append((key, f"{name} x{count} (+{hp} HP/+{mp} MP)"))
-    return entries
+    return player.list_inventory_items(ITEMS)
 
 
 def use_item(player: Player, key: str) -> str:
-    item = ITEMS.get(key)
-    if not item:
-        return "That item is not available."
-    if int(player.inventory.get(key, 0)) <= 0:
-        return "You do not have that item."
-    if player.hp == player.max_hp and player.mp == player.max_mp:
-        return "HP and MP are already full."
-    hp_gain = int(item.get("hp", 0))
-    mp_gain = int(item.get("mp", 0))
-    player.hp = min(player.max_hp, player.hp + hp_gain)
-    player.mp = min(player.max_mp, player.mp + mp_gain)
-    player.inventory[key] = int(player.inventory.get(key, 0)) - 1
-    if player.inventory[key] <= 0:
-        player.inventory.pop(key, None)
-    return f"Used {item.get('name', key)}."
+    return player.use_item(key, ITEMS)
 
 
 def list_opponent_descriptions() -> List[str]:

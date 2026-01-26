@@ -69,6 +69,48 @@ class Player:
             inventory=data.get("inventory", {}),
         )
 
+    def add_item(self, key: str, amount: int = 1):
+        self.inventory[key] = int(self.inventory.get(key, 0)) + amount
+
+    def format_inventory(self, items_data) -> str:
+        if not self.inventory:
+            return "Inventory is empty."
+        parts = []
+        for key, count in self.inventory.items():
+            item = items_data.get(key, {"name": key})
+            parts.append(f"{item.get('name', key)} x{count}")
+        return "Inventory: " + ", ".join(parts)
+
+    def list_inventory_items(self, items_data) -> List[tuple[str, str]]:
+        entries = []
+        for key in sorted(self.inventory.keys()):
+            count = int(self.inventory.get(key, 0))
+            if count <= 0:
+                continue
+            item = items_data.get(key, {"name": key})
+            name = item.get("name", key)
+            hp = int(item.get("hp", 0))
+            mp = int(item.get("mp", 0))
+            entries.append((key, f"{name} x{count} (+{hp} HP/+{mp} MP)"))
+        return entries
+
+    def use_item(self, key: str, items_data) -> str:
+        item = items_data.get(key)
+        if not item:
+            return "That item is not available."
+        if int(self.inventory.get(key, 0)) <= 0:
+            return "You do not have that item."
+        if self.hp == self.max_hp and self.mp == self.max_mp:
+            return "HP and MP are already full."
+        hp_gain = int(item.get("hp", 0))
+        mp_gain = int(item.get("mp", 0))
+        self.hp = min(self.max_hp, self.hp + hp_gain)
+        self.mp = min(self.max_mp, self.mp + mp_gain)
+        self.inventory[key] = int(self.inventory.get(key, 0)) - 1
+        if self.inventory[key] <= 0:
+            self.inventory.pop(key, None)
+        return f"Used {item.get('name', key)}."
+
 
 @dataclass
 class Opponent:
