@@ -60,7 +60,7 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
             left_aligned = [line.ljust(max_len) for line in raw_lines]
             centered = [line.center(gap_width) for line in left_aligned]
             art_lines = []
-            start_row = (len(art_template) - len(centered)) // 2
+            start_row = max(0, len(art_template) - len(centered))
             for i, line in enumerate(art_template):
                 gap_fill = " " * gap_width
                 if centered and start_row <= i < start_row + len(centered):
