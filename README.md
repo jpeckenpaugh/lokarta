@@ -24,6 +24,17 @@ Once validated locally, the same engine and assets can be migrated to:
 
 ---
 
+## Code Structure
+
+- `main.py` — game loop and state orchestration
+- `models.py` — core dataclasses (`Player`, `Opponent`, `Frame`)
+- `combat.py` — combat helpers and timing
+- `commands/` — command registry and command modules
+- `ui/` — layout, rendering, and screen composition helpers
+- `data_access/` — JSON data loaders
+
+---
+
 ## Current Features
 
 - Title screen with Continue/New/Quit and save overwrite confirmation
@@ -36,6 +47,7 @@ Once validated locally, the same engine and assets can be migrated to:
 - Multi-opponent encounters (up to 3) with level-budget spawns
 - Combat with variance, crits, misses, and Spark stun
 - Leveling: +10 stat points per level, allocation screen, auto-heal
+- Boosted spell prompts auto-time out after 3 seconds
 
 ---
 
@@ -43,12 +55,12 @@ Once validated locally, the same engine and assets can be migrated to:
 
 Top to bottom:
 - Top border (1)
-- Title panel line (centered) (1)
+- Location line (centered) (1)
 - Separator border (1)
-- Body area (21)
-  - Art block (10)
-  - Divider (1)
-  - Narrative block (remaining) with a centered Status line at the bottom
+- Body area (variable)
+  - Art block (if present)
+  - Divider (if art present)
+  - Narrative block with status lines
 - Actions panel header (1)
 - Actions panel content (3, auto-columns)
 - Player stats header (1)
@@ -65,28 +77,10 @@ Title Screen:
 - `Q` Quit
 - `Y/N` confirm/cancel overwrite
 
-Town:
-- `I` Inn (Rest, 10 GP) — only shown when HP/MP not full
-- `H` Hall (info on opponents/items)
-- `S` Shop
-- `O` Open Inventory
-- `F` Set out for the Forest
-- `Q` Quit
-
-Forest:
-- `A` Attack
-- `M` Magic (Spellbook)
-- `O` Open Inventory
-- `F` Find an opponent to fight
-- `T` Return to Town
-- `Q` Quit
-
-Menus:
-- Shop: `1` Rations, `2` Elixir, `B` Back, `Q` Quit
-- Hall: `1` Opponents, `2` Items, `B` Back, `Q` Quit
-- Spellbook: `1` Healing, `2` Spark, `B` Back, `Q` Quit
-- Inventory: `1-9` Use item, `B` Back, `Q` Quit
-- Level Up: `1-4` allocate stats, `B` Balanced, `X` Random
+Town/Forest/Menus:
+- Controls are data-driven from `data/commands.json`, `data/scenes.json`,
+  `data/venues.json`, and `data/menus.json`.
+- The action panel reflects the active commands and their conditions.
 
 ---
 
@@ -99,6 +93,8 @@ Game data is externalized into JSON:
 - `data/npcs.json` — NPC names and dialog snippets
 - `data/venues.json` — venue metadata and NPC links
 - `data/spells.json` — spell definitions and costs
+- `data/commands.json` — global action commands
+- `data/menus.json` — inventory/spellbook UI text and actions
 
 ---
 

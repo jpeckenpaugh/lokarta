@@ -3,7 +3,7 @@
 ## Project Overview
 - Terminal-based ASCII RPG prototype.
 - Main entry: `main.py`.
-- Data assets: `data/opponents.json`, `data/items.json`, `data/scenes.json`, `data/npcs.json`, `data/venues.json`, `data/spells.json`.
+- Data assets: `data/opponents.json`, `data/items.json`, `data/scenes.json`, `data/npcs.json`, `data/venues.json`, `data/spells.json`, `data/commands.json`, `data/menus.json`.
 - Save file: `saves/slot1.json` (generated at runtime).
 
 ## Conventions
@@ -11,7 +11,7 @@
 - Single-key input only; no Enter prompts during gameplay.
 - Town/Forest actions are listed in the Actions panel.
 - Spells are accessed via the Spellbook (Magic).
-- Persist changes to player state via `save_game()`.
+- Persist changes to player state via `SaveData.save_player()`.
 
 ## Editing Guidelines
 - Update JSON assets instead of hardcoding data.
