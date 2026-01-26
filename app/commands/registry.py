@@ -17,6 +17,7 @@ class CommandContext:
     loot: dict
     spells_data: SpellsData
     items_data: ItemsData
+    target_index: Optional[int] = None
 
 
 class CommandRegistry:

@@ -61,7 +61,8 @@ def cast_spell(
     spell_id: str,
     boosted: bool,
     loot: dict,
-    spells_data: SpellsData
+    spells_data: SpellsData,
+    target_index: Optional[int] = None
 ) -> str:
     spell = spells_data.get(spell_id, {})
     name = spell.get("name", spell_id.title())
@@ -83,7 +84,13 @@ def cast_spell(
         return f"You cast {name} and restore {heal} HP."
 
     if spell_id == "spark":
-        opponent = primary_opponent(opponents)
+        opponent = None
+        if target_index is not None and 0 <= target_index < len(opponents):
+            candidate = opponents[target_index]
+            if candidate.hp > 0:
+                opponent = candidate
+        if opponent is None:
+            opponent = primary_opponent(opponents)
         if not opponent:
             return "There is nothing to target."
         player.mp -= mp_cost

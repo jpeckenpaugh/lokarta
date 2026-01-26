@@ -15,6 +15,7 @@ def _handle_heal(ctx: CommandContext) -> str:
         boosted=False,
         loot=ctx.loot,
         spells_data=ctx.spells_data,
+        target_index=ctx.target_index,
     )
 
 
@@ -26,4 +27,5 @@ def _handle_spark(ctx: CommandContext) -> str:
         boosted=False,
         loot=ctx.loot,
         spells_data=ctx.spells_data,
+        target_index=ctx.target_index,
     )

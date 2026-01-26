@@ -15,8 +15,18 @@ def read_keypress() -> str:
         import msvcrt
         ch = msvcrt.getch()
         if ch in (b"\x00", b"\xe0"):
-            msvcrt.getch()
+            key = msvcrt.getch()
+            if key == b"K":
+                return "LEFT"
+            if key == b"M":
+                return "RIGHT"
+            if key == b"H":
+                return "UP"
+            if key == b"P":
+                return "DOWN"
             return ""
+        if ch == b"\r":
+            return "ENTER"
         try:
             return ch.decode("utf-8", errors="ignore")
         except Exception:
@@ -30,6 +40,19 @@ def read_keypress() -> str:
         try:
             tty.setcbreak(fd)  # cbreak: immediate input, but still handles signals
             ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                seq = sys.stdin.read(2)
+                if seq == "[D":
+                    return "LEFT"
+                if seq == "[C":
+                    return "RIGHT"
+                if seq == "[A":
+                    return "UP"
+                if seq == "[B":
+                    return "DOWN"
+                return ""
+            if ch in ("\r", "\n"):
+                return "ENTER"
             return ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -43,8 +66,18 @@ def read_keypress_timeout(timeout_sec: float) -> Optional[str]:
             if msvcrt.kbhit():
                 ch = msvcrt.getch()
                 if ch in (b"\x00", b"\xe0"):
-                    msvcrt.getch()
+                    key = msvcrt.getch()
+                    if key == b"K":
+                        return "LEFT"
+                    if key == b"M":
+                        return "RIGHT"
+                    if key == b"H":
+                        return "UP"
+                    if key == b"P":
+                        return "DOWN"
                     return ""
+                if ch == b"\r":
+                    return "ENTER"
                 try:
                     return ch.decode("utf-8", errors="ignore")
                 except Exception:
@@ -62,7 +95,21 @@ def read_keypress_timeout(timeout_sec: float) -> Optional[str]:
             tty.setcbreak(fd)
             ready, _, _ = select.select([sys.stdin], [], [], timeout_sec)
             if ready:
-                return sys.stdin.read(1)
+                ch = sys.stdin.read(1)
+                if ch == "\x1b":
+                    seq = sys.stdin.read(2)
+                    if seq == "[D":
+                        return "LEFT"
+                    if seq == "[C":
+                        return "RIGHT"
+                    if seq == "[A":
+                        return "UP"
+                    if seq == "[B":
+                        return "DOWN"
+                    return ""
+                if ch in ("\r", "\n"):
+                    return "ENTER"
+                return ch
             return None
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)

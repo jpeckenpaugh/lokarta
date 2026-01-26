@@ -9,7 +9,13 @@ def register(registry: CommandRegistry):
 
 
 def _handle_attack(ctx: CommandContext) -> str:
-    opponent = primary_opponent(ctx.opponents)
+    opponent = None
+    if ctx.target_index is not None and 0 <= ctx.target_index < len(ctx.opponents):
+        candidate = ctx.opponents[ctx.target_index]
+        if candidate.hp > 0:
+            opponent = candidate
+    if opponent is None:
+        opponent = primary_opponent(ctx.opponents)
     if not opponent:
         return "There is nothing to attack."
     damage, crit, miss = roll_damage(ctx.player.atk, opponent.defense)

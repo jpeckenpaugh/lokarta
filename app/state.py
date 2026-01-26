@@ -23,3 +23,6 @@ class GameState:
     spell_mode: bool
     quit_confirm: bool
     title_mode: bool
+    target_select: bool = False
+    target_index: Optional[int] = None
+    target_command: Optional[str] = None

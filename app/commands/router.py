@@ -33,6 +33,7 @@ class CommandState:
     inn_mode: bool
     spell_mode: bool
     action_cmd: Optional[str]
+    target_index: Optional[int] = None
 
 
 @dataclass
@@ -340,6 +341,7 @@ def handle_boost_confirm(
         boosted,
         state.loot_bank,
         ctx.spells,
+        target_index=state.target_index,
     )
     spell = ctx.spells.get(spell_id, {})
     state.action_cmd = spell.get("command_id")

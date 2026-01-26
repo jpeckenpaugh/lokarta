@@ -8,8 +8,10 @@ from app.loop import (
     handle_battle_end,
     handle_offensive_action,
     map_input_to_command,
+    maybe_begin_target_select,
     read_input,
     render_frame_state,
+    run_target_select,
     run_opponent_turns,
     resolve_player_action,
 )
@@ -113,6 +115,12 @@ def main():
         if should_continue:
             continue
 
+        if maybe_begin_target_select(APP, state, cmd):
+            confirmed = run_target_select(APP, render_frame, state, generate_frame, read_keypress_timeout)
+            if not confirmed:
+                continue
+            cmd = confirmed
+
         action_cmd = resolve_player_action(
             APP,
             state,
@@ -124,6 +132,9 @@ def main():
         )
         if state.boost_prompt:
             continue
+        if action_cmd:
+            state.target_index = None
+            state.target_command = None
 
         if state.player.needs_level_up() and not any(opponent.hp > 0 for opponent in state.opponents):
             state.leveling_mode = True

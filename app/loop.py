@@ -11,7 +11,7 @@ from app.commands.scene_commands import scene_commands
 from app.combat import battle_action_delay, cast_spell, primary_opponent_index, roll_damage
 from app.state import GameState
 from app.ui.ansi import ANSI
-from app.ui.rendering import animate_battle_end, animate_battle_start, flash_opponent, melt_opponent
+from app.ui.rendering import animate_battle_end, animate_battle_start, flash_opponent, melt_opponent, render_scene_frame
 from app.ui.text import format_text
 
 
@@ -58,6 +58,69 @@ def read_input(ctx, render_frame, state: GameState, generate_frame, read_keypres
     if state.boost_prompt:
         return read_boost_prompt_input(ctx, render_frame, state, generate_frame, read_keypress_timeout)
     return read_keypress()
+
+
+def _alive_indices(opponents) -> list[int]:
+    return [i for i, opp in enumerate(opponents) if opp.hp > 0]
+
+
+def _advance_index(indices: list[int], current: int, direction: int) -> int:
+    if not indices:
+        return current
+    if current not in indices:
+        return indices[0]
+    pos = indices.index(current)
+    next_pos = (pos + direction) % len(indices)
+    return indices[next_pos]
+
+
+def run_target_select(ctx, render_frame, state: GameState, generate_frame, read_keypress_timeout) -> Optional[str]:
+    indices = _alive_indices(state.opponents)
+    if not indices:
+        state.target_select = False
+        state.target_command = None
+        state.target_index = None
+        return None
+    if state.target_index not in indices:
+        state.target_index = indices[0]
+    blink_on = True
+    while state.target_select:
+        flash_index = state.target_index if blink_on else None
+        gap_target = ctx.scenes.get("forest", {}).get("gap_width", 0)
+        if isinstance(gap_target, str):
+            try:
+                gap_target = int(gap_target)
+            except ValueError:
+                gap_target = 0
+        render_scene_frame(
+            ctx.scenes,
+            ctx.commands_data,
+            "forest",
+            state.player,
+            state.opponents,
+            "Select target (←/→, Enter)",
+            gap_override=gap_target,
+            flash_index=flash_index,
+            flash_color=ANSI.FG_YELLOW,
+            suppress_actions=True,
+        )
+        ch = read_keypress_timeout(0.4)
+        if ch is None:
+            blink_on = not blink_on
+            continue
+        if ch in ("ENTER", "\r", "\n"):
+            state.target_select = False
+            return state.target_command
+        if ch in ("LEFT", "RIGHT"):
+            direction = -1 if ch == "LEFT" else 1
+            state.target_index = _advance_index(indices, state.target_index, direction)
+            continue
+        if ch.lower() == "b":
+            state.target_select = False
+            state.target_command = None
+            state.target_index = None
+            return None
+    return None
 
 
 def available_commands_for_state(ctx, state: GameState) -> Optional[list]:
@@ -109,6 +172,22 @@ def map_input_to_command(ctx, state: GameState, ch: str) -> tuple[Optional[str],
     return cmd, command_meta
 
 
+def maybe_begin_target_select(ctx, state: GameState, cmd: Optional[str]) -> bool:
+    if not cmd:
+        return False
+    targeted = cmd == "ATTACK" or cmd in ctx.targeted_spell_commands
+    if not targeted:
+        return False
+    indices = _alive_indices(state.opponents)
+    if not indices:
+        return False
+    state.target_select = True
+    state.target_command = cmd
+    if state.target_index not in indices:
+        state.target_index = indices[0]
+    return True
+
+
 def apply_boost_confirm(ctx, state: GameState, ch: str, action_cmd: Optional[str]) -> tuple[bool, Optional[str], bool]:
     if not state.boost_prompt:
         return False, action_cmd, False
@@ -130,6 +209,7 @@ def apply_boost_confirm(ctx, state: GameState, ch: str, action_cmd: Optional[str
         inn_mode=state.inn_mode,
         spell_mode=state.spell_mode,
         action_cmd=action_cmd,
+        target_index=state.target_index,
     )
     handle_boost_confirm(cmd_state, ctx.router_ctx, spell_id, boosted)
     state.last_message = cmd_state.last_message
@@ -160,6 +240,7 @@ def apply_router_command(
         inn_mode=state.inn_mode,
         spell_mode=state.spell_mode,
         action_cmd=action_cmd,
+        target_index=state.target_index,
     )
     if not handle_command(cmd, cmd_state, ctx.router_ctx, key=ch):
         return False, action_cmd, cmd, False
@@ -231,6 +312,7 @@ def resolve_player_action(
             boosted=False,
             loot=state.loot_bank,
             spells_data=ctx.spells,
+            target_index=state.target_index,
         )
         return cmd
     state.last_message = dispatch_command(
@@ -242,6 +324,7 @@ def resolve_player_action(
             loot=state.loot_bank,
             spells_data=ctx.spells,
             items_data=ctx.items,
+            target_index=state.target_index,
         ),
     )
     if command_meta and command_meta.get("type") == "combat":
