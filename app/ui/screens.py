@@ -4,27 +4,27 @@ import textwrap
 from dataclasses import dataclass
 from typing import List, Optional
 
-from commands.scene_commands import scene_commands
-from data_access.commands_data import CommandsData
-from data_access.items_data import ItemsData
-from data_access.menus_data import MenusData
-from data_access.npcs_data import NpcsData
-from data_access.opponents_data import OpponentsData
-from data_access.scenes_data import ScenesData
-from data_access.spells_data import SpellsData
-from data_access.venues_data import VenuesData
-from data_access.text_data import TextData
-from models import Frame, Player, Opponent
-from ui.ansi import ANSI
-from ui.layout import format_action_lines, format_command_lines, format_menu_actions
-from ui.constants import SCREEN_WIDTH
-from ui.rendering import (
+from app.commands.scene_commands import scene_commands
+from app.data_access.commands_data import CommandsData
+from app.data_access.items_data import ItemsData
+from app.data_access.menus_data import MenusData
+from app.data_access.npcs_data import NpcsData
+from app.data_access.opponents_data import OpponentsData
+from app.data_access.scenes_data import ScenesData
+from app.data_access.spells_data import SpellsData
+from app.data_access.venues_data import VenuesData
+from app.data_access.text_data import TextData
+from app.models import Frame, Player, Opponent
+from app.ui.ansi import ANSI
+from app.ui.layout import format_action_lines, format_command_lines, format_menu_actions
+from app.ui.constants import SCREEN_WIDTH
+from app.ui.rendering import (
     COLOR_BY_NAME,
     format_player_stats,
     render_scene_art,
     render_venue_art,
 )
-from ui.text import format_text
+from app.ui.text import format_text
 
 
 @dataclass

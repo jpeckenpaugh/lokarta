@@ -3,20 +3,20 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from combat import cast_spell, primary_opponent
-from data_access.commands_data import CommandsData
-from data_access.items_data import ItemsData
-from data_access.opponents_data import OpponentsData
-from data_access.scenes_data import ScenesData
-from data_access.venues_data import VenuesData
-from data_access.menus_data import MenusData
-from data_access.save_data import SaveData
-from models import Player, Opponent
-from commands.registry import CommandContext, CommandRegistry, dispatch_command
-from data_access.spells_data import SpellsData
-from shop import purchase_item
-from ui.ansi import ANSI
-from ui.rendering import animate_battle_start
+from app.combat import cast_spell, primary_opponent
+from app.data_access.commands_data import CommandsData
+from app.data_access.items_data import ItemsData
+from app.data_access.opponents_data import OpponentsData
+from app.data_access.scenes_data import ScenesData
+from app.data_access.venues_data import VenuesData
+from app.data_access.menus_data import MenusData
+from app.data_access.save_data import SaveData
+from app.models import Player, Opponent
+from app.commands.registry import CommandContext, CommandRegistry, dispatch_command
+from app.data_access.spells_data import SpellsData
+from app.shop import purchase_item
+from app.ui.ansi import ANSI
+from app.ui.rendering import animate_battle_start
 
 
 @dataclass
@@ -352,7 +352,7 @@ def _command_target(
     command_id: str,
     key: Optional[str]
 ) -> Optional[str]:
-    from commands.scene_commands import scene_commands
+    from app.commands.scene_commands import scene_commands
     scene_id = "town" if state.player.location == "Town" else "forest"
     commands_list = scene_commands(
         scenes_data,

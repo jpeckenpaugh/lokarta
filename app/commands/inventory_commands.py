@@ -1,4 +1,4 @@
-from commands.registry import CommandRegistry, CommandContext
+from app.commands.registry import CommandRegistry, CommandContext
 
 
 def register(registry: CommandRegistry):

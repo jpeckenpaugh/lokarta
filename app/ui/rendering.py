@@ -6,18 +6,18 @@ import textwrap
 from dataclasses import replace
 from typing import List, Optional
 
-from commands.scene_commands import format_commands, scene_commands
-from models import Frame, Player, Opponent
-from ui.ansi import ANSI, color
-from ui.constants import (
+from app.commands.scene_commands import format_commands, scene_commands
+from app.models import Frame, Player, Opponent
+from app.ui.ansi import ANSI, color
+from app.ui.constants import (
     NARRATIVE_INDENT,
     OPPONENT_ART_WIDTH,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     STAT_LINES,
 )
-from ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi
-from combat import battle_action_delay
+from app.ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi
+from app.combat import battle_action_delay
 
 
 COLOR_BY_NAME = {

@@ -1,7 +1,7 @@
 """Shop-related helpers for purchases."""
 
-from data_access.items_data import ItemsData
-from models import Player
+from app.data_access.items_data import ItemsData
+from app.models import Player
 
 
 def purchase_item(player: Player, items_data: ItemsData, key: str) -> str:

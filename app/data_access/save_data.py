@@ -3,7 +3,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from models import Player
+from app.models import Player
 
 
 class SaveData:

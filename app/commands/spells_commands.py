@@ -1,5 +1,5 @@
-from combat import cast_spell
-from commands.registry import CommandRegistry, CommandContext
+from app.combat import cast_spell
+from app.commands.registry import CommandRegistry, CommandContext
 
 
 def register(registry: CommandRegistry):

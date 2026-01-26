@@ -1,5 +1,5 @@
-from commands.registry import CommandRegistry
-from commands import combat_commands, inventory_commands, spells_commands
+from app.commands.registry import CommandRegistry
+from app.commands import combat_commands, inventory_commands, spells_commands
 
 
 def build_registry() -> CommandRegistry:

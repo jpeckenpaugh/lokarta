@@ -3,8 +3,8 @@
 import random
 from typing import List, Optional, Tuple
 
-from data_access.spells_data import SpellsData
-from models import Player, Opponent
+from app.data_access.spells_data import SpellsData
+from app.models import Player, Opponent
 
 
 def roll_damage(attacker_atk: int, defender_def: int) -> Tuple[int, bool, bool]:

@@ -3,10 +3,10 @@ import os
 import tempfile
 import unittest
 
-from commands.scene_commands import scene_commands
-from data_access.commands_data import CommandsData
-from data_access.scenes_data import ScenesData
-from models import Player
+from app.commands.scene_commands import scene_commands
+from app.data_access.commands_data import CommandsData
+from app.data_access.scenes_data import ScenesData
+from app.models import Player
 
 
 class TestSceneCommands(unittest.TestCase):

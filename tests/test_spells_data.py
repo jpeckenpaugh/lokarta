@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from data_access.spells_data import SpellsData
+from app.data_access.spells_data import SpellsData
 
 
 class TestSpellsData(unittest.TestCase):

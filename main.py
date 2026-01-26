@@ -4,33 +4,34 @@ import random
 import time
 from typing import List, Optional
 
-from combat import (
+from app.combat import (
     battle_action_delay,
     cast_spell,
     primary_opponent,
     primary_opponent_index,
     roll_damage,
 )
-from commands import build_registry
-from commands.keymap import map_key_to_command
-from commands.registry import CommandContext, dispatch_command
-from commands.router import CommandState, RouterContext, handle_boost_confirm, handle_command
-from commands.scene_commands import scene_commands
-from data_access.commands_data import CommandsData
-from data_access.items_data import ItemsData
-from data_access.menus_data import MenusData
-from data_access.text_data import TextData
-from data_access.opponents_data import OpponentsData
-from data_access.scenes_data import ScenesData
-from data_access.npcs_data import NpcsData
-from data_access.venues_data import VenuesData
-from data_access.spells_data import SpellsData
-from data_access.save_data import SaveData
-from input import read_keypress, read_keypress_timeout
-from models import Player, Opponent
-from ui.ansi import ANSI
-from ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
-from ui.rendering import (
+from app.commands import build_registry
+from app.commands.keymap import map_key_to_command
+from app.commands.registry import CommandContext, dispatch_command
+from app.commands.router import CommandState, RouterContext, handle_boost_confirm, handle_command
+from app.commands.scene_commands import scene_commands, command_ids_by_anim, command_ids_by_type
+from app.data_access.commands_data import CommandsData
+from app.data_access.items_data import ItemsData
+from app.data_access.menus_data import MenusData
+from app.data_access.text_data import TextData
+from app.data_access.opponents_data import OpponentsData
+from app.data_access.scenes_data import ScenesData
+from app.data_access.npcs_data import NpcsData
+from app.data_access.venues_data import VenuesData
+from app.data_access.spells_data import SpellsData
+from app.data_access.save_data import SaveData
+from app.config import DATA_DIR, SAVE_PATH
+from app.input import read_keypress, read_keypress_timeout
+from app.models import Player, Opponent
+from app.ui.ansi import ANSI
+from app.ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from app.ui.rendering import (
     clear_screen,
     animate_battle_end,
     animate_battle_start,
@@ -38,11 +39,8 @@ from ui.rendering import (
     melt_opponent,
     render_frame,
 )
-from ui.screens import ScreenContext, generate_frame
-from ui.text import format_text
-
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
+from app.ui.screens import ScreenContext, generate_frame
+from app.ui.text import format_text
 
 ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
 OPPONENTS = OpponentsData(os.path.join(DATA_DIR, "opponents.json"))
@@ -54,27 +52,6 @@ COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 TEXTS = TextData(os.path.join(DATA_DIR, "text.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
-def _scene_command_ids_by_type(command_type: str) -> set:
-    ids = set()
-    for scene in SCENES.all().values():
-        for command in scene.get("commands", []) if isinstance(scene, dict) else []:
-            if command.get("type") == command_type:
-                cmd_id = command.get("command")
-                if cmd_id:
-                    ids.add(cmd_id)
-    return ids
-
-
-def _scene_command_ids_by_anim(anim: str) -> set:
-    ids = set()
-    for scene in SCENES.all().values():
-        for command in scene.get("commands", []) if isinstance(scene, dict) else []:
-            if command.get("anim") == anim:
-                cmd_id = command.get("command")
-                if cmd_id:
-                    ids.add(cmd_id)
-    return ids
-
 
 SPELL_COMMANDS = {
     spell.get("command_id")
@@ -91,8 +68,8 @@ FLASH_SPELL_COMMANDS = {
     for spell in SPELLS.all().values()
     if isinstance(spell, dict) and spell.get("command_id") and spell.get("anim") == "flash_melt"
 }
-COMBAT_ACTIONS = _scene_command_ids_by_type("combat") | SPELL_COMMANDS
-OFFENSIVE_ACTIONS = _scene_command_ids_by_anim("flash_melt") | FLASH_SPELL_COMMANDS
+COMBAT_ACTIONS = command_ids_by_type(SCENES, "combat") | SPELL_COMMANDS
+OFFENSIVE_ACTIONS = command_ids_by_anim(SCENES, "flash_melt") | FLASH_SPELL_COMMANDS
 BATTLE_END_COMMANDS = {"BATTLE_END"}
 COMMANDS = build_registry()
 ROUTER_CTX = RouterContext(

@@ -1,10 +1,10 @@
 """Scene command composition and filtering."""
 
-from typing import List
+from typing import List, Set
 
-from data_access.commands_data import CommandsData
-from data_access.scenes_data import ScenesData
-from models import Player, Opponent
+from app.data_access.commands_data import CommandsData
+from app.data_access.scenes_data import ScenesData
+from app.models import Player, Opponent
 
 
 def filter_commands(commands: List[dict], player: Player, opponents: List[Opponent]) -> List[dict]:
@@ -65,3 +65,31 @@ def format_commands(commands: List[dict]) -> List[str]:
             continue
         actions.append(f"  [{key}] {label}")
     return actions
+
+
+def command_ids_by_type(scenes_data: ScenesData, command_type: str) -> Set[str]:
+    ids: Set[str] = set()
+    for scene in scenes_data.all().values():
+        if not isinstance(scene, dict):
+            continue
+        for command in scene.get("commands", []):
+            if command.get("type") != command_type:
+                continue
+            cmd_id = command.get("command")
+            if cmd_id:
+                ids.add(cmd_id)
+    return ids
+
+
+def command_ids_by_anim(scenes_data: ScenesData, anim: str) -> Set[str]:
+    ids: Set[str] = set()
+    for scene in scenes_data.all().values():
+        if not isinstance(scene, dict):
+            continue
+        for command in scene.get("commands", []):
+            if command.get("anim") != anim:
+                continue
+            cmd_id = command.get("command")
+            if cmd_id:
+                ids.add(cmd_id)
+    return ids

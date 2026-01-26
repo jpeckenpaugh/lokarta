@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from commands.scene_commands import format_commands
-from ui.constants import ACTION_LINES, SCREEN_WIDTH
+from app.commands.scene_commands import format_commands
+from app.ui.constants import ACTION_LINES, SCREEN_WIDTH
 
 
 def strip_ansi(s: str) -> str:

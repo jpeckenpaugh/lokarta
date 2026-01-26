@@ -4,7 +4,7 @@ import json
 import random
 from typing import Dict, List, Optional
 
-from models import Opponent
+from app.models import Opponent
 
 
 class OpponentsData:

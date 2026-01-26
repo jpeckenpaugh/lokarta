@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
-from data_access.items_data import ItemsData
-from data_access.spells_data import SpellsData
-from models import Player, Opponent
+from app.data_access.items_data import ItemsData
+from app.data_access.spells_data import SpellsData
+from app.models import Player, Opponent
 
 CommandHandler = Callable[["CommandContext"], Optional[str]]
 

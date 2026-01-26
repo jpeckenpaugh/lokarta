@@ -1,6 +1,6 @@
 import unittest
 
-from ui.text import format_text
+from app.ui.text import format_text
 
 
 class TestTextFormatting(unittest.TestCase):

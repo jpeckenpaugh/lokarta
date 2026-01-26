@@ -3,17 +3,17 @@ import os
 import tempfile
 import unittest
 
-from commands.router import CommandState, RouterContext, handle_command
-from data_access.commands_data import CommandsData
-from data_access.items_data import ItemsData
-from data_access.menus_data import MenusData
-from data_access.opponents_data import OpponentsData
-from data_access.save_data import SaveData
-from data_access.scenes_data import ScenesData
-from data_access.spells_data import SpellsData
-from data_access.venues_data import VenuesData
-from models import Player
-from commands import build_registry
+from app.commands.router import CommandState, RouterContext, handle_command
+from app.data_access.commands_data import CommandsData
+from app.data_access.items_data import ItemsData
+from app.data_access.menus_data import MenusData
+from app.data_access.opponents_data import OpponentsData
+from app.data_access.save_data import SaveData
+from app.data_access.scenes_data import ScenesData
+from app.data_access.spells_data import SpellsData
+from app.data_access.venues_data import VenuesData
+from app.models import Player
+from app.commands import build_registry
 
 
 class RouterTests(unittest.TestCase):

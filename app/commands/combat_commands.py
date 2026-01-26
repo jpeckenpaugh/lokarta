@@ -1,7 +1,7 @@
 import random
 
-from combat import add_loot, primary_opponent, roll_damage
-from commands.registry import CommandRegistry, CommandContext
+from app.combat import add_loot, primary_opponent, roll_damage
+from app.commands.registry import CommandRegistry, CommandContext
 
 
 def register(registry: CommandRegistry):
