@@ -14,7 +14,7 @@ from combat import (
 )
 from commands import build_registry
 from commands.keymap import map_key_to_command
-from commands.registry import CommandContext
+from commands.registry import CommandContext, dispatch_command
 from commands.scene_commands import scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
@@ -69,23 +69,6 @@ SCREEN_CTX = ScreenContext(
 
 
 
-def apply_command(
-    command: str,
-    player: Player,
-    opponents: List[Opponent],
-    loot: dict
-) -> str:
-    ctx = CommandContext(
-        player=player,
-        opponents=opponents,
-        loot=loot,
-        spells_data=SPELLS,
-        items_data=ITEMS,
-    )
-    handled = COMMANDS.dispatch(command, ctx)
-    if handled is not None:
-        return handled
-    return "Unknown action."
 
 
 # -----------------------------
@@ -627,7 +610,17 @@ def main():
                         inventory_mode = True
                         last_message = "Choose an item to use."
                     continue
-                last_message = apply_command(cmd, player, opponents, loot=loot_bank)
+                last_message = dispatch_command(
+                    COMMANDS,
+                    cmd,
+                    CommandContext(
+                        player=player,
+                        opponents=opponents,
+                        loot=loot_bank,
+                        spells_data=SPELLS,
+                        items_data=ITEMS,
+                    ),
+                )
                 if cmd == "ATTACK":
                     action_cmd = "ATTACK"
 

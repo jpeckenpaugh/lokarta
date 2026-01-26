@@ -29,3 +29,14 @@ class CommandRegistry:
         if handler is None:
             return None
         return handler(ctx)
+
+
+def dispatch_command(
+    registry: CommandRegistry,
+    command_id: str,
+    ctx: CommandContext
+) -> str:
+    handled = registry.dispatch(command_id, ctx)
+    if handled is not None:
+        return handled
+    return "Unknown action."
