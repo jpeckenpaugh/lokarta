@@ -70,7 +70,7 @@ Town:
 - `H` Hall (info on opponents/items)
 - `S` Shop
 - `O` Open Inventory
-- `F` Set out for the Forrest
+- `F` Set out for the Forest
 - `Q` Quit
 
 Forest:

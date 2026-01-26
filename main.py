@@ -502,7 +502,7 @@ def generate_demo_frame(
             "If you are lost, check the town hall for instructions."
         ]
         actions = [
-            "  [F] Set out for the Forrest",
+            "  [F] Set out for the Forest",
             "  [S] Shop",
             "  [H] Hall",
         ]
@@ -573,7 +573,7 @@ def generate_demo_frame(
             if leveling_mode
             else (
                 "Keys: A=Attack  H=Heal  S=Spark  I=Inventory  "
-                "R=Rest  N=Next  T=Town  F=Forrest  Q=Quit"
+                "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
             )
         ),
         location=player.location,
@@ -950,7 +950,7 @@ def render_forest_frame(
         stat_lines=format_player_stats(player),
         footer_hint=(
             "Keys: A=Attack  H=Heal  S=Spark  I=Inventory  "
-            "R=Rest  N=Next  T=Town  F=Forrest  Q=Quit"
+            "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
         ),
         location=player.location,
         art_lines=forest_art,
@@ -984,7 +984,7 @@ def animate_forest_gap(
 
 
 def animate_battle_start(player: Player, opponents: List[Opponent], message: str):
-    if player.location != "Forrest" or not opponents:
+    if player.location != "Forest" or not opponents:
         return
     scene_data = SCENES.get("forest", {})
     gap_base = (
@@ -997,7 +997,7 @@ def animate_battle_start(player: Player, opponents: List[Opponent], message: str
 
 
 def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
-    if player.location != "Forrest" or not opponents:
+    if player.location != "Forest" or not opponents:
         return
     scene_data = SCENES.get("forest", {})
     gap_base = (
@@ -1023,7 +1023,7 @@ def flash_opponent(
     index: Optional[int],
     flash_color: str
 ):
-    if index is None or player.location != "Forrest":
+    if index is None or player.location != "Forest":
         return
     scene_data = SCENES.get("forest", {})
     gap_target = compute_forest_gap_target(scene_data, opponents)
@@ -1044,7 +1044,7 @@ def melt_opponent(
     message: str,
     index: Optional[int]
 ):
-    if index is None or player.location != "Forrest":
+    if index is None or player.location != "Forest":
         return
     if index < 0 or index >= len(opponents):
         return
@@ -1496,7 +1496,7 @@ def main():
 
         if cmd == "F_KEY":
             if player.location == "Town":
-                player.location = "Forrest"
+                player.location = "Forest"
                 opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
@@ -1568,10 +1568,10 @@ def main():
             continue
 
         if cmd == "FOREST":
-            if player.location == "Forrest":
-                last_message = "You are already in the Forrest."
+            if player.location == "Forest":
+                last_message = "You are already in the Forest."
             else:
-                player.location = "Forrest"
+                player.location = "Forest"
                 opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
@@ -1648,7 +1648,7 @@ def main():
 
         player_defeated = False
         if action_cmd in ("ATTACK", "SPARK", "HEAL") and any(opponent.hp > 0 for opponent in opponents):
-            if player.location == "Forrest":
+            if player.location == "Forest":
                 frame = generate_demo_frame(
                     player,
                     opponents,
@@ -1703,7 +1703,7 @@ def main():
                         )
                         player_defeated = True
                         break
-                if player.location == "Forrest" and idx < len(acting) - 1:
+                if player.location == "Forest" and idx < len(acting) - 1:
                     frame = generate_demo_frame(
                         player,
                         opponents,
