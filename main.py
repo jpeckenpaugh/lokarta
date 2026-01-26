@@ -49,37 +49,8 @@ def color(text: str, *codes: str) -> str:
     return "".join(codes) + text + ANSI.RESET
 
 
-def create_opponent(data: dict) -> Opponent:
-    name = data.get("name", "Slime")
-    level = int(data.get("level", 1))
-    hp = int(data.get("hp", 10))
-    atk = int(data.get("atk", 5))
-    defense = int(data.get("defense", 5))
-    action_chance = float(data.get("action_chance", 1.0))
-    art_lines = data.get("art", [])
-    arrival = data.get("arrival", "appears")
-    return Opponent(
-        name=name,
-        level=level,
-        hp=hp,
-        max_hp=hp,
-        atk=atk,
-        defense=defense,
-        stunned_turns=0,
-        action_chance=action_chance,
-        melted=False,
-        art_lines=art_lines,
-        art_color=ANSI.FG_CYAN,
-        arrival=arrival
-    )
-
-
 def spawn_opponents(player_level: int) -> List[Opponent]:
-    return OPPONENTS.spawn(player_level, create_opponent)
-
-
-def load_opponent_data() -> dict:
-    return OPPONENTS.all()
+    return OPPONENTS.spawn(player_level, ANSI.FG_CYAN)
 
 
 def load_scene_data() -> dict:
@@ -111,10 +82,6 @@ def load_npc_data() -> dict:
 
 def load_venue_data() -> dict:
     return VENUES.all()
-
-
-def format_npc_greeting(npc_id: str) -> List[str]:
-    return NPCS.format_greeting(npc_id)
 
 
 def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
@@ -545,7 +512,7 @@ def generate_demo_frame(
         npc_ids = venue.get("npc_ids", [])
         npc = {}
         if npc_ids:
-            npc_lines = format_npc_greeting(npc_ids[0])
+            npc_lines = NPCS.format_greeting(npc_ids[0])
             npc = load_npc_data().get(npc_ids[0], {})
         body = []
         if npc_lines:
@@ -570,7 +537,7 @@ def generate_demo_frame(
         npc_ids = venue.get("npc_ids", [])
         npc = {}
         if npc_ids:
-            npc_lines = format_npc_greeting(npc_ids[0])
+            npc_lines = NPCS.format_greeting(npc_ids[0])
             npc = load_npc_data().get(npc_ids[0], {})
         if hall_view == "items":
             info_lines = list_item_descriptions()

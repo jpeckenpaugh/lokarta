@@ -2,6 +2,8 @@ import json
 import random
 from typing import Dict, List, Optional
 
+from models import Opponent
+
 
 class OpponentsData:
     def __init__(self, path: str):
@@ -32,11 +34,35 @@ class OpponentsData:
             lines.append(f"{name}: {desc}")
         return lines
 
+    def create(self, data: dict, art_color: str) -> Opponent:
+        name = data.get("name", "Slime")
+        level = int(data.get("level", 1))
+        hp = int(data.get("hp", 10))
+        atk = int(data.get("atk", 5))
+        defense = int(data.get("defense", 5))
+        action_chance = float(data.get("action_chance", 1.0))
+        art_lines = data.get("art", [])
+        arrival = data.get("arrival", "appears")
+        return Opponent(
+            name=name,
+            level=level,
+            hp=hp,
+            max_hp=hp,
+            atk=atk,
+            defense=defense,
+            stunned_turns=0,
+            action_chance=action_chance,
+            melted=False,
+            art_lines=art_lines,
+            art_color=art_color,
+            arrival=arrival
+        )
+
     def spawn(
         self,
         player_level: int,
-        create_opponent
-    ) -> List:
+        art_color: str
+    ) -> List[Opponent]:
         if not self._opponents:
             return []
         candidates = list(self._opponents.values())
@@ -53,10 +79,10 @@ class OpponentsData:
             if not choices:
                 break
             data = random.choice(choices)
-            spawned.append(create_opponent(data))
+            spawned.append(self.create(data, art_color))
             total_level += int(data.get("level", 1))
             if total_level >= player_level:
                 break
         if not spawned:
-            spawned.append(create_opponent(candidates[0]))
+            spawned.append(self.create(candidates[0], art_color))
         return spawned
