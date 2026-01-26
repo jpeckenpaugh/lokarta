@@ -53,6 +53,182 @@ OFFENSIVE_ACTIONS = APP.offensive_actions
 BATTLE_END_COMMANDS = APP.battle_end_commands
 
 
+def render_frame_state(state: GameState, message: Optional[str] = None, suppress_actions: bool = False) -> None:
+    frame = generate_frame(
+        SCREEN_CTX,
+        state.player,
+        state.opponents,
+        state.last_message if message is None else message,
+        state.leveling_mode,
+        state.shop_mode,
+        state.inventory_mode,
+        state.inventory_items,
+        state.hall_mode,
+        state.hall_view,
+        state.inn_mode,
+        state.spell_mode,
+        suppress_actions=suppress_actions,
+    )
+    render_frame(frame)
+
+
+def render_battle_pause(state: GameState, message: str) -> None:
+    render_frame_state(state, message=message, suppress_actions=True)
+    time.sleep(battle_action_delay(state.player))
+
+
+def read_boost_prompt_input(state: GameState) -> str:
+    spell_id = state.boost_prompt
+    spell_data = SPELLS.get(spell_id, {})
+    prompt_seconds = int(spell_data.get("boost_prompt_seconds", 3))
+    default_choice = str(spell_data.get("boost_default", "N")).lower()
+    choice = None
+    for remaining in range(prompt_seconds, 0, -1):
+        countdown_message = f"{state.last_message} ({remaining})"
+        render_frame_state(state, message=countdown_message)
+        choice = read_keypress_timeout(1.0)
+        if choice and choice.lower() in ("y", "n"):
+            break
+    return choice if choice else default_choice
+
+
+def read_input(state: GameState) -> str:
+    if state.boost_prompt:
+        return read_boost_prompt_input(state)
+    return read_keypress()
+
+def available_commands_for_state(state: GameState) -> Optional[list]:
+    if state.title_mode:
+        title_scene = SCENES.get("title", {})
+        if getattr(state.player, "title_confirm", False):
+            return title_scene.get("confirm_commands", [])
+        return scene_commands(
+            SCENES,
+            COMMANDS_DATA,
+            "title",
+            state.player,
+            state.opponents
+        )
+    if state.inn_mode:
+        venue = VENUES.get("town_inn", {})
+        return venue.get("commands", [])
+    if not any(
+        [
+            state.leveling_mode,
+            state.shop_mode,
+            state.inventory_mode,
+            state.hall_mode,
+            state.inn_mode,
+            state.spell_mode,
+            state.boost_prompt,
+        ]
+    ):
+        scene_id = "town" if state.player.location == "Town" else "forest"
+        return scene_commands(
+            SCENES,
+            COMMANDS_DATA,
+            scene_id,
+            state.player,
+            state.opponents
+        )
+    return None
+
+
+def map_input_to_command(state: GameState, ch: str) -> tuple[Optional[str], Optional[dict]]:
+    available_commands = available_commands_for_state(state)
+    cmd = map_key_to_command(ch, available_commands)
+    command_meta = None
+    if available_commands and cmd:
+        command_meta = next(
+            (entry for entry in available_commands if entry.get("command") == cmd),
+            None
+        )
+    return cmd, command_meta
+
+
+def apply_boost_confirm(state: GameState, ch: str, action_cmd: Optional[str]) -> tuple[bool, Optional[str], bool]:
+    if not state.boost_prompt:
+        return False, action_cmd, False
+    if ch.lower() not in ("y", "n"):
+        state.last_message = "Choose Y or N to boost the spell."
+        return True, action_cmd, True
+    boosted = ch.lower() == "y"
+    spell_id = state.boost_prompt
+    cmd_state = CommandState(
+        player=state.player,
+        opponents=state.opponents,
+        loot_bank=state.loot_bank,
+        last_message=state.last_message,
+        shop_mode=state.shop_mode,
+        inventory_mode=state.inventory_mode,
+        inventory_items=state.inventory_items,
+        hall_mode=state.hall_mode,
+        hall_view=state.hall_view,
+        inn_mode=state.inn_mode,
+        spell_mode=state.spell_mode,
+        action_cmd=action_cmd,
+    )
+    handle_boost_confirm(cmd_state, ROUTER_CTX, spell_id, boosted)
+    state.last_message = cmd_state.last_message
+    state.boost_prompt = None
+    return True, cmd_state.action_cmd, False
+
+
+def apply_router_command(
+    state: GameState,
+    cmd: Optional[str],
+    ch: str,
+    command_meta: Optional[dict],
+    action_cmd: Optional[str],
+) -> tuple[bool, Optional[str], Optional[str], bool]:
+    if not cmd:
+        return False, action_cmd, cmd, False
+    cmd_state = CommandState(
+        player=state.player,
+        opponents=state.opponents,
+        loot_bank=state.loot_bank,
+        last_message=state.last_message,
+        shop_mode=state.shop_mode,
+        inventory_mode=state.inventory_mode,
+        inventory_items=state.inventory_items,
+        hall_mode=state.hall_mode,
+        hall_view=state.hall_view,
+        inn_mode=state.inn_mode,
+        spell_mode=state.spell_mode,
+        action_cmd=action_cmd,
+    )
+    if not handle_command(cmd, cmd_state, ROUTER_CTX, key=ch):
+        return False, action_cmd, cmd, False
+    state.opponents = cmd_state.opponents
+    state.loot_bank = cmd_state.loot_bank
+    state.last_message = cmd_state.last_message
+    state.shop_mode = cmd_state.shop_mode
+    state.inventory_mode = cmd_state.inventory_mode
+    state.inventory_items = cmd_state.inventory_items
+    state.hall_mode = cmd_state.hall_mode
+    state.hall_view = cmd_state.hall_view
+    state.inn_mode = cmd_state.inn_mode
+    state.spell_mode = cmd_state.spell_mode
+    action_cmd = cmd_state.action_cmd
+    if state.player.location == "Title" and cmd_state.player.location != "Title":
+        state.title_mode = False
+    state.player = cmd_state.player
+    if command_meta and command_meta.get("anim") == "battle_start" and state.opponents:
+        animate_battle_start(
+            SCENES,
+            COMMANDS_DATA,
+            "forest",
+            state.player,
+            state.opponents,
+            state.last_message
+        )
+    if action_cmd not in COMBAT_ACTIONS:
+        return True, action_cmd, cmd, True
+    if action_cmd in SPELL_COMMANDS:
+        return False, action_cmd, action_cmd, False
+    return True, action_cmd, cmd, False
+
+
 
 
 
@@ -86,77 +262,14 @@ def main():
         title_mode=True,
     )
     state.player.location = "Title"
-    def render_battle_pause(message: str):
-        frame = generate_frame(
-            SCREEN_CTX,
-            state.player,
-            state.opponents,
-            message,
-            state.leveling_mode,
-            state.shop_mode,
-            state.inventory_mode,
-            state.inventory_items,
-            state.hall_mode,
-            state.hall_view,
-            state.inn_mode,
-            state.spell_mode,
-            suppress_actions=True
-        )
-        render_frame(frame)
-        time.sleep(battle_action_delay(state.player))
 
     while True:
         if state.title_mode:
             state.player.has_save = SAVE_DATA.exists()
         if state.inventory_mode:
             state.inventory_items = state.player.list_inventory_items(ITEMS)
-        frame = generate_frame(
-            SCREEN_CTX,
-            state.player,
-            state.opponents,
-            state.last_message,
-            state.leveling_mode,
-            state.shop_mode,
-            state.inventory_mode,
-            state.inventory_items,
-            state.hall_mode,
-            state.hall_view,
-            state.inn_mode,
-            state.spell_mode
-        )
-        render_frame(frame)
-
-        if state.boost_prompt:
-            choice = None
-            spell_id = state.boost_prompt
-            spell_data = SPELLS.get(spell_id, {})
-            prompt_seconds = int(spell_data.get("boost_prompt_seconds", 3))
-            prompt_text = spell_data.get("boost_prompt_text", "Boost {name}? (Y/N)")
-            prompt_text = prompt_text.replace("{name}", spell_data.get("name", spell_id.title()))
-            default_choice = str(spell_data.get("boost_default", "N")).lower()
-            for remaining in range(prompt_seconds, 0, -1):
-                countdown_message = f"{state.last_message} ({remaining})"
-                frame = generate_frame(
-                    SCREEN_CTX,
-                    state.player,
-                    state.opponents,
-                    countdown_message,
-                    state.leveling_mode,
-                    state.shop_mode,
-                    state.inventory_mode,
-                    state.inventory_items,
-                    state.hall_mode,
-                    state.hall_view,
-                    state.inn_mode,
-                    state.spell_mode
-                )
-                render_frame(frame)
-                choice = read_keypress_timeout(1.0)
-                if choice and choice.lower() in ("y", "n"):
-                    break
-            ch = choice if choice else default_choice
-        else:
-            ch = read_keypress()
+        render_frame_state(state)
+        ch = read_input(state)
         if state.quit_confirm:
             if ch.lower() == "y":
                 SAVE_DATA.save_player(state.player)
@@ -171,77 +284,13 @@ def main():
             continue
         action_cmd = None
         command_meta = None
-        handled_boost = False
         handled_by_router = False
-        if state.boost_prompt:
-            if ch.lower() not in ("y", "n"):
-                state.last_message = "Choose Y or N to boost the spell."
-                continue
-            boosted = ch.lower() == "y"
-            cmd_state = CommandState(
-                player=state.player,
-                opponents=state.opponents,
-                loot_bank=state.loot_bank,
-                last_message=state.last_message,
-                shop_mode=state.shop_mode,
-                inventory_mode=state.inventory_mode,
-                inventory_items=state.inventory_items,
-                hall_mode=state.hall_mode,
-                hall_view=state.hall_view,
-                inn_mode=state.inn_mode,
-                spell_mode=state.spell_mode,
-                action_cmd=action_cmd,
-            )
-            handle_boost_confirm(cmd_state, ROUTER_CTX, spell_id, boosted)
-            state.last_message = cmd_state.last_message
-            action_cmd = cmd_state.action_cmd
-            state.boost_prompt = None
-            handled_boost = True
-
+        handled_boost, action_cmd, should_continue = apply_boost_confirm(state, ch, action_cmd)
+        if should_continue:
+            continue
+        cmd = None
         if not handled_boost:
-            available_commands = None
-            if state.title_mode:
-                title_scene = SCENES.get("title", {})
-                if getattr(state.player, "title_confirm", False):
-                    available_commands = title_scene.get("confirm_commands", [])
-                else:
-                    available_commands = scene_commands(
-                        SCENES,
-                        COMMANDS_DATA,
-                        "title",
-                        state.player,
-                        state.opponents
-                    )
-            elif state.inn_mode:
-                venue = VENUES.get("town_inn", {})
-                available_commands = venue.get("commands", [])
-            elif not any(
-                [
-                    state.leveling_mode,
-                    state.shop_mode,
-                    state.inventory_mode,
-                    state.hall_mode,
-                    state.inn_mode,
-                    state.spell_mode,
-                    state.boost_prompt,
-                ]
-            ):
-                scene_id = "town" if state.player.location == "Town" else "forest"
-                available_commands = scene_commands(
-                    SCENES,
-                    COMMANDS_DATA,
-                    scene_id,
-                    state.player,
-                    state.opponents
-                )
-            cmd = map_key_to_command(ch, available_commands)
-            if available_commands and cmd:
-                command_meta = next(
-                    (entry for entry in available_commands if entry.get("command") == cmd),
-                    None
-                )
-        else:
-            cmd = None
+            cmd, command_meta = map_input_to_command(state, ch)
 
         if cmd == "QUIT":
             state.quit_confirm = True
@@ -262,50 +311,15 @@ def main():
         if cmd == "X_KEY":
             continue
 
-        cmd_state = CommandState(
-            player=state.player,
-            opponents=state.opponents,
-            loot_bank=state.loot_bank,
-            last_message=state.last_message,
-            shop_mode=state.shop_mode,
-            inventory_mode=state.inventory_mode,
-            inventory_items=state.inventory_items,
-            hall_mode=state.hall_mode,
-            hall_view=state.hall_view,
-            inn_mode=state.inn_mode,
-            spell_mode=state.spell_mode,
-            action_cmd=action_cmd,
+        handled_by_router, action_cmd, cmd, should_continue = apply_router_command(
+            state,
+            cmd,
+            ch,
+            command_meta,
+            action_cmd,
         )
-        if handle_command(cmd, cmd_state, ROUTER_CTX, key=ch):
-            state.opponents = cmd_state.opponents
-            state.loot_bank = cmd_state.loot_bank
-            state.last_message = cmd_state.last_message
-            state.shop_mode = cmd_state.shop_mode
-            state.inventory_mode = cmd_state.inventory_mode
-            state.inventory_items = cmd_state.inventory_items
-            state.hall_mode = cmd_state.hall_mode
-            state.hall_view = cmd_state.hall_view
-            state.inn_mode = cmd_state.inn_mode
-            state.spell_mode = cmd_state.spell_mode
-            action_cmd = cmd_state.action_cmd
-            if state.player.location == "Title" and cmd_state.player.location != "Title":
-                state.title_mode = False
-            state.player = cmd_state.player
-            handled_by_router = True
-            if command_meta and command_meta.get("anim") == "battle_start" and state.opponents:
-                animate_battle_start(
-                    SCENES,
-                    COMMANDS_DATA,
-                    "forest",
-                    state.player,
-                    state.opponents,
-                    state.last_message
-                )
-            if action_cmd not in COMBAT_ACTIONS:
-                continue
-            if action_cmd in SPELL_COMMANDS:
-                cmd = action_cmd
-                handled_by_router = False
+        if should_continue:
+            continue
 
         if not handled_boost and not handled_by_router:
             spell_entry = SPELLS.by_command_id(cmd)
@@ -381,7 +395,7 @@ def main():
         player_defeated = False
         if action_cmd in COMBAT_ACTIONS and any(opponent.hp > 0 for opponent in state.opponents):
             if state.player.location == "Forest":
-                render_battle_pause(state.last_message)
+                render_battle_pause(state, state.last_message)
             acting = [(i, m) for i, m in enumerate(state.opponents) if m.hp > 0]
             for idx, (opp_index, m) in enumerate(acting):
                 if m.stunned_turns > 0:
@@ -429,7 +443,7 @@ def main():
                         player_defeated = True
                         break
                 if state.player.location == "Forest" and idx < len(acting) - 1:
-                    render_battle_pause(state.last_message)
+                    render_battle_pause(state, state.last_message)
 
         if player_defeated:
             SAVE_DATA.save_player(state.player)

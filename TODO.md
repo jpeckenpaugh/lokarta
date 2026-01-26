@@ -4,11 +4,11 @@
 - Create a `GameState` dataclass to hold loop state (modes, message, opponents, loot).
 - Replace local variables in `main()` with `GameState` fields.
 
-[ ] Phase 2: Frame + Input Pipeline
+[x] Phase 2: Frame + Input Pipeline
 - Extract `render_frame(state, ctx)` and `read_input(state, ctx)` helpers.
 - Encapsulate boost prompt countdown as its own state handler.
 
-[ ] Phase 3: Command Resolution
+[x] Phase 3: Command Resolution
 - Add `resolve_command(state, ctx, key)` to map inputs to command ids.
 - Centralize router dispatch and state sync into a single function.
 
@@ -24,3 +24,5 @@ Notes:
 - Preserve current behavior and timings.
 - Keep JSON-driven command flow intact.
 - Phase 1 introduced `GameState` and replaced loop locals with state fields.
+- Phase 2 extracted frame rendering and boost/input helpers from the main loop.
+- Phase 3 centralized command mapping, boost confirmation, and router dispatch.
