@@ -1,0 +1,20 @@
+{
+  "healing": {
+    "name": "Healing",
+    "mp_cost": 2,
+    "boosted_mp_cost": 4,
+    "heal": 10,
+    "boosted_heal": 20,
+    "desc": "Restore HP."
+  },
+  "spark": {
+    "name": "Spark",
+    "mp_cost": 2,
+    "boosted_mp_cost": 4,
+    "atk_bonus": 2,
+    "boosted_multiplier": 2,
+    "stun_chance": 0.4,
+    "boosted_stun_chance": 0.8,
+    "desc": "Arcane damage with a chance to stun."
+  }
+}

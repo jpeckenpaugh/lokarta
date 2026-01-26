@@ -98,6 +98,7 @@ Game data is externalized into JSON:
 - `data/scenes.json` — scene art and colors
 - `data/npcs.json` — NPC names and dialog snippets
 - `data/venues.json` — venue metadata and NPC links
+- `data/spells.json` — spell definitions and costs
 
 ---
 

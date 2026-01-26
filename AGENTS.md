@@ -3,7 +3,7 @@
 ## Project Overview
 - Terminal-based ASCII RPG prototype.
 - Main entry: `main.py`.
-- Data assets: `data/opponents.json`, `data/items.json`, `data/scenes.json`, `data/npcs.json`, `data/venues.json`.
+- Data assets: `data/opponents.json`, `data/items.json`, `data/scenes.json`, `data/npcs.json`, `data/venues.json`, `data/spells.json`.
 - Save file: `saves/slot1.json` (generated at runtime).
 
 ## Conventions

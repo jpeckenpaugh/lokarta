@@ -13,6 +13,7 @@ from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
 from data_access.npcs_data import NpcsData
 from data_access.venues_data import VenuesData
+from data_access.spells_data import SpellsData
 from data_access.save_data import SaveData
 from models import Frame, Player, Opponent
 
@@ -64,6 +65,7 @@ OPPONENTS = OpponentsData(os.path.join(DATA_DIR, "opponents.json"))
 SCENES = ScenesData(os.path.join(DATA_DIR, "scenes.json"))
 NPCS = NpcsData(os.path.join(DATA_DIR, "npcs.json"))
 VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
+SPELLS = SpellsData(os.path.join(DATA_DIR, "spells.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 
 
@@ -480,7 +482,16 @@ def generate_demo_frame(
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif spell_mode:
-        body = ["Spellbook", "", "Healing (2 MP)", "Spark (2 MP)"]
+        healing = SPELLS.get("healing", {})
+        spark = SPELLS.get("spark", {})
+        heal_cost = int(healing.get("mp_cost", 2))
+        spark_cost = int(spark.get("mp_cost", 2))
+        body = [
+            "Spellbook",
+            "",
+            f"{healing.get('name', 'Healing')} ({heal_cost} MP)",
+            f"{spark.get('name', 'Spark')} ({spark_cost} MP)",
+        ]
         actions = [
             "  [1] Healing",
             "  [2] Spark",
@@ -663,13 +674,17 @@ def cast_spark(
     opponent = primary_opponent(opponents)
     if not opponent:
         return "There is nothing to target."
-    mp_cost = 4 if boosted else 2
+    spark = SPELLS.get("spark", {})
+    mp_cost = int(spark.get("boosted_mp_cost", 4 if boosted else 2))
+    if not boosted:
+        mp_cost = int(spark.get("mp_cost", 2))
     if player.mp < mp_cost:
         return "Not enough MP to cast Spark."
     player.mp -= mp_cost
-    damage, crit, miss = roll_damage(player.atk + 2, opponent.defense)
+    atk_bonus = int(spark.get("atk_bonus", 2))
+    damage, crit, miss = roll_damage(player.atk + atk_bonus, opponent.defense)
     if boosted:
-        damage *= 2
+        damage *= int(spark.get("boosted_multiplier", 2))
     if miss:
         return f"Your Spark misses the {opponent.name}."
     opponent.hp = max(0, opponent.hp - damage)
@@ -682,7 +697,9 @@ def cast_spark(
             f"Your Spark fells the {opponent.name}."
         )
         return message
-    stun_chance = 0.80 if boosted else 0.40
+    stun_chance = float(spark.get("boosted_stun_chance", 0.8 if boosted else 0.4))
+    if not boosted:
+        stun_chance = float(spark.get("stun_chance", 0.4))
     stunned_turns = try_stun(opponent, stun_chance)
     if crit:
         message = f"Critical Spark! You hit the {opponent.name} for {damage}."
@@ -694,13 +711,18 @@ def cast_spark(
 
 
 def cast_heal(player: Player, boosted: bool) -> str:
-    mp_cost = 4 if boosted else 2
+    healing = SPELLS.get("healing", {})
+    mp_cost = int(healing.get("boosted_mp_cost", 4 if boosted else 2))
+    if not boosted:
+        mp_cost = int(healing.get("mp_cost", 2))
     if player.mp < mp_cost:
         return "Not enough MP to cast Healing."
     if player.hp == player.max_hp:
         return "Your HP is already full."
     player.mp -= mp_cost
-    heal_amount = 20 if boosted else 10
+    heal_amount = int(healing.get("boosted_heal", 20 if boosted else 10))
+    if not boosted:
+        heal_amount = int(healing.get("heal", 10))
     heal = min(heal_amount, player.max_hp - player.hp)
     player.hp += heal
     return f"You cast Healing and restore {heal} HP."
@@ -1591,10 +1613,13 @@ def main():
                 if player.hp == player.max_hp:
                     last_message = "Your HP is already full."
                     continue
-                if player.mp < 2:
+                healing = SPELLS.get("healing", {})
+                heal_cost = int(healing.get("mp_cost", 2))
+                boosted_heal_cost = int(healing.get("boosted_mp_cost", 4))
+                if player.mp < heal_cost:
                     last_message = "Not enough MP to cast Healing."
                     continue
-                if player.mp >= 4:
+                if player.mp >= boosted_heal_cost:
                     boost_prompt = "HEAL"
                     last_message = "Boost Healing? (Y/N)"
                     continue
@@ -1604,10 +1629,13 @@ def main():
                 if not any(opponent.hp > 0 for opponent in opponents):
                     last_message = "There is nothing to target."
                     continue
-                if player.mp < 2:
+                spark = SPELLS.get("spark", {})
+                spark_cost = int(spark.get("mp_cost", 2))
+                boosted_spark_cost = int(spark.get("boosted_mp_cost", 4))
+                if player.mp < spark_cost:
                     last_message = "Not enough MP to cast Spark."
                     continue
-                if player.mp >= 4:
+                if player.mp >= boosted_spark_cost:
                     boost_prompt = "SPARK"
                     last_message = "Boost Spark? (Y/N)"
                     continue
