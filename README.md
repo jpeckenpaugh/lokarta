@@ -27,7 +27,7 @@ Once validated locally, the same engine and assets can be migrated to:
 ## Current Features
 
 - Title screen with Continue/New/Quit and save overwrite confirmation
-- Persistent save file (`save.json`)
+- Persistent save file (`saves/slot1.json`)
 - ANSI color rendering and ASCII scene art
 - Town hub with Inn, Shop, Hall, and Inventory
 - Spellbook (Healing / Spark) and boosted casting prompts
@@ -93,11 +93,11 @@ Menus:
 ## Assets
 
 Game data is externalized into JSON:
-- `opponents.json` — opponent stats, art, descriptions
-- `items.json` — item effects, prices, descriptions
-- `scenes.json` — scene art and colors
-- `npcs.json` — NPC names and dialog snippets
-- `venues.json` — venue metadata and NPC links
+- `data/opponents.json` — opponent stats, art, descriptions
+- `data/items.json` — item effects, prices, descriptions
+- `data/scenes.json` — scene art and colors
+- `data/npcs.json` — NPC names and dialog snippets
+- `data/venues.json` — venue metadata and NPC links
 
 ---
 

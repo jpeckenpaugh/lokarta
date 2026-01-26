@@ -8,6 +8,11 @@ import textwrap
 from dataclasses import dataclass, replace
 from typing import List, Optional
 
+from data_access.items_data import ItemsData
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
+
 SCREEN_WIDTH = 100
 SCREEN_HEIGHT = 30
 STAT_LINES = 2
@@ -143,7 +148,7 @@ def spawn_opponents(player_level: int) -> List[Opponent]:
 
 
 def load_opponent_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "opponents.json")
+    path = os.path.join(DATA_DIR, "opponents.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -152,7 +157,7 @@ def load_opponent_data() -> dict:
 
 
 def load_scene_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "scenes.json")
+    path = os.path.join(DATA_DIR, "scenes.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -182,17 +187,11 @@ def color_from_name(name: str) -> str:
     }.get(name.lower(), ANSI.FG_WHITE)
 
 
-def load_item_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "items.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
+ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
 
 
 def load_npc_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "npcs.json")
+    path = os.path.join(DATA_DIR, "npcs.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -201,7 +200,7 @@ def load_npc_data() -> dict:
 
 
 def load_venue_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "venues.json")
+    path = os.path.join(DATA_DIR, "venues.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -482,7 +481,7 @@ def render_forest_art(
 
 
 def save_game(player: Player):
-    path = os.path.join(os.path.dirname(__file__), "save.json")
+    path = SAVE_PATH
     data = {
         "name": player.name,
         "level": player.level,
@@ -504,7 +503,7 @@ def save_game(player: Player):
 
 
 def load_game() -> Optional[Player]:
-    path = os.path.join(os.path.dirname(__file__), "save.json")
+    path = SAVE_PATH
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -529,14 +528,12 @@ def load_game() -> Optional[Player]:
 
 
 def has_save() -> bool:
-    path = os.path.join(os.path.dirname(__file__), "save.json")
-    return os.path.exists(path)
+    return os.path.exists(SAVE_PATH)
 
 
 def delete_save():
-    path = os.path.join(os.path.dirname(__file__), "save.json")
     try:
-        os.remove(path)
+        os.remove(SAVE_PATH)
     except OSError:
         pass
 
@@ -591,19 +588,17 @@ def add_item(inventory: dict, key: str, amount: int = 1):
 
 
 def format_inventory(player: Player) -> str:
-    items = load_item_data()
     if not player.inventory:
         return "Inventory is empty."
     parts = []
     for key, count in player.inventory.items():
-        item = items.get(key, {"name": key})
+        item = ITEMS.get(key, {"name": key})
         parts.append(f"{item.get('name', key)} x{count}")
     return "Inventory: " + ", ".join(parts)
 
 
 def purchase_item(player: Player, key: str) -> str:
-    items = load_item_data()
-    item = items.get(key)
+    item = ITEMS.get(key)
     if not item:
         return "That item is not available."
     price = int(item.get("price", 0))
@@ -615,13 +610,12 @@ def purchase_item(player: Player, key: str) -> str:
 
 
 def list_inventory_items(player: Player) -> List[tuple[str, str]]:
-    items = load_item_data()
     entries = []
     for key in sorted(player.inventory.keys()):
         count = int(player.inventory.get(key, 0))
         if count <= 0:
             continue
-        item = items.get(key, {"name": key})
+        item = ITEMS.get(key, {"name": key})
         name = item.get("name", key)
         hp = int(item.get("hp", 0))
         mp = int(item.get("mp", 0))
@@ -630,8 +624,7 @@ def list_inventory_items(player: Player) -> List[tuple[str, str]]:
 
 
 def use_item(player: Player, key: str) -> str:
-    items = load_item_data()
-    item = items.get(key)
+    item = ITEMS.get(key)
     if not item:
         return "That item is not available."
     if int(player.inventory.get(key, 0)) <= 0:
@@ -659,13 +652,7 @@ def list_opponent_descriptions() -> List[str]:
 
 
 def list_item_descriptions() -> List[str]:
-    items = load_item_data()
-    lines = []
-    for data in items.values():
-        name = data.get("name", "Unknown")
-        desc = data.get("desc", "")
-        lines.append(f"{name}: {desc}")
-    return lines
+    return ITEMS.list_descriptions()
 
 
 def grant_xp(player: Player, amount: int) -> int:
@@ -711,9 +698,8 @@ def generate_demo_frame(
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif player.location == "Town" and shop_mode:
-        items = load_item_data()
-        rations = items.get("rations", {})
-        elixir = items.get("elixir", {})
+        rations = ITEMS.get("rations", {})
+        elixir = ITEMS.get("elixir", {})
         venue = load_venue_data().get("town_shop", {})
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
@@ -2043,6 +2029,8 @@ def main():
                         f" You gain {loot_bank['xp']} XP and "
                         f"{loot_bank['gold']} gold."
                     )
+                    if player.stat_points > 0:
+                        leveling_mode = True
                 loot_bank = {"xp": 0, "gold": 0}
 
         if action_cmd in ("ATTACK", "SPARK", "HEAL"):

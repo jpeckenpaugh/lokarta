@@ -73,3 +73,6 @@ coverage.xml
 
 # Local saves / runtime files
 save.json
+
+# Local saves
+saves/
