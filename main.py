@@ -396,10 +396,6 @@ def format_action_lines(actions: List[str]) -> List[str]:
     return lines
 
 
-def format_inventory(player: Player) -> str:
-    return player.format_inventory(ITEMS)
-
-
 def purchase_item(player: Player, key: str) -> str:
     item = ITEMS.get(key)
     if not item:
@@ -410,14 +406,6 @@ def purchase_item(player: Player, key: str) -> str:
     player.gold -= price
     player.add_item(key, 1)
     return f"Purchased {item.get('name', key)}."
-
-
-def list_inventory_items(player: Player) -> List[tuple[str, str]]:
-    return player.list_inventory_items(ITEMS)
-
-
-def use_item(player: Player, key: str) -> str:
-    return player.use_item(key, ITEMS)
 
 
 def list_opponent_descriptions() -> List[str]:
@@ -800,7 +788,7 @@ def apply_command(
     if command == "HEAL":
         return cast_heal(player, boosted=False)
     if command == "INVENTORY":
-        return format_inventory(player)
+        return player.format_inventory(ITEMS)
     if command == "SPARK":
         return cast_spark(player, opponents, boosted=False, loot=loot)
     return "Unknown action."
@@ -1338,7 +1326,7 @@ def main():
             )
         else:
             if inventory_mode:
-                inventory_items = list_inventory_items(player)
+                inventory_items = player.list_inventory_items(ITEMS)
             frame = generate_demo_frame(
                 player,
                 opponents,
@@ -1489,9 +1477,9 @@ def main():
                 idx = int(cmd.replace("NUM", "")) - 1
                 if 0 <= idx < len(inventory_items):
                     key, _ = inventory_items[idx]
-                    last_message = use_item(player, key)
+                    last_message = player.use_item(key, ITEMS)
                     SAVE_DATA.save_player(player)
-                    inventory_items = list_inventory_items(player)
+                    inventory_items = player.list_inventory_items(ITEMS)
                     if not inventory_items:
                         inventory_mode = False
                 else:
@@ -1683,7 +1671,7 @@ def main():
                 action_cmd = "SPARK"
             else:
                 if cmd == "INVENTORY":
-                    inventory_items = list_inventory_items(player)
+                    inventory_items = player.list_inventory_items(ITEMS)
                     if not inventory_items:
                         last_message = "Inventory is empty."
                     else:
