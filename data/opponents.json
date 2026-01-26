@@ -1,7 +1,7 @@
 {
   "slime": {
     "name": "Slime",
-    "level": 1,
+    "level": 2,
     "hp": 10,
     "atk": 5,
     "defense": 5,
@@ -31,7 +31,26 @@
       "( o.o )",
       " > ^ < ",
       "  / \\  ",
-      " /___\\ "
+      " /___\\ ",
+      " +   +  "
+    ]
+  },
+  "ant": {
+    "name": "Ant",
+    "level": 1,
+    "hp": 6,
+    "atk": 3,
+    "defense": 2,
+    "action_chance": 0.7,
+    "arrival": "scurries in",
+    "desc": "A skittering ant with sharp mandibles.",
+    "art": [
+      " \\  / ",
+      " (oo) ",
+      "\\/  \\/",
+      "/\\__/\\",
+      "\\/  \\/",
+      "/\\__/\\"
     ]
   }
 }
