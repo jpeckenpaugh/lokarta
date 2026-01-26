@@ -5,7 +5,7 @@ import random
 import time
 import json
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Optional
 
 SCREEN_WIDTH = 100
@@ -13,6 +13,8 @@ SCREEN_HEIGHT = 30
 STAT_LINES = 2
 ACTION_LINES = 3
 NARRATIVE_INDENT = 2
+OPPONENT_ART_WIDTH = 10
+OPPONENT_BAR_WIDTH = 8
 
 # -----------------------------
 # ANSI color helpers (UI only)
@@ -64,6 +66,7 @@ class Player:
     xp: int
     stat_points: int
     gold: int
+    battle_speed: str
     hp: int
     max_hp: int
     mp: int
@@ -83,6 +86,8 @@ class Opponent:
     atk: int
     defense: int
     stunned_turns: int
+    action_chance: float
+    melted: bool
     art_lines: List[str]
     art_color: str
     arrival: str
@@ -94,6 +99,7 @@ def create_opponent(data: dict) -> Opponent:
     hp = int(data.get("hp", 10))
     atk = int(data.get("atk", 5))
     defense = int(data.get("defense", 5))
+    action_chance = float(data.get("action_chance", 1.0))
     art_lines = data.get("art", [])
     arrival = data.get("arrival", "appears")
     return Opponent(
@@ -104,6 +110,8 @@ def create_opponent(data: dict) -> Opponent:
         atk=atk,
         defense=defense,
         stunned_turns=0,
+        action_chance=action_chance,
+        melted=False,
         art_lines=art_lines,
         art_color=ANSI.FG_CYAN,
         arrival=arrival
@@ -274,21 +282,63 @@ def format_player_stats(player: Player) -> List[str]:
     ]
 
 
-def build_opponent_blocks(opponents: List[Opponent]) -> List[dict]:
+def format_opponent_bar(opponent: Opponent) -> str:
+    if opponent.max_hp <= 0:
+        filled = 0
+    else:
+        filled = int((opponent.hp / opponent.max_hp) * OPPONENT_BAR_WIDTH)
+    filled = max(0, min(OPPONENT_BAR_WIDTH, filled))
+    hashes = "#" * filled
+    empties = "_" * (OPPONENT_BAR_WIDTH - filled)
+    return (
+        ANSI.FG_WHITE
+        + "["
+        + ANSI.FG_GREEN + hashes
+        + ANSI.FG_WHITE + empties
+        + "]"
+    )
+
+
+def build_opponent_blocks(
+    opponents: List[Opponent],
+    flash_index: Optional[int] = None,
+    flash_color: Optional[str] = None,
+    visible_indices: Optional[set] = None,
+    include_bars: bool = True,
+    manual_lines_indices: Optional[set] = None
+) -> List[dict]:
     blocks = []
-    for opponent in opponents[:3]:
+    if visible_indices is None:
+        visible_indices = set()
+    if manual_lines_indices is None:
+        manual_lines_indices = set()
+    for idx, opponent in enumerate(opponents[:3]):
         if not opponent.art_lines:
             continue
-        width = max(len(line) for line in opponent.art_lines)
-        if opponent.hp > 0:
+        width = OPPONENT_ART_WIDTH
+        bar = format_opponent_bar(opponent)
+        if idx in manual_lines_indices:
             lines = opponent.art_lines
+            color = opponent.art_color
+        elif opponent.hp > 0 or idx in visible_indices:
+            lines = [line[:width].center(width) for line in opponent.art_lines]
+            if include_bars:
+                lines.append(" " * width)
+                lines.append(bar)
+            color = opponent.art_color
+            if flash_color and flash_index == idx:
+                color = flash_color
         else:
             lines = [" " * width for _ in opponent.art_lines]
+            if include_bars:
+                lines.append(" " * width)
+                lines.append(" " * width)
+            color = opponent.art_color
         blocks.append(
             {
                 "lines": lines,
                 "width": width,
-                "color": opponent.art_color,
+                "color": color,
             }
         )
     return blocks
@@ -313,13 +363,34 @@ def compute_forest_gap_target(scene_data: dict, opponents: List[Opponent]) -> in
     return max(gap_width, content_width)
 
 
+def battle_action_delay(player: Player) -> float:
+    speeds = {
+        "fast": 0.2,
+        "normal": 0.45,
+        "slow": 0.75,
+    }
+    return speeds.get(player.battle_speed, speeds["normal"])
+
+
 def render_forest_art(
     scene_data: dict,
     opponents: List[Opponent],
-    gap_override: Optional[int] = None
+    gap_override: Optional[int] = None,
+    flash_index: Optional[int] = None,
+    flash_color: Optional[str] = None,
+    visible_indices: Optional[set] = None,
+    include_bars: bool = True,
+    manual_lines_indices: Optional[set] = None
 ) -> tuple[List[str], str]:
     art_color = color_from_name(scene_data.get("color", "green"))
-    opponent_blocks = build_opponent_blocks(opponents)
+    opponent_blocks = build_opponent_blocks(
+        opponents,
+        flash_index=flash_index,
+        flash_color=flash_color,
+        visible_indices=visible_indices,
+        include_bars=include_bars,
+        manual_lines_indices=manual_lines_indices
+    )
     left = scene_data.get("left", [])
     right = scene_data.get("right")
 
@@ -418,6 +489,7 @@ def save_game(player: Player):
         "xp": player.xp,
         "stat_points": player.stat_points,
         "gold": player.gold,
+        "battle_speed": player.battle_speed,
         "hp": player.hp,
         "max_hp": player.max_hp,
         "mp": player.mp,
@@ -444,6 +516,7 @@ def load_game() -> Optional[Player]:
         xp=int(data.get("xp", 0)),
         stat_points=int(data.get("stat_points", 0)),
         gold=int(data.get("gold", 10)),
+        battle_speed=data.get("battle_speed", "normal"),
         hp=int(data.get("hp", 10)),
         max_hp=int(data.get("max_hp", 10)),
         mp=int(data.get("mp", 10)),
@@ -475,6 +548,7 @@ def new_player() -> Player:
         xp=0,
         stat_points=0,
         gold=10,
+        battle_speed="normal",
         hp=10,
         max_hp=10,
         mp=10,
@@ -880,7 +954,17 @@ def primary_opponent(opponents: List[Opponent]) -> Optional[Opponent]:
     return None
 
 
-def cast_spark(player: Player, opponents: List[Opponent], boosted: bool) -> str:
+def add_loot(loot: dict, xp: int, gold: int):
+    loot["xp"] = loot.get("xp", 0) + xp
+    loot["gold"] = loot.get("gold", 0) + gold
+
+
+def cast_spark(
+    player: Player,
+    opponents: List[Opponent],
+    boosted: bool,
+    loot: dict
+) -> str:
     opponent = primary_opponent(opponents)
     if not opponent:
         return "There is nothing to target."
@@ -897,11 +981,10 @@ def cast_spark(player: Player, opponents: List[Opponent], boosted: bool) -> str:
     if opponent.hp == 0:
         xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
         gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-        grant_xp(player, xp_gain)
-        player.gold += gold_gain
+        add_loot(loot, xp_gain, gold_gain)
+        opponent.melted = False
         message = (
-            f"Your Spark fells the {opponent.name}. You gain "
-            f"{xp_gain} XP and {gold_gain} gold."
+            f"Your Spark fells the {opponent.name}."
         )
         return message
     stun_chance = 0.80 if boosted else 0.40
@@ -931,7 +1014,8 @@ def cast_heal(player: Player, boosted: bool) -> str:
 def apply_command(
     command: str,
     player: Player,
-    opponents: List[Opponent]
+    opponents: List[Opponent],
+    loot: dict
 ) -> str:
     # Placeholder for real game logic: return a message to display.
     if command == "ATTACK":
@@ -945,11 +1029,10 @@ def apply_command(
         if opponent.hp == 0:
             xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
             gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-            grant_xp(player, xp_gain)
-            player.gold += gold_gain
+            add_loot(loot, xp_gain, gold_gain)
+            opponent.melted = False
             message = (
-                f"You strike down the {opponent.name} and gain "
-                f"{xp_gain} XP and {gold_gain} gold."
+                f"You strike down the {opponent.name}."
             )
             return message
         if crit:
@@ -960,7 +1043,7 @@ def apply_command(
     if command == "INVENTORY":
         return format_inventory(player)
     if command == "SPARK":
-        return cast_spark(player, opponents, boosted=False)
+        return cast_spark(player, opponents, boosted=False, loot=loot)
     return "Unknown action."
 
 
@@ -969,7 +1052,8 @@ def apply_command(
 # -----------------------------
 
 def clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
+    sys.stdout.write("\033[2J\033[H\033[3J")
+    sys.stdout.flush()
 
 
 def pad_or_trim(text: str, width: int) -> str:
@@ -1114,13 +1198,23 @@ def render_forest_frame(
     opponents: List[Opponent],
     message: str,
     gap_override: int,
-    art_opponents: Optional[List[Opponent]] = None
+    art_opponents: Optional[List[Opponent]] = None,
+    flash_index: Optional[int] = None,
+    flash_color: Optional[str] = None,
+    visible_indices: Optional[set] = None,
+    include_bars: bool = True,
+    manual_lines_indices: Optional[set] = None
 ):
     scene_data = load_scene_data().get("forest", {})
     forest_art, art_color = render_forest_art(
         scene_data,
         art_opponents if art_opponents is not None else opponents,
-        gap_override=gap_override
+        gap_override=gap_override,
+        flash_index=flash_index,
+        flash_color=flash_color,
+        visible_indices=visible_indices,
+        include_bars=include_bars,
+        manual_lines_indices=manual_lines_indices
     )
     opponent_lines = []
     for i, m in enumerate(opponents[:3], start=1):
@@ -1224,6 +1318,78 @@ def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
     animate_forest_gap(player, opponents, message, gap_target, gap_base, art_opponents=[])
 
 
+def primary_opponent_index(opponents: List[Opponent]) -> Optional[int]:
+    for idx, opponent in enumerate(opponents):
+        if opponent.hp > 0:
+            return idx
+    return None
+
+
+def flash_opponent(
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    index: Optional[int],
+    flash_color: str
+):
+    if index is None or player.location != "Forrest":
+        return
+    scene_data = load_scene_data().get("forest", {})
+    gap_target = compute_forest_gap_target(scene_data, opponents)
+    render_forest_frame(
+        player,
+        opponents,
+        message,
+        gap_target,
+        flash_index=index,
+        flash_color=flash_color
+    )
+    time.sleep(max(0.08, battle_action_delay(player) / 2))
+
+
+def melt_opponent(
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    index: Optional[int]
+):
+    if index is None or player.location != "Forrest":
+        return
+    if index < 0 or index >= len(opponents):
+        return
+    opponent = opponents[index]
+    if not opponent.art_lines:
+        return
+    width = OPPONENT_ART_WIDTH
+    bar = format_opponent_bar(opponent)
+    display_lines = [line[:width].center(width) for line in opponent.art_lines]
+    display_lines.append(" " * width)
+    display_lines.append(bar)
+    scene_data = load_scene_data().get("forest", {})
+    gap_target = compute_forest_gap_target(scene_data, opponents)
+    for removed in range(1, len(display_lines) + 1):
+        trimmed = (
+            [" " * width for _ in range(removed)]
+            + display_lines[removed:]
+        )
+        art_overrides = []
+        for i, current in enumerate(opponents):
+            if i == index:
+                art_overrides.append(replace(current, art_lines=trimmed, hp=0))
+            else:
+                art_overrides.append(current)
+        render_forest_frame(
+            player,
+            opponents,
+            message,
+            gap_target,
+            art_opponents=art_overrides,
+            visible_indices={index},
+            manual_lines_indices={index}
+        )
+        time.sleep(max(0.05, battle_action_delay(player) / 3))
+
+
 # -----------------------------
 # Single-key input (macOS/Linux)
 # -----------------------------
@@ -1317,6 +1483,7 @@ def main():
 
     player = new_player()
     opponents: List[Opponent] = []
+    loot_bank = {"xp": 0, "gold": 0}
 
     last_message = ""
     leveling_mode = False
@@ -1446,6 +1613,7 @@ def main():
                     delete_save()
                     player = new_player()
                     opponents = []
+                    loot_bank = {"xp": 0, "gold": 0}
                     title_mode = False
                     title_confirm = False
                     last_message = "You arrive in town."
@@ -1478,6 +1646,7 @@ def main():
                 last_message = "Choose C to continue, N for a new game, or Q to quit."
                 continue
             opponents = []
+            loot_bank = {"xp": 0, "gold": 0}
             player.location = "Town"
             title_mode = False
             shop_mode = False
@@ -1501,7 +1670,7 @@ def main():
                 last_message = cast_heal(player, boosted)
                 action_cmd = "HEAL"
             else:
-                last_message = cast_spark(player, opponents, boosted)
+                last_message = cast_spark(player, opponents, boosted, loot=loot_bank)
                 action_cmd = "SPARK"
             boost_prompt = None
             handled_boost = True
@@ -1638,6 +1807,7 @@ def main():
             if player.location == "Town":
                 player.location = "Forrest"
                 opponents = spawn_opponents(player.level)
+                loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
                     animate_battle_start(player, opponents, last_message)
@@ -1654,6 +1824,7 @@ def main():
                     last_message = f"You are already facing a {primary.name}."
                 else:
                     opponents = spawn_opponents(player.level)
+                    loot_bank = {"xp": 0, "gold": 0}
                     if opponents:
                         last_message = f"A {opponents[0].name} appears."
                         animate_battle_start(player, opponents, last_message)
@@ -1668,6 +1839,7 @@ def main():
                 last_message = f"You are already facing a {primary.name}."
             else:
                 opponents = spawn_opponents(player.level)
+                loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
                     animate_battle_start(player, opponents, last_message)
@@ -1695,6 +1867,7 @@ def main():
             else:
                 player.location = "Town"
                 opponents = []
+                loot_bank = {"xp": 0, "gold": 0}
                 last_message = "You return to town."
             shop_mode = False
             inventory_mode = False
@@ -1709,6 +1882,7 @@ def main():
             else:
                 player.location = "Forrest"
                 opponents = spawn_opponents(player.level)
+                loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
                     animate_battle_start(player, opponents, last_message)
@@ -1746,7 +1920,7 @@ def main():
                     boost_prompt = "SPARK"
                     last_message = "Boost Spark? (Y/N)"
                     continue
-                last_message = cast_spark(player, opponents, boosted=False)
+                last_message = cast_spark(player, opponents, boosted=False, loot=loot_bank)
                 action_cmd = "SPARK"
             else:
                 if cmd == "INVENTORY":
@@ -1757,49 +1931,119 @@ def main():
                         inventory_mode = True
                         last_message = "Choose an item to use."
                     continue
-                last_message = apply_command(cmd, player, opponents)
+                last_message = apply_command(cmd, player, opponents, loot=loot_bank)
                 if cmd == "ATTACK":
                     action_cmd = "ATTACK"
 
-        if player.stat_points > 0:
+        if player.stat_points > 0 and not alive_opponents(opponents):
             leveling_mode = True
 
+        if action_cmd in ("ATTACK", "SPARK"):
+            target_index = primary_opponent_index(opponents)
+            flash_opponent(
+                player,
+                opponents,
+                last_message,
+                target_index,
+                ANSI.FG_YELLOW
+            )
+            defeated_indices = [
+                i for i, m in enumerate(opponents)
+                if m.hp <= 0 and not m.melted
+            ]
+            for index in defeated_indices:
+                melt_opponent(player, opponents, last_message, index)
+                opponents[index].melted = True
+
+        player_defeated = False
         if action_cmd in ("ATTACK", "SPARK", "HEAL") and alive_opponents(opponents):
-            for m in list(opponents):
-                if m.hp <= 0:
-                    continue
+            if player.location == "Forrest":
+                frame = generate_demo_frame(
+                    player,
+                    opponents,
+                    last_message,
+                    leveling_mode,
+                    shop_mode,
+                    inventory_mode,
+                    inventory_items,
+                    hall_mode,
+                    hall_view,
+                    spell_mode
+                )
+                render_frame(frame)
+                time.sleep(battle_action_delay(player))
+            acting = [(i, m) for i, m in enumerate(opponents) if m.hp > 0]
+            for idx, (opp_index, m) in enumerate(acting):
                 if m.stunned_turns > 0:
                     m.stunned_turns -= 1
                     last_message += f" The {m.name} is stunned."
-                    continue
-                damage, crit, miss = roll_damage(m.atk, player.defense)
-                if miss:
-                    last_message += f" The {m.name} misses you."
+                elif random.random() > m.action_chance:
+                    last_message += f" The {m.name} hesitates."
                 else:
-                    player.hp = max(0, player.hp - damage)
-                    if crit:
-                        last_message += (
-                            f" Critical hit! The {m.name} hits you for {damage}."
-                        )
+                    damage, crit, miss = roll_damage(m.atk, player.defense)
+                    if miss:
+                        last_message += f" The {m.name} misses you."
                     else:
-                        last_message += f" The {m.name} hits you for {damage}."
-                if player.hp == 0:
-                    lost_gp = player.gold // 2
-                    player.gold -= lost_gp
-                    player.location = "Town"
-                    player.hp = player.max_hp
-                    player.mp = player.max_mp
-                    opponents = []
-                    last_message = (
-                        "You were defeated and wake up at the inn. "
-                        f"You lost {lost_gp} GP."
+                        player.hp = max(0, player.hp - damage)
+                        if crit:
+                            last_message += (
+                                f" Critical hit! The {m.name} hits you for {damage}."
+                            )
+                        else:
+                            last_message += f" The {m.name} hits you for {damage}."
+                    flash_opponent(
+                        player,
+                        opponents,
+                        last_message,
+                        opp_index,
+                        ANSI.FG_RED
                     )
-                    break
+                    if player.hp == 0:
+                        lost_gp = player.gold // 2
+                        player.gold -= lost_gp
+                        player.location = "Town"
+                        player.hp = player.max_hp
+                        player.mp = player.max_mp
+                        opponents = []
+                        loot_bank = {"xp": 0, "gold": 0}
+                        last_message = (
+                            "You were defeated and wake up at the inn. "
+                            f"You lost {lost_gp} GP."
+                        )
+                        player_defeated = True
+                        break
+                if player.location == "Forrest" and idx < len(acting) - 1:
+                    frame = generate_demo_frame(
+                        player,
+                        opponents,
+                        last_message,
+                        leveling_mode,
+                        shop_mode,
+                        inventory_mode,
+                        inventory_items,
+                        hall_mode,
+                        hall_view,
+                        spell_mode
+                    )
+                    render_frame(frame)
+                    time.sleep(battle_action_delay(player))
+
+        if player_defeated:
+            save_game(player)
+            continue
 
         if action_cmd in ("ATTACK", "SPARK"):
             if not alive_opponents(opponents):
                 animate_battle_end(player, opponents, last_message)
                 opponents = []
+                if loot_bank["xp"] or loot_bank["gold"]:
+                    grant_xp(player, loot_bank["xp"])
+                    player.gold += loot_bank["gold"]
+                    last_message += (
+                        f" You gain {loot_bank['xp']} XP and "
+                        f"{loot_bank['gold']} gold."
+                    )
+                loot_bank = {"xp": 0, "gold": 0}
 
         if action_cmd in ("ATTACK", "SPARK", "HEAL"):
             save_game(player)

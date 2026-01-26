@@ -5,6 +5,7 @@
     "hp": 10,
     "atk": 5,
     "defense": 5,
+    "action_chance": 0.8,
     "arrival": "oozes into view",
     "desc": "A wobbling blob that absorbs weak blows.",
     "art": [
@@ -22,6 +23,7 @@
     "hp": 8,
     "atk": 4,
     "defense": 3,
+    "action_chance": 0.6,
     "arrival": "scurries into view",
     "desc": "A quick scavenger with a nasty bite.",
     "art": [

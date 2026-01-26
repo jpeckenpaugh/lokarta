@@ -1,17 +1,16 @@
 {
   "name": "WARRIOR",
-  "level": 5,
-  "xp": 215,
-  "stat_points": 0,
-  "gold": 176,
-  "hp": 35,
-  "max_hp": 35,
-  "mp": 19,
-  "max_mp": 19,
-  "atk": 18,
-  "defense": 18,
-  "location": "Forrest",
-  "inventory": {
-    "rations": 1
-  }
+  "level": 3,
+  "xp": 110,
+  "stat_points": 10,
+  "gold": 7,
+  "battle_speed": "normal",
+  "hp": 13,
+  "max_hp": 13,
+  "mp": 13,
+  "max_mp": 13,
+  "atk": 12,
+  "defense": 12,
+  "location": "Town",
+  "inventory": {}
 }
