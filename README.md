@@ -27,13 +27,15 @@ Once validated locally, the same engine and assets can be migrated to:
 ## Code Structure
 
 - `main.py` — game loop and state orchestration
-- `models.py` — core dataclasses (`Player`, `Opponent`, `Frame`)
-- `combat.py` — combat helpers and timing
-- `input.py` — single-key input handling
-- `shop.py` — shop interaction helpers
-- `commands/` — command registry and command modules
-- `ui/` — layout, rendering, and screen composition helpers
-- `data_access/` — JSON data loaders
+- `app/bootstrap.py` — app initialization and wiring
+- `app/config.py` — filesystem paths and config
+- `app/models.py` — core dataclasses (`Player`, `Opponent`, `Frame`)
+- `app/combat.py` — combat helpers and timing
+- `app/input.py` — single-key input handling
+- `app/shop.py` — shop interaction helpers
+- `app/commands/` — command registry and command modules
+- `app/ui/` — layout, rendering, and screen composition helpers
+- `app/data_access/` — JSON data loaders
 - `data/` — JSON content packs
 - `saves/` — local save slots
 - `docs/` — schema and design notes
