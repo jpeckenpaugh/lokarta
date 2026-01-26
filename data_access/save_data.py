@@ -1,5 +1,7 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+from models import Player
 
 
 class SaveData:
@@ -29,6 +31,15 @@ class SaveData:
         }
         with open(self._path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
+
+    def save_player(self, player: Player):
+        self.save({"player": player.to_dict()})
+
+    def load_player(self) -> Optional[Player]:
+        data = self.load()
+        if not data:
+            return None
+        return Player.from_dict(data.get("player", {}))
 
     def exists(self) -> bool:
         try:

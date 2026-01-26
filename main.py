@@ -376,49 +376,6 @@ def render_forest_art(
     return forest_art, art_color
 
 
-def save_game(player: Player):
-    data = {
-        "name": player.name,
-        "level": player.level,
-        "xp": player.xp,
-        "stat_points": player.stat_points,
-        "gold": player.gold,
-        "battle_speed": player.battle_speed,
-        "hp": player.hp,
-        "max_hp": player.max_hp,
-        "mp": player.mp,
-        "max_mp": player.max_mp,
-        "atk": player.atk,
-        "defense": player.defense,
-        "location": player.location,
-        "inventory": player.inventory,
-    }
-    SAVE_DATA.save({"player": data})
-
-
-def load_game() -> Optional[Player]:
-    data = SAVE_DATA.load()
-    if not data:
-        return None
-    player_data = data.get("player", {})
-    return Player(
-        name=player_data.get("name", "WARRIOR"),
-        level=int(player_data.get("level", 1)),
-        xp=int(player_data.get("xp", 0)),
-        stat_points=int(player_data.get("stat_points", 0)),
-        gold=int(player_data.get("gold", 10)),
-        battle_speed=player_data.get("battle_speed", "normal"),
-        hp=int(player_data.get("hp", 10)),
-        max_hp=int(player_data.get("max_hp", 10)),
-        mp=int(player_data.get("mp", 10)),
-        max_mp=int(player_data.get("max_mp", 10)),
-        atk=int(player_data.get("atk", 10)),
-        defense=int(player_data.get("defense", 10)),
-        location="Town",
-        inventory=player_data.get("inventory", {}),
-    )
-
-
 def has_save() -> bool:
     return SAVE_DATA.exists()
 
@@ -1411,7 +1368,7 @@ def main():
                 ]
 
             if has_save():
-                saved_player = load_game()
+                saved_player = SAVE_DATA.load_player()
                 if saved_player:
                     hp_text = color(
                         f"HP: {saved_player.hp} / {saved_player.max_hp}",
@@ -1466,7 +1423,7 @@ def main():
         ch = read_keypress()
         if quit_confirm:
             if ch.lower() == "y":
-                save_game(player)
+                SAVE_DATA.save_player(player)
                 clear_screen()
                 print("Goodbye.")
                 return
@@ -1497,7 +1454,7 @@ def main():
                 last_message = "Choose Y to confirm or N to cancel."
                 continue
             if ch.lower() == "c" and has_save():
-                loaded = load_game()
+                loaded = SAVE_DATA.load_player()
                 if loaded:
                     player = loaded
                 else:
@@ -1600,7 +1557,7 @@ def main():
                 if 0 <= idx < len(inventory_items):
                     key, _ = inventory_items[idx]
                     last_message = use_item(player, key)
-                    save_game(player)
+                    SAVE_DATA.save_player(player)
                     inventory_items = list_inventory_items(player)
                     if not inventory_items:
                         inventory_mode = False
@@ -1639,10 +1596,10 @@ def main():
                 last_message = "You leave the shop."
             elif cmd == "NUM1":
                 last_message = purchase_item(player, "rations")
-                save_game(player)
+                SAVE_DATA.save_player(player)
             elif cmd == "NUM2":
                 last_message = purchase_item(player, "elixir")
-                save_game(player)
+                SAVE_DATA.save_player(player)
             continue
 
         if cmd == "B_KEY":
@@ -1686,7 +1643,7 @@ def main():
                 inventory_mode = False
                 hall_mode = False
                 spell_mode = False
-                save_game(player)
+                SAVE_DATA.save_player(player)
             else:
                 primary = primary_opponent(opponents)
                 if primary:
@@ -1699,7 +1656,7 @@ def main():
                         animate_battle_start(player, opponents, last_message)
                     else:
                         last_message = "All is quiet. No enemies in sight."
-                save_game(player)
+                SAVE_DATA.save_player(player)
             continue
 
         if cmd == "NEXT":
@@ -1714,7 +1671,7 @@ def main():
                     animate_battle_start(player, opponents, last_message)
                 else:
                     last_message = "All is quiet. No enemies in sight."
-            save_game(player)
+            SAVE_DATA.save_player(player)
             continue
 
         if cmd == "REST":
@@ -1727,7 +1684,7 @@ def main():
                 player.hp = player.max_hp
                 player.mp = player.max_mp
                 last_message = "You rest at the inn and feel fully restored."
-                save_game(player)
+                SAVE_DATA.save_player(player)
             continue
 
         if cmd == "TOWN":
@@ -1742,7 +1699,7 @@ def main():
             inventory_mode = False
             hall_mode = False
             spell_mode = False
-            save_game(player)
+            SAVE_DATA.save_player(player)
             continue
 
         if cmd == "FOREST":
@@ -1761,7 +1718,7 @@ def main():
             inventory_mode = False
             hall_mode = False
             spell_mode = False
-            save_game(player)
+            SAVE_DATA.save_player(player)
             continue
 
         if not handled_boost:
@@ -1898,7 +1855,7 @@ def main():
                     time.sleep(battle_action_delay(player))
 
         if player_defeated:
-            save_game(player)
+            SAVE_DATA.save_player(player)
             continue
 
         if action_cmd in ("ATTACK", "SPARK"):
@@ -1917,7 +1874,7 @@ def main():
                 loot_bank = {"xp": 0, "gold": 0}
 
         if action_cmd in ("ATTACK", "SPARK", "HEAL"):
-            save_game(player)
+            SAVE_DATA.save_player(player)
 
 
 if __name__ == "__main__":
