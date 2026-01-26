@@ -1,10 +1,8 @@
-# ASCII Quest — Local Terminal POC
+# World Builder — Local Terminal POC
 
 ## Overview
 
-This project is a **local-first proof of concept** for a retro, BBS-style ASCII RPG inspired by classic NES-era games (e.g., Final Fantasy I).
-
-The initial goal is **not** to build a full game, but to validate:
+This project is a **local-first proof of concept** for a retro, BBS-style ASCII RPG. The goal is to validate:
 - screen layout
 - rendering approach
 - input model
@@ -26,90 +24,89 @@ Once validated locally, the same engine and assets can be migrated to:
 
 ---
 
-## Current Features (POC)
+## Current Features
 
-- Local terminal rendering using ANSI escape codes
-- Colorized UI (borders, title, stats)
-- Player stats anchored to the bottom of the screen
-- Single-key controls:
-  - `A` — Attack
-  - `I` — Inventory
-  - `R` — Run
-  - `Q` — Quit
-- Stateless frame rendering
-- Minimal placeholder game logic
+- Title screen with Continue/New/Quit and save overwrite confirmation
+- Persistent save file (`save.json`)
+- ANSI color rendering and ASCII scene art
+- Town hub with Inn, Shop, Hall, and Inventory
+- Spellbook (Healing / Spark) and boosted casting prompts
+- Items (Rations, Elixir) and purchasing via the shop
+- Inventory item usage with numbered selection
+- Multi-monster encounters (up to 3) with level-budget spawns
+- Combat with variance, crits, misses, and Spark stun
+- Leveling: +10 stat points per level, allocation screen, auto-heal
 
 ---
 
-## Screen Layout Contract
+## Screen Layout Contract (100x30)
 
-The terminal UI adheres to a strict **100×30** layout:
+Top to bottom:
+- Top border (1)
+- Title panel line (centered) (1)
+- Separator border (1)
+- Body area (21)
+  - Art block (10)
+  - Divider (1)
+  - Narrative block (remaining) with a centered Status line at the bottom
+- Actions panel header (1)
+- Actions panel content (3, auto-columns)
+- Player stats header (1)
+- Player stats (2)
+- Bottom border (1)
 
+---
+
+## Controls
+
+Title Screen:
+- `C` Continue (if save exists)
+- `N` New Game (confirm overwrite if save exists)
+- `Q` Quit
+- `Y/N` confirm/cancel overwrite
+
+Town:
+- `I` Inn (Rest, 10 GP) — only shown when HP/MP not full
+- `H` Hall (info on monsters/items)
+- `S` Shop
+- `O` Open Inventory
+- `F` Set out for the Forrest
+- `Q` Quit
+
+Forest:
+- `A` Attack
+- `M` Magic (Spellbook)
+- `O` Open Inventory
+- `F` Find a monster to fight
+- `T` Return to Town
+- `Q` Quit
+
+Menus:
+- Shop: `1` Rations, `2` Elixir, `B` Back, `Q` Quit
+- Hall: `1` Monsters, `2` Items, `B` Back, `Q` Quit
+- Spellbook: `1` Healing, `2` Spark, `B` Back, `Q` Quit
+- Inventory: `1-9` Use item, `B` Back, `Q` Quit
+- Level Up: `1-4` allocate stats, `B` Balanced, `X` Random
+
+---
+
+## Assets
+
+Game data is externalized into JSON:
+- `monsters.json` — monster stats, art, descriptions
+- `items.json` — item effects, prices, descriptions
+- `scenes.json` — scene art and colors
+
+---
+
+## Running the POC
+
+1. Resize your terminal to **at least 100 columns × 30 rows**
+2. Run:
+
+```bash
+python3 main.py
 ```
-
-+--------------------------------------------------+
-|------------------ GAME TITLE --------------------|
-|                                                  |
-|                MAIN BODY TEXT                    |
-|                                                  |
-|                                                  |
-+--------------------------------------------------+
-| HP / MP                                          |
-| Level / Gold                                     |
-| Name                                             |
-| Location                                         |
-+--------------------------------------------------+
-
-````
-
-- Top: border + title
-- Middle: main narrative / menu area
-- Bottom: fixed stats panel (4 lines) + border
-- Input hints may render *below* the frame and do not count toward the 100×30 contract
-
-This contract is intentionally stable to support future web and SSH renderers.
-
----
-
-## Architecture
-
-The codebase follows a **three-layer structure**:
-
-### 1. Engine (Pure Logic)
-- No printing
-- No terminal calls
-- No direct input handling
-- Produces a `Frame` object representing the current screen
-
-### 2. UI / Renderer
-- Responsible for:
-  - ANSI coloring
-  - screen clearing
-  - fixed-width rendering
-  - single-key input handling
-- Translates key presses into engine commands
-
-### 3. Assets (Future)
-- Enemies, items, maps, text, etc.
-- Intended to live in external data files (YAML/JSON)
-
-This separation is deliberate to ensure:
-- easy testing
-- easy migration to web or SSH
-- no logic duplication
-
----
-
-## Input Model
-
-- Input is handled as **single key presses** (no Enter)
-- Keys are mapped in the UI layer to semantic commands:
-  - `"A"` → `ATTACK`
-  - `"I"` → `INVENTORY`
-  - `"R"` → `RUN`
-- The engine never sees raw key presses
-
-This mirrors classic BBS and NES menu interaction patterns.
 
 ---
 
@@ -124,48 +121,6 @@ This mirrors classic BBS and NES menu interaction patterns.
 ### Not Yet Supported
 - Windows native terminal (would require `msvcrt.getch()` adapter)
 - Web UI
-- SSH/BBS frontend
-
-These are intentional future steps.
-
----
-
-## Running the POC
-
-1. Resize your terminal to **at least 100 columns × 30 rows**
-2. Run:
-
-```bash
-python3 main.py
-````
-
-3. Use single keys (`A`, `I`, `R`, `Q`) to interact
-
----
-
-## Future Directions (Out of Scope for POC)
-
-* Persistent save files
-* Real combat mechanics
-* Enemy AI
-* Inventory systems
-* Multiplayer or shared world state
-* Authentication
-
-These will only be considered once the core interaction model is validated.
-
----
-
-## Philosophy
-
-This project prioritizes:
-
-* **consistency over complexity**
-* **nostalgia through constraints**
-* **clean separation over clever hacks**
-
-If it can be rendered with `print()`, it belongs in the renderer.
-If it affects game rules, it belongs in the engine.
 
 ---
 

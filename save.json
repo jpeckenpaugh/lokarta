@@ -1,17 +1,15 @@
 {
   "name": "WARRIOR",
   "level": 1,
-  "xp": 0,
+  "xp": 40,
   "stat_points": 0,
-  "gold": 4,
-  "hp": 10,
-  "max_hp": 10,
+  "gold": 20,
+  "hp": 20,
+  "max_hp": 20,
   "mp": 10,
   "max_mp": 10,
   "atk": 10,
   "defense": 10,
   "location": "Town",
-  "inventory": {
-    "rations": 1
-  }
+  "inventory": {}
 }

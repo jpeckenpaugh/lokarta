@@ -50,7 +50,6 @@ class Frame:
     art_lines: List[str]
     art_color: str
     status_lines: List[str]
-    location: str
 
 
 # -----------------------------
