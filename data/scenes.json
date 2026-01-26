@@ -24,17 +24,20 @@
       {
         "key": "F",
         "label": "Set out for the Forest",
-        "command": "F_KEY"
+        "command": "ENTER_SCENE",
+        "target": "forest"
       },
       {
         "key": "S",
         "label": "Shop",
-        "command": "S_KEY"
+        "command": "ENTER_VENUE",
+        "target": "town_shop"
       },
       {
         "key": "H",
         "label": "Hall",
-        "command": "HALL"
+        "command": "ENTER_VENUE",
+        "target": "town_hall"
       },
       {
         "key": "I",
@@ -72,13 +75,15 @@
       {
         "key": "F",
         "label": "Find an opponent to fight",
-        "command": "FOREST",
+        "command": "ENTER_SCENE",
+        "target": "forest",
         "when": "no_opponents"
       },
       {
         "key": "T",
         "label": "Return to Town",
-        "command": "TOWN"
+        "command": "ENTER_SCENE",
+        "target": "town"
       }
     ]
   },

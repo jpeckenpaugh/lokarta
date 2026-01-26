@@ -15,6 +15,7 @@ from combat import (
 from commands import build_registry
 from commands.keymap import map_key_to_command
 from commands.registry import CommandContext, dispatch_command
+from commands.router import CommandState, RouterContext, handle_command
 from commands.scene_commands import scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
@@ -55,6 +56,16 @@ COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 COMMANDS = build_registry()
+ROUTER_CTX = RouterContext(
+    items=ITEMS,
+    opponents_data=OPPONENTS,
+    scenes=SCENES,
+    commands=COMMANDS_DATA,
+    venues=VENUES,
+    save_data=SAVE_DATA,
+    spells=SPELLS,
+    registry=COMMANDS,
+)
 SCREEN_CTX = ScreenContext(
     items=ITEMS,
     opponents=OPPONENTS,
@@ -282,6 +293,7 @@ def main():
             continue
         action_cmd = None
         handled_boost = False
+        handled_by_router = False
         if boost_prompt:
             if ch.lower() == "y":
                 boosted = True
@@ -356,219 +368,43 @@ def main():
                     last_message = "Invalid item selection."
             continue
 
-        if spell_mode and not handled_boost:
-            if cmd == "B_KEY":
-                spell_mode = False
-                last_message = "Closed spellbook."
-            elif cmd == "NUM1":
-                spell_mode = False
-                cmd = "HEAL"
-            elif cmd == "NUM2":
-                spell_mode = False
-                cmd = "SPARK"
-            else:
-                continue
-
-        if hall_mode and not handled_boost:
-            venue = VENUES.get("town_hall", {})
-            info_sections = venue.get("info_sections", [])
-            if cmd == "B_KEY":
-                hall_mode = False
-                last_message = venue.get("leave_message", "You leave the hall.")
-            else:
-                selected = next(
-                    (entry for entry in info_sections if entry.get("command") == cmd),
-                    None
-                )
-                if selected:
-                    hall_view = selected.get("key", hall_view)
-                    last_message = selected.get("message", last_message)
-            continue
-
-        if shop_mode and not handled_boost:
-            venue = VENUES.get("town_shop", {})
-            if cmd == "B_KEY":
-                shop_mode = False
-                last_message = venue.get("leave_message", "You leave the shop.")
-            else:
-                selection = next(
-                    (entry for entry in venue.get("inventory_items", []) if entry.get("command") == cmd),
-                    None
-                )
-                if selection:
-                    item_id = selection.get("item_id")
-                    if item_id:
-                        last_message = purchase_item(player, ITEMS, item_id)
-                        SAVE_DATA.save_player(player)
-            continue
-
-        if cmd == "B_KEY":
+        if cmd == "B_KEY" and not (shop_mode or hall_mode or spell_mode):
             continue
         if cmd == "X_KEY":
             continue
 
-        if cmd == "S_KEY":
-            if player.location == "Town":
-                shop_mode = True
-                venue = VENUES.get("town_shop", {})
-                last_message = venue.get("welcome_message", "Welcome to the shop.")
+        state = CommandState(
+            player=player,
+            opponents=opponents,
+            loot_bank=loot_bank,
+            last_message=last_message,
+            shop_mode=shop_mode,
+            inventory_mode=inventory_mode,
+            inventory_items=inventory_items,
+            hall_mode=hall_mode,
+            hall_view=hall_view,
+            spell_mode=spell_mode,
+            action_cmd=action_cmd,
+        )
+        if handle_command(cmd, state, ROUTER_CTX, key=ch):
+            opponents = state.opponents
+            loot_bank = state.loot_bank
+            last_message = state.last_message
+            shop_mode = state.shop_mode
+            inventory_mode = state.inventory_mode
+            inventory_items = state.inventory_items
+            hall_mode = state.hall_mode
+            hall_view = state.hall_view
+            spell_mode = state.spell_mode
+            action_cmd = state.action_cmd
+            handled_by_router = True
+            if action_cmd not in ("ATTACK", "SPARK", "HEAL"):
                 continue
-            continue
+            if action_cmd in ("HEAL", "SPARK"):
+                cmd = action_cmd
+                handled_by_router = False
 
-        if cmd == "HALL":
-            if player.location == "Town":
-                hall_mode = True
-                hall_view = "menu"
-                venue = VENUES.get("town_hall", {})
-                last_message = venue.get("welcome_message", "Welcome to the hall.")
-                continue
-
-        if cmd == "SPELLBOOK":
-            spell_mode = True
-            shop_mode = False
-            inventory_mode = False
-            hall_mode = False
-            last_message = "Open spellbook."
-            continue
-
-        if cmd == "F_KEY":
-            if player.location == "Town":
-                player.location = "Forest"
-                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
-                loot_bank = {"xp": 0, "gold": 0}
-                if opponents:
-                    last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(
-                        SCENES,
-                        COMMANDS_DATA,
-                        "forest",
-                        player,
-                        opponents,
-                        last_message
-                    )
-                else:
-                    last_message = "All is quiet. No enemies in sight."
-                shop_mode = False
-                inventory_mode = False
-                hall_mode = False
-                spell_mode = False
-                SAVE_DATA.save_player(player)
-            else:
-                primary = primary_opponent(opponents)
-                if primary:
-                    last_message = f"You are already facing a {primary.name}."
-                else:
-                    opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
-                    loot_bank = {"xp": 0, "gold": 0}
-                    if opponents:
-                        last_message = f"A {opponents[0].name} appears."
-                        animate_battle_start(
-                            SCENES,
-                            COMMANDS_DATA,
-                            "forest",
-                            player,
-                            opponents,
-                            last_message
-                        )
-                    else:
-                        last_message = "All is quiet. No enemies in sight."
-                SAVE_DATA.save_player(player)
-            continue
-
-        if cmd == "NEXT":
-            primary = primary_opponent(opponents)
-            if primary:
-                last_message = f"You are already facing a {primary.name}."
-            else:
-                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
-                loot_bank = {"xp": 0, "gold": 0}
-                if opponents:
-                    last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(
-                        SCENES,
-                        COMMANDS_DATA,
-                        "forest",
-                        player,
-                        opponents,
-                        last_message
-                    )
-                else:
-                    last_message = "All is quiet. No enemies in sight."
-            SAVE_DATA.save_player(player)
-            continue
-
-        if cmd == "REST":
-            if player.location != "Town":
-                last_message = "The inn is only in town."
-            elif player.gold < 10:
-                last_message = "Not enough GP to rest at the inn."
-            else:
-                player.gold -= 10
-                player.hp = player.max_hp
-                player.mp = player.max_mp
-                last_message = "You rest at the inn and feel fully restored."
-                SAVE_DATA.save_player(player)
-            continue
-
-        if cmd == "TOWN":
-            if player.location == "Town":
-                last_message = "You are already in town."
-            else:
-                player.location = "Town"
-                opponents = []
-                loot_bank = {"xp": 0, "gold": 0}
-                last_message = "You return to town."
-            shop_mode = False
-            inventory_mode = False
-            hall_mode = False
-            spell_mode = False
-            SAVE_DATA.save_player(player)
-            continue
-
-        if cmd == "FOREST":
-            if player.location == "Forest":
-                primary = primary_opponent(opponents)
-                if primary:
-                    last_message = f"You are already facing a {primary.name}."
-                else:
-                    opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
-                    loot_bank = {"xp": 0, "gold": 0}
-                    if opponents:
-                        last_message = f"A {opponents[0].name} appears."
-                        animate_battle_start(
-                            SCENES,
-                            COMMANDS_DATA,
-                            "forest",
-                            player,
-                            opponents,
-                            last_message
-                        )
-                    else:
-                        last_message = "All is quiet. No enemies in sight."
-            else:
-                player.location = "Forest"
-                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
-                loot_bank = {"xp": 0, "gold": 0}
-                if opponents:
-                    last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(
-                        SCENES,
-                        COMMANDS_DATA,
-                        "forest",
-                        player,
-                        opponents,
-                        last_message
-                    )
-                else:
-                    last_message = "All is quiet. No enemies in sight."
-            shop_mode = False
-            inventory_mode = False
-            hall_mode = False
-            spell_mode = False
-            SAVE_DATA.save_player(player)
-            continue
-
-        if not handled_boost:
+        if not handled_boost and not handled_by_router:
             if cmd == "HEAL":
                 if player.hp == player.max_hp:
                     last_message = "Your HP is already full."
@@ -602,14 +438,6 @@ def main():
                 last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank, spells_data=SPELLS)
                 action_cmd = "SPARK"
             else:
-                if cmd == "INVENTORY":
-                    inventory_items = player.list_inventory_items(ITEMS)
-                    if not inventory_items:
-                        last_message = "Inventory is empty."
-                    else:
-                        inventory_mode = True
-                        last_message = "Choose an item to use."
-                    continue
                 last_message = dispatch_command(
                     COMMANDS,
                     cmd,
@@ -753,12 +581,14 @@ def main():
                 if loot_bank["xp"] or loot_bank["gold"]:
                     player.gain_xp(loot_bank["xp"])
                     player.gold += loot_bank["gold"]
-                    last_message += (
-                        f" You gain {loot_bank['xp']} XP and "
+                    last_message = (
+                        f"You gain {loot_bank['xp']} XP and "
                         f"{loot_bank['gold']} gold."
                     )
                     if player.needs_level_up():
                         leveling_mode = True
+                else:
+                    last_message = ""
                 loot_bank = {"xp": 0, "gold": 0}
 
         if action_cmd in ("ATTACK", "SPARK", "HEAL"):

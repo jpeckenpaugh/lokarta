@@ -1,0 +1,33 @@
+# Command Schema
+
+Commands are defined in JSON (global, scenes, venues, menus) and merged at runtime.
+
+## Base Fields
+
+- `key`: string displayed in the Actions panel (e.g., `"F"`, `"1"`)
+- `label`: string shown next to the key (e.g., `"Shop"`)
+- `command`: string command id dispatched by the router (the action to run)
+
+## Optional Fields
+
+- `target`: string target used by the command (e.g., `"forest"`, `"town_shop"`)
+- `when`: string condition for filtering (e.g., `"has_opponents"`, `"no_opponents"`, `"needs_rest"`)
+
+## Examples
+
+```json
+{
+  "key": "F",
+  "label": "Set out for the Forest",
+  "command": "ENTER_SCENE",
+  "target": "forest"
+}
+```
+
+```json
+{
+  "key": "1",
+  "label": "Buy Rations",
+  "command": "NUM1"
+}
+```

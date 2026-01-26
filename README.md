@@ -81,6 +81,7 @@ Town/Forest/Menus:
 - Controls are data-driven from `data/commands.json`, `data/scenes.json`,
   `data/venues.json`, and `data/menus.json`.
 - The action panel reflects the active commands and their conditions.
+- Command schema notes: `docs/commands.md`.
 
 ---
 
