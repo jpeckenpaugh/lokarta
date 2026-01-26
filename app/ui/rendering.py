@@ -47,12 +47,38 @@ def mirror_line(line: str) -> str:
 
 
 def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
-    art_template = venue.get("art", [])
     art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
     npc_art = npc.get("art", [])
     npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
     gap_width = int(venue.get("gap_width", 0))
+    left = venue.get("left", [])
+    right = venue.get("right", [])
 
+    if left:
+        if not right:
+            right = [mirror_line(line) for line in left]
+        max_left = max((len(line) for line in left), default=0)
+        max_right = max((len(line) for line in right), default=0)
+        left = [line.ljust(max_left) for line in left]
+        right = [line.ljust(max_right) for line in right]
+        raw_lines = [line[:gap_width].rstrip() for line in npc_art]
+        max_len = max((len(line) for line in raw_lines), default=0)
+        left_aligned = [line.ljust(max_len) for line in raw_lines]
+        centered = [line.center(gap_width) for line in left_aligned]
+        max_rows = max(len(left), len(right))
+        start_row = max(0, max_rows - len(centered))
+        art_lines = []
+        for i in range(max_rows):
+            left_line = left[i] if i < len(left) else (" " * max_left)
+            right_line = right[i] if i < len(right) else (" " * max_right)
+            gap_fill = " " * gap_width
+            if centered and start_row <= i < start_row + len(centered):
+                npc_line = centered[i - start_row]
+                gap_fill = npc_color + npc_line + art_color
+            art_lines.append(left_line + gap_fill + right_line)
+        return art_lines, art_color
+
+    art_template = venue.get("art", [])
     if art_template:
         if gap_width > 0:
             raw_lines = [line[:gap_width].rstrip() for line in npc_art]
