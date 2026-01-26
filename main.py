@@ -392,6 +392,10 @@ def generate_demo_frame(
     hall_view: str = "menu",
     spell_mode: bool = False
 ) -> Frame:
+    healing = SPELLS.get("healing", {})
+    spark = SPELLS.get("spark", {})
+    heal_name = healing.get("name", "Healing")
+    spark_name = spark.get("name", "Spark")
     if leveling_mode:
         body = [
             "Level Up!",
@@ -482,19 +486,17 @@ def generate_demo_frame(
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif spell_mode:
-        healing = SPELLS.get("healing", {})
-        spark = SPELLS.get("spark", {})
         heal_cost = int(healing.get("mp_cost", 2))
         spark_cost = int(spark.get("mp_cost", 2))
         body = [
             "Spellbook",
             "",
-            f"{healing.get('name', 'Healing')} ({heal_cost} MP)",
-            f"{spark.get('name', 'Spark')} ({spark_cost} MP)",
+            f"{heal_name} ({heal_cost} MP)",
+            f"{spark_name} ({spark_cost} MP)",
         ]
         actions = [
-            "  [1] Healing",
-            "  [2] Spark",
+            f"  [1] {heal_name}",
+            f"  [2] {spark_name}",
             "  [B] Back",
             "  [Q] Quit",
         ]
@@ -583,7 +585,7 @@ def generate_demo_frame(
             "Keys: 1-4=Assign  B=Balanced  X=Random  Q=Quit"
             if leveling_mode
             else (
-                "Keys: A=Attack  H=Heal  S=Spark  I=Inventory  "
+                f"Keys: A=Attack  H={heal_name}  S={spark_name}  I=Inventory  "
                 "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
             )
         ),
@@ -665,67 +667,64 @@ def add_loot(loot: dict, xp: int, gold: int):
     loot["gold"] = loot.get("gold", 0) + gold
 
 
-def cast_spark(
+def cast_spell(
     player: Player,
     opponents: List[Opponent],
+    spell_id: str,
     boosted: bool,
     loot: dict
 ) -> str:
-    opponent = primary_opponent(opponents)
-    if not opponent:
-        return "There is nothing to target."
-    spark = SPELLS.get("spark", {})
-    mp_cost = int(spark.get("boosted_mp_cost", 4 if boosted else 2))
+    spell = SPELLS.get(spell_id, {})
+    name = spell.get("name", spell_id.title())
+    mp_cost = int(spell.get("boosted_mp_cost", 4 if boosted else 2))
     if not boosted:
-        mp_cost = int(spark.get("mp_cost", 2))
+        mp_cost = int(spell.get("mp_cost", 2))
     if player.mp < mp_cost:
-        return "Not enough MP to cast Spark."
-    player.mp -= mp_cost
-    atk_bonus = int(spark.get("atk_bonus", 2))
-    damage, crit, miss = roll_damage(player.atk + atk_bonus, opponent.defense)
-    if boosted:
-        damage *= int(spark.get("boosted_multiplier", 2))
-    if miss:
-        return f"Your Spark misses the {opponent.name}."
-    opponent.hp = max(0, opponent.hp - damage)
-    if opponent.hp == 0:
-        xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-        gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-        add_loot(loot, xp_gain, gold_gain)
-        opponent.melted = False
-        message = (
-            f"Your Spark fells the {opponent.name}."
-        )
+        return f"Not enough MP to cast {name}."
+
+    if spell_id == "healing":
+        if player.hp == player.max_hp:
+            return "Your HP is already full."
+        player.mp -= mp_cost
+        heal_amount = int(spell.get("boosted_heal", 20 if boosted else 10))
+        if not boosted:
+            heal_amount = int(spell.get("heal", 10))
+        heal = min(heal_amount, player.max_hp - player.hp)
+        player.hp += heal
+        return f"You cast {name} and restore {heal} HP."
+
+    if spell_id == "spark":
+        opponent = primary_opponent(opponents)
+        if not opponent:
+            return "There is nothing to target."
+        player.mp -= mp_cost
+        atk_bonus = int(spell.get("atk_bonus", 2))
+        damage, crit, miss = roll_damage(player.atk + atk_bonus, opponent.defense)
+        if boosted:
+            damage *= int(spell.get("boosted_multiplier", 2))
+        if miss:
+            return f"Your {name} misses the {opponent.name}."
+        opponent.hp = max(0, opponent.hp - damage)
+        if opponent.hp == 0:
+            xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
+            gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
+            add_loot(loot, xp_gain, gold_gain)
+            opponent.melted = False
+            message = f"Your {name} fells the {opponent.name}."
+            return message
+        stun_chance = float(spell.get("boosted_stun_chance", 0.8 if boosted else 0.4))
+        if not boosted:
+            stun_chance = float(spell.get("stun_chance", 0.4))
+        stunned_turns = try_stun(opponent, stun_chance)
+        if crit:
+            message = f"Critical {name}! You hit the {opponent.name} for {damage}."
+        else:
+            message = f"You hit the {opponent.name} with {name} for {damage}."
+        if stunned_turns > 0:
+            message += f" It is stunned for {stunned_turns} turn(s)."
         return message
-    stun_chance = float(spark.get("boosted_stun_chance", 0.8 if boosted else 0.4))
-    if not boosted:
-        stun_chance = float(spark.get("stun_chance", 0.4))
-    stunned_turns = try_stun(opponent, stun_chance)
-    if crit:
-        message = f"Critical Spark! You hit the {opponent.name} for {damage}."
-    else:
-        message = f"You hit the {opponent.name} with Spark for {damage}."
-    if stunned_turns > 0:
-        message += f" It is stunned for {stunned_turns} turn(s)."
-    return message
 
-
-def cast_heal(player: Player, boosted: bool) -> str:
-    healing = SPELLS.get("healing", {})
-    mp_cost = int(healing.get("boosted_mp_cost", 4 if boosted else 2))
-    if not boosted:
-        mp_cost = int(healing.get("mp_cost", 2))
-    if player.mp < mp_cost:
-        return "Not enough MP to cast Healing."
-    if player.hp == player.max_hp:
-        return "Your HP is already full."
-    player.mp -= mp_cost
-    heal_amount = int(healing.get("boosted_heal", 20 if boosted else 10))
-    if not boosted:
-        heal_amount = int(healing.get("heal", 10))
-    heal = min(heal_amount, player.max_hp - player.hp)
-    player.hp += heal
-    return f"You cast Healing and restore {heal} HP."
+    return f"{name} fizzles with no effect."
 
 
 def apply_command(
@@ -756,11 +755,11 @@ def apply_command(
             return f"Critical hit! You hit the {opponent.name} for {damage}."
         return f"You hit the {opponent.name} for {damage}."
     if command == "HEAL":
-        return cast_heal(player, boosted=False)
+        return cast_spell(player, opponents, "healing", boosted=False, loot=loot)
     if command == "INVENTORY":
         return player.format_inventory(ITEMS)
     if command == "SPARK":
-        return cast_spark(player, opponents, boosted=False, loot=loot)
+        return cast_spell(player, opponents, "spark", boosted=False, loot=loot)
     return "Unknown action."
 
 
@@ -918,6 +917,10 @@ def render_forest_frame(
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None
 ):
+    healing = SPELLS.get("healing", {})
+    spark = SPELLS.get("spark", {})
+    heal_name = healing.get("name", "Healing")
+    spark_name = spark.get("name", "Spark")
     scene_data = SCENES.get("forest", {})
     forest_art, art_color = render_forest_art(
         scene_data,
@@ -971,7 +974,7 @@ def render_forest_frame(
         action_lines=format_action_lines(actions),
         stat_lines=format_player_stats(player),
         footer_hint=(
-            "Keys: A=Attack  H=Heal  S=Spark  I=Inventory  "
+            f"Keys: A=Attack  H={heal_name}  S={spark_name}  I=Inventory  "
             "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
         ),
         location=player.location,
@@ -1380,10 +1383,10 @@ def main():
                 continue
 
             if boost_prompt == "HEAL":
-                last_message = cast_heal(player, boosted)
+                last_message = cast_spell(player, opponents, "healing", boosted, loot_bank)
                 action_cmd = "HEAL"
             else:
-                last_message = cast_spark(player, opponents, boosted, loot=loot_bank)
+                last_message = cast_spell(player, opponents, "spark", boosted, loot_bank)
                 action_cmd = "SPARK"
             boost_prompt = None
             handled_boost = True
@@ -1617,13 +1620,13 @@ def main():
                 heal_cost = int(healing.get("mp_cost", 2))
                 boosted_heal_cost = int(healing.get("boosted_mp_cost", 4))
                 if player.mp < heal_cost:
-                    last_message = "Not enough MP to cast Healing."
+                    last_message = f"Not enough MP to cast {healing.get('name', 'Healing')}."
                     continue
                 if player.mp >= boosted_heal_cost:
                     boost_prompt = "HEAL"
-                    last_message = "Boost Healing? (Y/N)"
+                    last_message = f"Boost {healing.get('name', 'Healing')}? (Y/N)"
                     continue
-                last_message = cast_heal(player, boosted=False)
+                last_message = cast_spell(player, opponents, "healing", boosted=False, loot=loot_bank)
                 action_cmd = "HEAL"
             elif cmd == "SPARK":
                 if not any(opponent.hp > 0 for opponent in opponents):
@@ -1633,13 +1636,13 @@ def main():
                 spark_cost = int(spark.get("mp_cost", 2))
                 boosted_spark_cost = int(spark.get("boosted_mp_cost", 4))
                 if player.mp < spark_cost:
-                    last_message = "Not enough MP to cast Spark."
+                    last_message = f"Not enough MP to cast {spark.get('name', 'Spark')}."
                     continue
                 if player.mp >= boosted_spark_cost:
                     boost_prompt = "SPARK"
-                    last_message = "Boost Spark? (Y/N)"
+                    last_message = f"Boost {spark.get('name', 'Spark')}? (Y/N)"
                     continue
-                last_message = cast_spark(player, opponents, boosted=False, loot=loot_bank)
+                last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank)
                 action_cmd = "SPARK"
             else:
                 if cmd == "INVENTORY":
