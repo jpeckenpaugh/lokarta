@@ -22,49 +22,28 @@ from data_access.venues_data import VenuesData
 from data_access.spells_data import SpellsData
 from data_access.save_data import SaveData
 from models import Frame, Player, Opponent
+from ui.ansi import ANSI, color
+from ui.constants import (
+    OPPONENT_ART_WIDTH,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
+from ui.layout import format_action_lines
+from ui.rendering import (
+    COLOR_BY_NAME,
+    animate_scene_gap,
+    clear_screen,
+    compute_scene_gap_target,
+    format_opponent_bar,
+    format_player_stats,
+    render_frame,
+    render_scene_art,
+    render_scene_frame,
+    render_venue_art,
+)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
-
-SCREEN_WIDTH = 100
-SCREEN_HEIGHT = 30
-STAT_LINES = 2
-ACTION_LINES = 3
-NARRATIVE_INDENT = 2
-OPPONENT_ART_WIDTH = 10
-OPPONENT_BAR_WIDTH = 8
-
-# -----------------------------
-# ANSI color helpers (UI only)
-# -----------------------------
-
-class ANSI:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-
-    FG_WHITE = "\033[37m"
-    FG_CYAN = "\033[36m"
-    FG_GREEN = "\033[32m"
-    FG_YELLOW = "\033[33m"
-    FG_RED = "\033[31m"
-    FG_BLUE = "\033[34m"
-    FG_MAGENTA = "\033[35m"
-
-COLOR_BY_NAME = {
-    "white": ANSI.FG_WHITE,
-    "cyan": ANSI.FG_CYAN,
-    "green": ANSI.FG_GREEN,
-    "yellow": ANSI.FG_YELLOW,
-    "red": ANSI.FG_RED,
-    "blue": ANSI.FG_BLUE,
-}
-
-
-def color(text: str, *codes: str) -> str:
-    styled = "".join(codes) + text + ANSI.RESET
-    return styled
-
 
 ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
 OPPONENTS = OpponentsData(os.path.join(DATA_DIR, "opponents.json"))
@@ -77,147 +56,6 @@ SAVE_DATA = SaveData(SAVE_PATH)
 COMMANDS = build_registry()
 
 
-def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
-    art_template = venue.get("art", [])
-    art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
-    npc_art = npc.get("art", [])
-    npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
-    gap_width = int(venue.get("gap_width", 0))
-
-    if art_template:
-        if gap_width > 0:
-            art_lines = []
-            start_row = (len(art_template) - len(npc_art)) // 2
-            for i, line in enumerate(art_template):
-                gap_fill = " " * gap_width
-                if npc_art and start_row <= i < start_row + len(npc_art):
-                    npc_line = npc_art[i - start_row]
-                    pad_left = (gap_width - len(npc_line)) // 2
-                    pad_right = gap_width - len(npc_line) - pad_left
-                    gap_fill = (
-                        (" " * pad_left)
-                        + npc_color + npc_line + art_color
-                        + (" " * pad_right)
-                    )
-                art_lines.append(line.replace("{GAP}", gap_fill))
-            return art_lines, art_color
-        return art_template, art_color
-    if npc_art:
-        return npc_art, npc_color
-    return [], ANSI.FG_WHITE
-
-
-def mirror_line(line: str) -> str:
-    swaps = str.maketrans({
-        "/": "\\",
-        "\\": "/",
-        "(": ")",
-        ")": "(",
-        "<": ">",
-        ">": "<",
-        "[": "]",
-        "]": "[",
-        "{": "}",
-        "}": "{",
-    })
-    return line[::-1].translate(swaps)
-
-
-def format_player_stats(player: Player) -> List[str]:
-    hp_text = color(f"HP: {player.hp} / {player.max_hp}", ANSI.FG_GREEN)
-    mp_text = color(f"MP: {player.mp} / {player.max_mp}", ANSI.FG_MAGENTA)
-    atk_text = color(f"ATK: {player.atk}", ANSI.DIM)
-    def_text = color(f"DEF: {player.defense}", ANSI.DIM)
-    level_text = color(f"Level: {player.level}", ANSI.FG_CYAN)
-    xp_text = color(f"XP: {player.xp}", ANSI.FG_GREEN)
-    gp_text = color(f"GP: {player.gold}", ANSI.FG_YELLOW)
-    return [
-        f"{hp_text}    {mp_text}    {atk_text}    {def_text}",
-        f"{level_text}    {xp_text}    {gp_text}",
-    ]
-
-
-def format_opponent_bar(opponent: Opponent) -> str:
-    if opponent.max_hp <= 0:
-        filled = 0
-    else:
-        filled = int((opponent.hp / opponent.max_hp) * OPPONENT_BAR_WIDTH)
-    filled = max(0, min(OPPONENT_BAR_WIDTH, filled))
-    hashes = "#" * filled
-    empties = "_" * (OPPONENT_BAR_WIDTH - filled)
-    return (
-        ANSI.FG_WHITE
-        + "["
-        + ANSI.FG_GREEN + hashes
-        + ANSI.FG_WHITE + empties
-        + "]"
-    )
-
-
-def build_opponent_blocks(
-    opponents: List[Opponent],
-    flash_index: Optional[int] = None,
-    flash_color: Optional[str] = None,
-    visible_indices: Optional[set] = None,
-    include_bars: bool = True,
-    manual_lines_indices: Optional[set] = None
-) -> List[dict]:
-    blocks = []
-    if visible_indices is None:
-        visible_indices = set()
-    if manual_lines_indices is None:
-        manual_lines_indices = set()
-    for idx, opponent in enumerate(opponents[:3]):
-        if not opponent.art_lines:
-            continue
-        width = OPPONENT_ART_WIDTH
-        bar = format_opponent_bar(opponent)
-        if idx in manual_lines_indices:
-            lines = opponent.art_lines
-            color = opponent.art_color
-        elif opponent.hp > 0 or idx in visible_indices:
-            lines = [line[:width].center(width) for line in opponent.art_lines]
-            if include_bars:
-                lines.append(" " * width)
-                lines.append(bar)
-            color = opponent.art_color
-            if flash_color and flash_index == idx:
-                color = flash_color
-        else:
-            lines = [" " * width for _ in opponent.art_lines]
-            if include_bars:
-                lines.append(" " * width)
-                lines.append(" " * width)
-            color = opponent.art_color
-        blocks.append(
-            {
-                "lines": lines,
-                "width": width,
-                "color": color,
-            }
-        )
-    return blocks
-
-
-def compute_forest_gap_target(scene_data: dict, opponents: List[Opponent]) -> int:
-    gap_min = int(scene_data.get("gap_min", 2))
-    gap_width = int(scene_data.get("gap_width", gap_min))
-    left = scene_data.get("left", [])
-    opponent_blocks = build_opponent_blocks(opponents)
-    if not opponent_blocks:
-        return gap_min if left else gap_width
-    gap_pad = 2
-    inter_pad = 2
-    content_width = (
-        (gap_pad * 2)
-        + sum(block["width"] for block in opponent_blocks)
-        + (inter_pad * (len(opponent_blocks) - 1))
-    )
-    if left:
-        return max(gap_min, content_width)
-    return max(gap_width, content_width)
-
-
 def battle_action_delay(player: Player) -> float:
     speeds = {
         "fast": 0.2,
@@ -227,143 +65,8 @@ def battle_action_delay(player: Player) -> float:
     return speeds.get(player.battle_speed, speeds["normal"])
 
 
-def render_forest_art(
-    scene_data: dict,
-    opponents: List[Opponent],
-    gap_override: Optional[int] = None,
-    flash_index: Optional[int] = None,
-    flash_color: Optional[str] = None,
-    visible_indices: Optional[set] = None,
-    include_bars: bool = True,
-    manual_lines_indices: Optional[set] = None
-) -> tuple[List[str], str]:
-    art_color = COLOR_BY_NAME.get(scene_data.get("color", "green").lower(), ANSI.FG_WHITE)
-    opponent_blocks = build_opponent_blocks(
-        opponents,
-        flash_index=flash_index,
-        flash_color=flash_color,
-        visible_indices=visible_indices,
-        include_bars=include_bars,
-        manual_lines_indices=manual_lines_indices
-    )
-    left = scene_data.get("left", [])
-    right = scene_data.get("right")
-
-    if left:
-        if right is None:
-            right = [mirror_line(line) for line in left]
-        gap_min = int(scene_data.get("gap_min", 2))
-        if gap_override is not None:
-            gap_min = gap_override
-        gap_pad = 2
-        inter_pad = 2
-        gap_width = gap_min
-        if opponent_blocks:
-            content_width = (
-                (gap_pad * 2)
-                + sum(block["width"] for block in opponent_blocks)
-                + (inter_pad * (len(opponent_blocks) - 1))
-            )
-            gap_width = max(gap_min, content_width)
-        art_lines = []
-        max_rows = max(len(left), len(right))
-        max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
-        start_row = (max_rows - max_opp_rows) // 2 if max_opp_rows else 0
-        for i in range(max_rows):
-            left_line = left[i] if i < len(left) else ""
-            right_line = right[i] if i < len(right) else ""
-            gap_fill = " " * gap_width
-            if opponent_blocks and start_row <= i < start_row + max_opp_rows:
-                row_index = i - start_row
-                segments = []
-                for block in opponent_blocks:
-                    line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
-                    line = line.ljust(block["width"])
-                    if line.strip():
-                        segments.append(block["color"] + line + art_color)
-                    else:
-                        segments.append(" " * block["width"])
-                content = (" " * inter_pad).join(segments)
-                content_width = (gap_pad * 2) + len(content)
-                pad_left = max(0, (gap_width - content_width) // 2)
-                pad_right = max(0, gap_width - content_width - pad_left)
-                gap_fill = (
-                    (" " * pad_left)
-                    + (" " * gap_pad)
-                    + content
-                    + (" " * gap_pad)
-                    + (" " * pad_right)
-                )
-            art_lines.append(left_line + gap_fill + right_line)
-        return art_lines, art_color
-
-        gap_width = int(scene_data.get("gap_width", 20))
-        if gap_override is not None:
-            gap_width = gap_override
-    forest_template = scene_data.get("art", [])
-    forest_art = []
-    for i, line in enumerate(forest_template):
-        gap_fill = " " * gap_width
-        if opponent_blocks:
-            max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
-            start_row = (len(forest_template) - max_opp_rows) // 2
-            if start_row <= i < start_row + max_opp_rows:
-                row_index = i - start_row
-                segments = []
-                for block in opponent_blocks:
-                    line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
-                    width = block["width"]
-                    line = line.ljust(width)
-                    if line.strip():
-                        segments.append(block["color"] + line + art_color)
-                    else:
-                        segments.append(" " * width)
-                inter_pad = 2
-                gap_pad = 2
-                content = (" " * inter_pad).join(segments)
-                content_width = (gap_pad * 2) + len(content)
-                gap_width = max(gap_width, content_width)
-                pad_left = max(0, (gap_width - content_width) // 2)
-                pad_right = max(0, gap_width - content_width - pad_left)
-                gap_fill = (
-                    (" " * pad_left)
-                    + (" " * gap_pad)
-                    + content
-                    + (" " * gap_pad)
-                    + (" " * pad_right)
-                )
-        forest_art.append(line.replace("{GAP}", gap_fill))
-    return forest_art, art_color
-
-
 def delete_save():
     SAVE_DATA.delete()
-
-
-def format_action_lines(actions: List[str]) -> List[str]:
-    clean = [a for a in actions if a.strip()]
-    count = len(clean)
-    if count <= 3:
-        cols = 1
-    elif count <= 6:
-        cols = 2
-    else:
-        cols = 3
-    content_width = SCREEN_WIDTH - 4
-    gap = 2
-    col_width = (content_width - gap * (cols - 1)) // cols
-    rows = ACTION_LINES
-    lines = []
-    for r in range(rows):
-        parts = []
-        for c in range(cols):
-            idx = r + c * rows
-            if idx < count:
-                parts.append(pad_or_trim_ansi(clean[idx], col_width))
-            else:
-                parts.append(" " * col_width)
-        lines.append((" " * gap).join(parts))
-    return lines
 
 
 def format_command_lines(commands: List[dict]) -> List[str]:
@@ -522,7 +225,7 @@ def generate_demo_frame(
         )
     else:
         scene_data = SCENES.get("forest", {})
-        forest_art, art_color = render_forest_art(scene_data, opponents)
+        forest_art, art_color = render_scene_art(scene_data, opponents)
         opponent_lines = []
         for i, m in enumerate(opponents[:3], start=1):
             line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
@@ -590,237 +293,6 @@ def apply_command(
     return "Unknown action."
 
 
-# -----------------------------
-# UI / Renderer
-# -----------------------------
-
-def clear_screen():
-    sys.stdout.write("\033[2J\033[H\033[3J")
-    sys.stdout.flush()
-
-
-def strip_ansi(s: str) -> str:
-    # Minimal ANSI stripping for accurate padding when we add colors inside lines.
-    import re
-    return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def pad_or_trim_ansi(text: str, width: int) -> str:
-    # Pad based on visible length, not raw length.
-    visible = strip_ansi(text)
-    if len(visible) >= width:
-        # naive trim: trim visible; for demo purposes this is fine
-        return text[:width]
-    return text + (" " * (width - len(visible)))
-
-
-def center_ansi(text: str, width: int) -> str:
-    visible_len = len(strip_ansi(text))
-    if visible_len >= width:
-        return text[:width]
-    total_padding = width - visible_len
-    left = total_padding // 2
-    right = total_padding - left
-    return (" " * left) + text + (" " * right)
-
-
-def render_frame(frame: Frame):
-    clear_screen()
-
-    border = color("+" + "-" * (SCREEN_WIDTH - 2) + "+", ANSI.FG_BLUE)
-
-    print(border)
-
-    location_line = f" {frame.location} "
-    location_row = location_line.center(SCREEN_WIDTH - 2, " ")
-
-    used_rows = (
-        1 +  # top border
-        1 +  # location line
-        1 +  # location separator border
-        1 +  # actions separator border
-        ACTION_LINES +
-        1 +  # stat separator border
-        STAT_LINES +
-        1    # bottom border
-    )
-    body_height = SCREEN_HEIGHT - used_rows
-
-    print(color(f"|{location_row}|", ANSI.FG_CYAN))
-    print(border)
-
-    status_lines = frame.status_lines[:]
-    art_count = len(frame.art_lines)
-    divider_count = 1 if art_count > 0 else 0
-    max_status = max(0, body_height - art_count - divider_count)
-    if len(status_lines) > max_status:
-        status_lines = status_lines[-max_status:]
-    status_count = len(status_lines)
-
-    narrative_space = body_height - art_count - divider_count - status_count
-    narrative_space = max(0, narrative_space)
-    body_rows = []
-
-    for i in range(art_count):
-        art_line = frame.art_lines[i]
-        styled = color(art_line, frame.art_color)
-        body_rows.append(center_ansi(styled, SCREEN_WIDTH - 4))
-
-    if art_count > 0:
-        divider_row = "-" * (SCREEN_WIDTH - 4)
-        body_rows.append(color(divider_row, ANSI.FG_BLUE))
-
-    narrative_index = 0
-    for i in range(narrative_space):
-        raw = (
-            frame.body_lines[narrative_index]
-            if narrative_index < len(frame.body_lines)
-            else ""
-        )
-        narrative_index += 1
-        if raw:
-            raw = (" " * NARRATIVE_INDENT) + raw
-        body_rows.append(pad_or_trim_ansi(raw, SCREEN_WIDTH - 4))
-
-    for line in status_lines:
-        colored = color(line, ANSI.FG_YELLOW)
-        body_rows.append(center_ansi(colored, SCREEN_WIDTH - 4))
-
-    for i in range(body_height):
-        line = body_rows[i] if i < len(body_rows) else ""
-        print(
-            color("| ", ANSI.FG_BLUE)
-            + line
-            + color(" |", ANSI.FG_BLUE)
-        )
-
-    actions_label = "---Actions---"
-    actions_label_row = actions_label.center(SCREEN_WIDTH - 2, "-")
-    print(color(f"+{actions_label_row}+", ANSI.FG_BLUE))
-
-    for i in range(ACTION_LINES):
-        line = frame.action_lines[i] if i < len(frame.action_lines) else ""
-        print(
-            color("| ", ANSI.FG_BLUE)
-            + pad_or_trim_ansi(line, SCREEN_WIDTH - 4)
-            + color(" |", ANSI.FG_BLUE)
-        )
-
-    label = "---Player-Stats---"
-    label_row = label.center(SCREEN_WIDTH - 2, "-")
-    print(color(f"+{label_row}+", ANSI.FG_BLUE))
-
-    for i in range(STAT_LINES):
-        raw = frame.stat_lines[i] if i < len(frame.stat_lines) else ""
-        styled = raw
-        if raw.startswith("HP:"):
-            styled = color(raw, ANSI.FG_RED)
-        elif raw.startswith("Level:"):
-            styled = color(raw, ANSI.FG_YELLOW)
-        elif raw.startswith("Name:"):
-            styled = color(raw, ANSI.FG_GREEN, ANSI.BOLD)
-        elif raw.startswith("Location:"):
-            styled = color(raw, ANSI.FG_CYAN)
-
-        centered = center_ansi(styled, SCREEN_WIDTH - 4)
-        print(
-            color("| ", ANSI.FG_BLUE)
-            + centered
-            + color(" |", ANSI.FG_BLUE)
-        )
-
-    print(border)
-
-
-def render_forest_frame(
-    player: Player,
-    opponents: List[Opponent],
-    message: str,
-    gap_override: int,
-    art_opponents: Optional[List[Opponent]] = None,
-    flash_index: Optional[int] = None,
-    flash_color: Optional[str] = None,
-    visible_indices: Optional[set] = None,
-    include_bars: bool = True,
-    manual_lines_indices: Optional[set] = None,
-    suppress_actions: bool = False
-):
-    scene_data = SCENES.get("forest", {})
-    forest_art, art_color = render_forest_art(
-        scene_data,
-        art_opponents if art_opponents is not None else opponents,
-        gap_override=gap_override,
-        flash_index=flash_index,
-        flash_color=flash_color,
-        visible_indices=visible_indices,
-        include_bars=include_bars,
-        manual_lines_indices=manual_lines_indices
-    )
-    opponent_lines = []
-    for i, m in enumerate(opponents[:3], start=1):
-        line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
-        if m.stunned_turns > 0:
-            line += f" (Stun {m.stunned_turns})"
-        opponent_lines.append(line)
-    primary = primary_opponent(opponents)
-    body = [
-        (
-            f"A {primary.name} {primary.arrival}."
-            if primary
-            else "All is quiet. No enemies in sight."
-        ),
-        "",
-        *opponent_lines,
-    ]
-    actions = format_command_lines(
-        scene_commands(SCENES, COMMANDS_DATA, "forest", player, opponents)
-    )
-    if suppress_actions:
-        actions = format_action_lines([])
-    frame = Frame(
-        title="World Builder — PROTOTYPE",
-        body_lines=body,
-        action_lines=actions,
-        stat_lines=format_player_stats(player),
-        footer_hint="" if suppress_actions else "Keys: use the action panel",
-        location=player.location,
-        art_lines=forest_art,
-        art_color=art_color,
-        status_lines=(
-            textwrap.wrap(message, width=SCREEN_WIDTH - 4)
-            if message
-            else []
-        ),
-    )
-    render_frame(frame)
-
-
-def animate_forest_gap(
-    player: Player,
-    opponents: List[Opponent],
-    message: str,
-    start_gap: int,
-    end_gap: int,
-    steps: int = 6,
-    delay: float = 0.06,
-    art_opponents: Optional[List[Opponent]] = None
-):
-    if start_gap == end_gap or steps <= 0:
-        return
-    for step in range(1, steps + 1):
-        t = step / steps
-        gap = int(round(start_gap + (end_gap - start_gap) * t))
-        render_forest_frame(
-            player,
-            opponents,
-            message,
-            gap,
-            art_opponents,
-            suppress_actions=True
-        )
-        time.sleep(delay)
-
-
 def animate_battle_start(player: Player, opponents: List[Opponent], message: str):
     if player.location != "Forest" or not opponents:
         return
@@ -830,8 +302,18 @@ def animate_battle_start(player: Player, opponents: List[Opponent], message: str
         if scene_data.get("left")
         else int(scene_data.get("gap_width", 20))
     )
-    gap_target = compute_forest_gap_target(scene_data, opponents)
-    animate_forest_gap(player, opponents, message, gap_base, gap_target, art_opponents=[])
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    animate_scene_gap(
+        SCENES,
+        COMMANDS_DATA,
+        "forest",
+        player,
+        opponents,
+        message,
+        gap_base,
+        gap_target,
+        art_opponents=[]
+    )
 
 
 def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
@@ -843,8 +325,18 @@ def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
         if scene_data.get("left")
         else int(scene_data.get("gap_width", 20))
     )
-    gap_target = compute_forest_gap_target(scene_data, opponents)
-    animate_forest_gap(player, opponents, message, gap_target, gap_base, art_opponents=[])
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    animate_scene_gap(
+        SCENES,
+        COMMANDS_DATA,
+        "forest",
+        player,
+        opponents,
+        message,
+        gap_target,
+        gap_base,
+        art_opponents=[]
+    )
 
 
 def primary_opponent_index(opponents: List[Opponent]) -> Optional[int]:
@@ -864,8 +356,11 @@ def flash_opponent(
     if index is None or player.location != "Forest":
         return
     scene_data = SCENES.get("forest", {})
-    gap_target = compute_forest_gap_target(scene_data, opponents)
-    render_forest_frame(
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    render_scene_frame(
+        SCENES,
+        COMMANDS_DATA,
+        "forest",
         player,
         opponents,
         message,
@@ -896,7 +391,7 @@ def melt_opponent(
     display_lines.append(" " * width)
     display_lines.append(bar)
     scene_data = SCENES.get("forest", {})
-    gap_target = compute_forest_gap_target(scene_data, opponents)
+    gap_target = compute_scene_gap_target(scene_data, opponents)
     for removed in range(1, len(display_lines) + 1):
         trimmed = (
             [" " * width for _ in range(removed)]
@@ -908,7 +403,10 @@ def melt_opponent(
                 art_overrides.append(replace(current, art_lines=trimmed, hp=0))
             else:
                 art_overrides.append(current)
-        render_forest_frame(
+        render_scene_frame(
+            SCENES,
+            COMMANDS_DATA,
+            "forest",
             player,
             opponents,
             message,
