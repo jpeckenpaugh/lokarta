@@ -12,6 +12,7 @@ from combat import cast_spell, primary_opponent, roll_damage
 from commands import build_registry
 from commands.keymap import map_key_to_command
 from commands.registry import CommandContext
+from commands.scene_commands import format_commands, scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
 from data_access.opponents_data import OpponentsData
@@ -365,49 +366,8 @@ def format_action_lines(actions: List[str]) -> List[str]:
     return lines
 
 
-def filter_commands(commands: List[dict], player: Player, opponents: List[Opponent]) -> List[dict]:
-    has_opponents = any(opponent.hp > 0 for opponent in opponents)
-    filtered = []
-    for command in commands:
-        when = command.get("when")
-        if when == "has_opponents" and not has_opponents:
-            continue
-        if when == "no_opponents" and has_opponents:
-            continue
-        if when == "needs_rest":
-            if not (player.hp < player.max_hp or player.mp < player.max_mp):
-                continue
-        filtered.append(command)
-    return filtered
-
-
-def scene_commands(scene_id: str, player: Player, opponents: List[Opponent]) -> List[dict]:
-    scene_data = SCENES.get(scene_id, {})
-    scene_list = scene_data.get("commands", [])
-    if not isinstance(scene_list, list):
-        scene_list = []
-    scene_list = filter_commands(scene_list, player, opponents)
-    global_list = filter_commands(COMMANDS_DATA.global_commands(), player, opponents)
-    merged = []
-    seen = set()
-    for command in scene_list + global_list:
-        key = str(command.get("key", "")).lower()
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        merged.append(command)
-    return merged
-
-
-def format_commands(commands: List[dict]) -> List[str]:
-    actions = []
-    for command in commands:
-        key = str(command.get("key", "")).upper()
-        label = str(command.get("label", "")).strip()
-        if not key or not label:
-            continue
-        actions.append(f"  [{key}] {label}")
-    return format_action_lines(actions)
+def format_command_lines(commands: List[dict]) -> List[str]:
+    return format_action_lines(format_commands(commands))
 
 
 def purchase_item(player: Player, key: str) -> str:
@@ -557,7 +517,9 @@ def generate_demo_frame(
             "A local shop can provide you with basic items.",
             "If you are lost, check the town hall for instructions."
         ]
-        actions = format_commands(scene_commands("town", player, opponents))
+        actions = format_command_lines(
+            scene_commands(SCENES, COMMANDS_DATA, "town", player, opponents)
+        )
     else:
         scene_data = SCENES.get("forest", {})
         forest_art, art_color = render_forest_art(scene_data, opponents)
@@ -577,7 +539,9 @@ def generate_demo_frame(
             "",
             *opponent_lines,
         ]
-        actions = format_commands(scene_commands("forest", player, opponents))
+        actions = format_command_lines(
+            scene_commands(SCENES, COMMANDS_DATA, "forest", player, opponents)
+        )
         art_lines = forest_art
     if suppress_actions:
         actions = format_action_lines([])
@@ -808,7 +772,9 @@ def render_forest_frame(
         "",
         *opponent_lines,
     ]
-    actions = format_commands(scene_commands("forest", player, opponents))
+    actions = format_command_lines(
+        scene_commands(SCENES, COMMANDS_DATA, "forest", player, opponents)
+    )
     if suppress_actions:
         actions = format_action_lines([])
     frame = Frame(
@@ -1262,7 +1228,13 @@ def main():
                 ]
             ):
                 scene_id = "town" if player.location == "Town" else "forest"
-                available_commands = scene_commands(scene_id, player, opponents)
+                available_commands = scene_commands(
+                    SCENES,
+                    COMMANDS_DATA,
+                    scene_id,
+                    player,
+                    opponents
+                )
             cmd = map_key_to_command(ch, available_commands)
         else:
             cmd = None
