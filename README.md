@@ -34,6 +34,7 @@ Once validated locally, the same engine and assets can be migrated to:
 - `app/input.py` — single-key input handling
 - `app/shop.py` — shop interaction helpers
 - `app/commands/` — command registry and command modules
+- `app/loop.py` — main loop helper functions
 - `app/ui/` — layout, rendering, and screen composition helpers
 - `app/data_access/` — JSON data loaders
 - `data/` — JSON content packs

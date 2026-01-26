@@ -4,6 +4,7 @@
 
 - `main.py` owns the game loop and user input.
 - `app/bootstrap.py` creates an `AppContext` that wires data loaders, command registry, and UI contexts.
+- `app/loop.py` hosts the loop helpers used by the entrypoint.
 - `app/config.py` holds file path configuration (`data/`, `saves/`).
 
 ## Key Modules
