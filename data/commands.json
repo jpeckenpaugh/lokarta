@@ -1,0 +1,19 @@
+{
+  "global": [
+    {
+      "key": "M",
+      "label": "Magic",
+      "command": "SPELLBOOK"
+    },
+    {
+      "key": "O",
+      "label": "Open inventory",
+      "command": "INVENTORY"
+    },
+    {
+      "key": "Q",
+      "label": "Quit",
+      "command": "QUIT"
+    }
+  ]
+}

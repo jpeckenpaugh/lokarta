@@ -1,0 +1,31 @@
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional
+
+from data_access.items_data import ItemsData
+from data_access.spells_data import SpellsData
+from models import Player, Opponent
+
+CommandHandler = Callable[["CommandContext"], Optional[str]]
+
+
+@dataclass
+class CommandContext:
+    player: Player
+    opponents: List[Opponent]
+    loot: dict
+    spells_data: SpellsData
+    items_data: ItemsData
+
+
+class CommandRegistry:
+    def __init__(self):
+        self._handlers: Dict[str, CommandHandler] = {}
+
+    def register(self, command_id: str, handler: CommandHandler):
+        self._handlers[command_id] = handler
+
+    def dispatch(self, command_id: str, ctx: CommandContext) -> Optional[str]:
+        handler = self._handlers.get(command_id)
+        if handler is None:
+            return None
+        return handler(ctx)

@@ -8,7 +8,11 @@ import textwrap
 from dataclasses import replace
 from typing import List, Optional
 
-from combat import add_loot, cast_spell, primary_opponent, roll_damage
+from combat import cast_spell, primary_opponent, roll_damage
+from commands import build_registry
+from commands.keymap import map_key_to_command
+from commands.registry import CommandContext
+from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
 from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
@@ -67,7 +71,9 @@ SCENES = ScenesData(os.path.join(DATA_DIR, "scenes.json"))
 NPCS = NpcsData(os.path.join(DATA_DIR, "npcs.json"))
 VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
 SPELLS = SpellsData(os.path.join(DATA_DIR, "spells.json"))
+COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
+COMMANDS = build_registry()
 
 
 def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
@@ -359,6 +365,51 @@ def format_action_lines(actions: List[str]) -> List[str]:
     return lines
 
 
+def filter_commands(commands: List[dict], player: Player, opponents: List[Opponent]) -> List[dict]:
+    has_opponents = any(opponent.hp > 0 for opponent in opponents)
+    filtered = []
+    for command in commands:
+        when = command.get("when")
+        if when == "has_opponents" and not has_opponents:
+            continue
+        if when == "no_opponents" and has_opponents:
+            continue
+        if when == "needs_rest":
+            if not (player.hp < player.max_hp or player.mp < player.max_mp):
+                continue
+        filtered.append(command)
+    return filtered
+
+
+def scene_commands(scene_id: str, player: Player, opponents: List[Opponent]) -> List[dict]:
+    scene_data = SCENES.get(scene_id, {})
+    scene_list = scene_data.get("commands", [])
+    if not isinstance(scene_list, list):
+        scene_list = []
+    scene_list = filter_commands(scene_list, player, opponents)
+    global_list = filter_commands(COMMANDS_DATA.global_commands(), player, opponents)
+    merged = []
+    seen = set()
+    for command in scene_list + global_list:
+        key = str(command.get("key", "")).lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(command)
+    return merged
+
+
+def format_commands(commands: List[dict]) -> List[str]:
+    actions = []
+    for command in commands:
+        key = str(command.get("key", "")).upper()
+        label = str(command.get("label", "")).strip()
+        if not key or not label:
+            continue
+        actions.append(f"  [{key}] {label}")
+    return format_action_lines(actions)
+
+
 def purchase_item(player: Player, key: str) -> str:
     item = ITEMS.get(key)
     if not item:
@@ -381,7 +432,8 @@ def generate_demo_frame(
     inventory_items: Optional[List[tuple[str, str]]] = None,
     hall_mode: bool = False,
     hall_view: str = "menu",
-    spell_mode: bool = False
+    spell_mode: bool = False,
+    suppress_actions: bool = False
 ) -> Frame:
     healing = SPELLS.get("healing", {})
     spark = SPELLS.get("spark", {})
@@ -505,18 +557,7 @@ def generate_demo_frame(
             "A local shop can provide you with basic items.",
             "If you are lost, check the town hall for instructions."
         ]
-        actions = [
-            "  [F] Set out for the Forest",
-            "  [S] Shop",
-            "  [H] Hall",
-        ]
-        if player.hp < player.max_hp or player.mp < player.max_mp:
-            actions.insert(0, "  [I] Inn (Rest, 10 GP)")
-        actions += [
-            "  [O] Open inventory",
-            "  [Q] Quit",
-        ]
-        actions = format_action_lines(actions)
+        actions = format_commands(scene_commands("town", player, opponents))
     else:
         scene_data = SCENES.get("forest", {})
         forest_art, art_color = render_forest_art(scene_data, opponents)
@@ -536,28 +577,10 @@ def generate_demo_frame(
             "",
             *opponent_lines,
         ]
-        if primary:
-            actions = [
-                f"  [A] Attack the {primary.name.lower()}",
-            ]
-            actions += [
-                "  [M] Magic",
-                "  [O] Open inventory",
-                "  [T] Return to Town",
-                "  [Q] Quit",
-            ]
-        else:
-            actions = [
-                "  [F] Find an opponent to fight",
-            ]
-            actions += [
-                "  [M] Magic",
-                "  [O] Open inventory",
-                "  [T] Return to Town",
-                "  [Q] Quit",
-            ]
-        actions = format_action_lines(actions)
+        actions = format_commands(scene_commands("forest", player, opponents))
         art_lines = forest_art
+    if suppress_actions:
+        actions = format_action_lines([])
 
     status_lines = (
         textwrap.wrap(message, width=SCREEN_WIDTH - 4)
@@ -575,10 +598,7 @@ def generate_demo_frame(
         footer_hint=(
             "Keys: 1-4=Assign  B=Balanced  X=Random  Q=Quit"
             if leveling_mode
-            else (
-                f"Keys: A=Attack  H={heal_name}  S={spark_name}  I=Inventory  "
-                "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
-            )
+            else "Keys: use the action panel"
         ),
         location=player.location,
         art_lines=art_lines,
@@ -593,33 +613,16 @@ def apply_command(
     opponents: List[Opponent],
     loot: dict
 ) -> str:
-    # Placeholder for real game logic: return a message to display.
-    if command == "ATTACK":
-        opponent = primary_opponent(opponents)
-        if not opponent:
-            return "There is nothing to attack."
-        damage, crit, miss = roll_damage(player.atk, opponent.defense)
-        if miss:
-            return f"You miss the {opponent.name}."
-        opponent.hp = max(0, opponent.hp - damage)
-        if opponent.hp == 0:
-            xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-            gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-            add_loot(loot, xp_gain, gold_gain)
-            opponent.melted = False
-            message = (
-                f"You strike down the {opponent.name}."
-            )
-            return message
-        if crit:
-            return f"Critical hit! You hit the {opponent.name} for {damage}."
-        return f"You hit the {opponent.name} for {damage}."
-    if command == "HEAL":
-        return cast_spell(player, opponents, "healing", boosted=False, loot=loot, spells_data=SPELLS)
-    if command == "INVENTORY":
-        return player.format_inventory(ITEMS)
-    if command == "SPARK":
-        return cast_spell(player, opponents, "spark", boosted=False, loot=loot, spells_data=SPELLS)
+    ctx = CommandContext(
+        player=player,
+        opponents=opponents,
+        loot=loot,
+        spells_data=SPELLS,
+        items_data=ITEMS,
+    )
+    handled = COMMANDS.dispatch(command, ctx)
+    if handled is not None:
+        return handled
     return "Unknown action."
 
 
@@ -775,12 +778,9 @@ def render_forest_frame(
     flash_color: Optional[str] = None,
     visible_indices: Optional[set] = None,
     include_bars: bool = True,
-    manual_lines_indices: Optional[set] = None
+    manual_lines_indices: Optional[set] = None,
+    suppress_actions: bool = False
 ):
-    healing = SPELLS.get("healing", {})
-    spark = SPELLS.get("spark", {})
-    heal_name = healing.get("name", "Healing")
-    spark_name = spark.get("name", "Spark")
     scene_data = SCENES.get("forest", {})
     forest_art, art_color = render_forest_art(
         scene_data,
@@ -808,35 +808,15 @@ def render_forest_frame(
         "",
         *opponent_lines,
     ]
-    if primary:
-        actions = [
-            f"  [A] Attack the {primary.name.lower()}",
-        ]
-        actions += [
-            "  [M] Magic",
-            "  [O] Open inventory",
-            "  [T] Return to Town",
-            "  [Q] Quit",
-        ]
-    else:
-        actions = [
-            "  [F] Find an opponent to fight",
-        ]
-        actions += [
-            "  [M] Magic",
-            "  [O] Open inventory",
-            "  [T] Return to Town",
-            "  [Q] Quit",
-        ]
+    actions = format_commands(scene_commands("forest", player, opponents))
+    if suppress_actions:
+        actions = format_action_lines([])
     frame = Frame(
         title="World Builder — PROTOTYPE",
         body_lines=body,
-        action_lines=format_action_lines(actions),
+        action_lines=actions,
         stat_lines=format_player_stats(player),
-        footer_hint=(
-            f"Keys: A=Attack  H={heal_name}  S={spark_name}  I=Inventory  "
-            "R=Rest  N=Next  T=Town  F=Forest  Q=Quit"
-        ),
+        footer_hint="" if suppress_actions else "Keys: use the action panel",
         location=player.location,
         art_lines=forest_art,
         art_color=art_color,
@@ -864,7 +844,14 @@ def animate_forest_gap(
     for step in range(1, steps + 1):
         t = step / steps
         gap = int(round(start_gap + (end_gap - start_gap) * t))
-        render_forest_frame(player, opponents, message, gap, art_opponents)
+        render_forest_frame(
+            player,
+            opponents,
+            message,
+            gap,
+            art_opponents,
+            suppress_actions=True
+        )
         time.sleep(delay)
 
 
@@ -918,7 +905,8 @@ def flash_opponent(
         message,
         gap_target,
         flash_index=index,
-        flash_color=flash_color
+        flash_color=flash_color,
+        suppress_actions=True
     )
     time.sleep(max(0.08, battle_action_delay(player) / 2))
 
@@ -961,7 +949,8 @@ def melt_opponent(
             gap_target,
             art_opponents=art_overrides,
             visible_indices={index},
-            manual_lines_indices={index}
+            manual_lines_indices={index},
+            suppress_actions=True
         )
         time.sleep(max(0.05, battle_action_delay(player) / 3))
 
@@ -999,51 +988,37 @@ def read_keypress() -> str:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
-def map_key_to_command(ch: str) -> Optional[str]:
-    c = ch.lower()
-    if c == "1":
-        return "NUM1"
-    if c == "2":
-        return "NUM2"
-    if c == "3":
-        return "NUM3"
-    if c == "4":
-        return "NUM4"
-    if c == "5":
-        return "NUM5"
-    if c == "6":
-        return "NUM6"
-    if c == "7":
-        return "NUM7"
-    if c == "8":
-        return "NUM8"
-    if c == "9":
-        return "NUM9"
-    if c == "a":
-        return "ATTACK"
-    if c == "b":
-        return "B_KEY"
-    if c == "i":
-        return "REST"
-    if c == "o":
-        return "INVENTORY"
-    if c == "s":
-        return "S_KEY"
-    if c == "t":
-        return "TOWN"
-    if c == "f":
-        return "F_KEY"
-    if c == "h":
-        return "HALL"
-    if c == "m":
-        return "SPELLBOOK"
-    if c == "p":
-        return "SPELLBOOK"
-    if c == "x":
-        return "X_KEY"
-    if c == "q":
-        return "QUIT"
-    return None
+def read_keypress_timeout(timeout_sec: float) -> Optional[str]:
+    if os.name == "nt":
+        import msvcrt
+        end = time.monotonic() + timeout_sec
+        while time.monotonic() < end:
+            if msvcrt.kbhit():
+                ch = msvcrt.getch()
+                if ch in (b"\x00", b"\xe0"):
+                    msvcrt.getch()
+                    return ""
+                try:
+                    return ch.decode("utf-8", errors="ignore")
+                except Exception:
+                    return ""
+            time.sleep(0.01)
+        return None
+    else:
+        import select
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)
+            ready, _, _ = select.select([sys.stdin], [], [], timeout_sec)
+            if ready:
+                return sys.stdin.read(1)
+            return None
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 # -----------------------------
@@ -1170,7 +1145,29 @@ def main():
             )
         render_frame(frame)
 
-        ch = read_keypress()
+        if boost_prompt:
+            choice = None
+            for remaining in range(3, 0, -1):
+                countdown_message = f"{last_message} ({remaining})"
+                frame = generate_demo_frame(
+                    player,
+                    opponents,
+                    countdown_message,
+                    leveling_mode,
+                    shop_mode,
+                    inventory_mode,
+                    inventory_items,
+                    hall_mode,
+                    hall_view,
+                    spell_mode
+                )
+                render_frame(frame)
+                choice = read_keypress_timeout(1.0)
+                if choice and choice.lower() in ("y", "n"):
+                    break
+            ch = choice if choice else "n"
+        else:
+            ch = read_keypress()
         if quit_confirm:
             if ch.lower() == "y":
                 SAVE_DATA.save_player(player)
@@ -1252,7 +1249,21 @@ def main():
             handled_boost = True
 
         if not handled_boost:
-            cmd = map_key_to_command(ch)
+            available_commands = None
+            if not any(
+                [
+                    title_mode,
+                    leveling_mode,
+                    shop_mode,
+                    inventory_mode,
+                    hall_mode,
+                    spell_mode,
+                    boost_prompt,
+                ]
+            ):
+                scene_id = "town" if player.location == "Town" else "forest"
+                available_commands = scene_commands(scene_id, player, opponents)
+            cmd = map_key_to_command(ch, available_commands)
         else:
             cmd = None
 
@@ -1426,7 +1437,17 @@ def main():
 
         if cmd == "FOREST":
             if player.location == "Forest":
-                last_message = "You are already in the Forest."
+                primary = primary_opponent(opponents)
+                if primary:
+                    last_message = f"You are already facing a {primary.name}."
+                else:
+                    opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
+                    loot_bank = {"xp": 0, "gold": 0}
+                    if opponents:
+                        last_message = f"A {opponents[0].name} appears."
+                        animate_battle_start(player, opponents, last_message)
+                    else:
+                        last_message = "All is quiet. No enemies in sight."
             else:
                 player.location = "Forest"
                 opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
@@ -1522,7 +1543,8 @@ def main():
                     inventory_items,
                     hall_mode,
                     hall_view,
-                    spell_mode
+                    spell_mode,
+                    suppress_actions=True
                 )
                 render_frame(frame)
                 time.sleep(battle_action_delay(player))
@@ -1577,7 +1599,8 @@ def main():
                         inventory_items,
                         hall_mode,
                         hall_view,
-                        spell_mode
+                        spell_mode,
+                        suppress_actions=True
                     )
                     render_frame(frame)
                     time.sleep(battle_action_delay(player))

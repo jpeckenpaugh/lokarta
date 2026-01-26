@@ -12,6 +12,29 @@
       "   | INN |      | SHOP |      | HALL |   ",
       "   |_____|      |______|      |______|   ",
       " _/       \\_   _/      \\_    _/      \\_  "
+    ],
+    "commands": [
+      {
+        "key": "F",
+        "label": "Set out for the Forest",
+        "command": "F_KEY"
+      },
+      {
+        "key": "S",
+        "label": "Shop",
+        "command": "S_KEY"
+      },
+      {
+        "key": "H",
+        "label": "Hall",
+        "command": "HALL"
+      },
+      {
+        "key": "I",
+        "label": "Inn (Rest, 10 GP)",
+        "command": "REST",
+        "when": "needs_rest"
+      }
     ]
   },
   "forest": {
@@ -28,6 +51,25 @@
       " /___\\___\\___\\/___\\",
       "~~~  ~~~  ~~~  ~~~",
       " ~~~  ~~~  ~~~  ~~~"
+    ],
+    "commands": [
+      {
+        "key": "A",
+        "label": "Attack",
+        "command": "ATTACK",
+        "when": "has_opponents"
+      },
+      {
+        "key": "F",
+        "label": "Find an opponent to fight",
+        "command": "FOREST",
+        "when": "no_opponents"
+      },
+      {
+        "key": "T",
+        "label": "Return to Town",
+        "command": "TOWN"
+      }
     ]
   },
   "title": {
