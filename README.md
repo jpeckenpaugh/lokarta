@@ -51,7 +51,8 @@ Once validated locally, the same engine and assets can be migrated to:
 - ANSI color rendering and ASCII scene art
 - Town hub with Inn, Shop, Hall, and Inventory
 - Spellbook (Healing / Spark) and boosted casting prompts
-- Items (Rations, Elixir) and purchasing via the shop
+- Items (Rations, Herbal Tea, Elixir) and purchasing via the shop
+- Inn services (Rest and Hot Meal)
 - Inventory item usage with numbered selection
 - Multi-opponent encounters (up to 3) with level-budget spawns
 - Combat with variance, crits, misses, and Spark stun
@@ -92,6 +93,7 @@ Town/Forest/Menus:
 - The action panel reflects the active commands and their conditions.
 - Command schema notes: `docs/commands.md`.
 - Boost prompts and timing are driven by `data/spells.json`.
+- Target selection (Attack/Spark) uses ←/→ to cycle and Enter to confirm.
 
 ---
 

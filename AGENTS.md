@@ -9,7 +9,7 @@
 
 ## Conventions
 - Keep UI within 100x30 layout constraints.
-- Single-key input only; no Enter prompts during gameplay.
+- Single-key input only; Enter is reserved for target selection prompts.
 - Town/Forest actions are listed in the Actions panel.
 - Spells are accessed via the Spellbook (Magic).
 - Persist changes to player state via `SaveData.save_player()`.

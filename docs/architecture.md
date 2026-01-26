@@ -6,6 +6,7 @@
 - `app/bootstrap.py` creates an `AppContext` that wires data loaders, command registry, and UI contexts.
 - `app/loop.py` hosts the loop helpers used by the entrypoint.
 - `app/config.py` holds file path configuration (`data/`, `saves/`).
+- `app/state.py` defines the `GameState` container for runtime state.
 
 ## Key Modules
 

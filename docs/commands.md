@@ -11,6 +11,7 @@ Commands are defined in JSON (global, scenes, venues, menus) and merged at runti
 ## Optional Fields
 
 - `target`: string target used by the command (e.g., `"forest"`, `"town_shop"`)
+- `service_id`: string service id used by venue services (e.g., `"rest"`, `"meal"`)
 - `when`: string condition for filtering (e.g., `"has_opponents"`, `"no_opponents"`, `"needs_rest"`, `"has_save"`)
 - `type`: string categorizing the command (e.g., `"menu_open"`, `"combat"`, `"system"`)
 - `anim`: string animation hint (e.g., `"flash"`, `"melt"`, `"battle_start"`, `"battle_end"`)
