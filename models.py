@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 
 @dataclass
@@ -169,6 +169,37 @@ class Player:
     def finish_level_up(self):
         self.hp = self.max_hp
         self.mp = self.max_mp
+
+    def handle_level_up_input(self, cmd: str) -> Tuple[str, bool]:
+        if cmd == "B_KEY":
+            self.allocate_balanced()
+            message = "Balanced allocation complete."
+        elif cmd == "X_KEY":
+            self.allocate_random()
+            message = "Random allocation complete."
+        elif cmd in ("NUM1", "NUM2", "NUM3", "NUM4"):
+            if self.stat_points <= 0:
+                message = "No stat points to spend."
+            else:
+                if cmd == "NUM1":
+                    self.spend_stat_point("HP")
+                    message = "HP increased by 1."
+                elif cmd == "NUM2":
+                    self.spend_stat_point("MP")
+                    message = "MP increased by 1."
+                elif cmd == "NUM3":
+                    self.spend_stat_point("ATK")
+                    message = "ATK increased by 1."
+                else:
+                    self.spend_stat_point("DEF")
+                    message = "DEF increased by 1."
+        else:
+            return "Spend all stat points to continue.", False
+
+        if self.stat_points == 0:
+            self.finish_level_up()
+            return "Level up complete.", True
+        return message, False
 
 
 @dataclass

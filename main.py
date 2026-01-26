@@ -1357,35 +1357,9 @@ def main():
             continue
 
         if leveling_mode and not handled_boost:
-            if cmd == "B_KEY":
-                player.allocate_balanced()
-                last_message = "Balanced allocation complete."
-            elif cmd == "X_KEY":
-                player.allocate_random()
-                last_message = "Random allocation complete."
-            elif cmd in ("NUM1", "NUM2", "NUM3", "NUM4"):
-                if player.stat_points <= 0:
-                    last_message = "No stat points to spend."
-                else:
-                    if cmd == "NUM1":
-                        player.spend_stat_point("HP")
-                        last_message = "HP increased by 1."
-                    elif cmd == "NUM2":
-                        player.spend_stat_point("MP")
-                        last_message = "MP increased by 1."
-                    elif cmd == "NUM3":
-                        player.spend_stat_point("ATK")
-                        last_message = "ATK increased by 1."
-                    else:
-                        player.spend_stat_point("DEF")
-                        last_message = "DEF increased by 1."
-            else:
-                last_message = "Spend all stat points to continue."
-
-            if player.stat_points == 0:
+            last_message, leveling_done = player.handle_level_up_input(cmd)
+            if leveling_done:
                 leveling_mode = False
-                player.finish_level_up()
-                last_message = "Level up complete."
             continue
 
         if inventory_mode and not handled_boost:
