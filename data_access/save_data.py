@@ -1,3 +1,5 @@
+"""Load and persist save data."""
+
 import json
 from typing import Any, Dict, Optional
 

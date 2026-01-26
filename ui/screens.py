@@ -1,3 +1,5 @@
+"""Screen composition helpers for game UI states."""
+
 import textwrap
 from dataclasses import dataclass
 from typing import List, Optional
@@ -49,6 +51,7 @@ def generate_frame(
     spell_mode: bool = False,
     suppress_actions: bool = False
 ) -> Frame:
+    """Build a screen frame from game state and UI data."""
     healing = ctx.spells.get("healing", {})
     spark = ctx.spells.get("spark", {})
     heal_name = healing.get("name", "Healing")

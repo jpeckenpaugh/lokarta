@@ -1,3 +1,5 @@
+"""Key-to-command mapping, with optional data-driven overrides."""
+
 from typing import Optional, Sequence
 
 

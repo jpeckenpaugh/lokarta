@@ -1,3 +1,5 @@
+"""Shared UI constants for layout sizing."""
+
 SCREEN_WIDTH = 100
 SCREEN_HEIGHT = 30
 STAT_LINES = 2

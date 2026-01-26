@@ -1,3 +1,5 @@
+"""Layout helpers for action panels and ANSI-safe text width."""
+
 from typing import Optional
 
 from commands.scene_commands import format_commands

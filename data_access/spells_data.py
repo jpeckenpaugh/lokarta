@@ -1,3 +1,5 @@
+"""Load spell data from JSON."""
+
 import json
 from typing import Dict, Optional
 

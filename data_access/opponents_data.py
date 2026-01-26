@@ -1,3 +1,5 @@
+"""Load and spawn opponent data from JSON."""
+
 import json
 import random
 from typing import Dict, List, Optional

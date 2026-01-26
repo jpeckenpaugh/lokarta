@@ -1,3 +1,5 @@
+"""Load menu UI copy and actions from JSON."""
+
 import json
 
 

@@ -1,3 +1,6 @@
+"""ANSI color helpers for the terminal UI."""
+
+
 class ANSI:
     RESET = "\033[0m"
     BOLD = "\033[1m"

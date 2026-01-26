@@ -1,3 +1,5 @@
+"""Combat helpers for damage, targeting, and timing."""
+
 import random
 from typing import List, Optional, Tuple
 

@@ -1,3 +1,5 @@
+"""Load command definitions from JSON."""
+
 import json
 from typing import List
 

@@ -1,3 +1,5 @@
+"""Load and query item data from JSON."""
+
 import json
 from typing import Dict, List, Optional
 

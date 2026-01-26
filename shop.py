@@ -1,3 +1,5 @@
+"""Shop-related helpers for purchases."""
+
 from data_access.items_data import ItemsData
 from models import Player
 

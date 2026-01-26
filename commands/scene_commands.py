@@ -1,3 +1,5 @@
+"""Scene command composition and filtering."""
+
 from typing import List
 
 from data_access.commands_data import CommandsData

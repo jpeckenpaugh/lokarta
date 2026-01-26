@@ -1,3 +1,5 @@
+"""Load NPC data and greetings from JSON."""
+
 import json
 from typing import Dict, Optional
 

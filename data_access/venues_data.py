@@ -1,3 +1,5 @@
+"""Load venue data and art from JSON."""
+
 import json
 from typing import Dict, Optional
 

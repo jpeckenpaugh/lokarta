@@ -1,3 +1,5 @@
+"""Single-key input helpers with optional timeouts."""
+
 import os
 import sys
 import time

@@ -1,3 +1,5 @@
+"""Command registry and dispatch helpers."""
+
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 

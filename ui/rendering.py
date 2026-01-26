@@ -1,3 +1,5 @@
+"""Rendering and animation helpers for ASCII UI frames."""
+
 import sys
 import time
 import textwrap
@@ -76,6 +78,7 @@ def render_scene_art(
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None
 ) -> tuple[List[str], str]:
+    """Compose scene art with optional opponent blocks in the gap."""
     art_color = COLOR_BY_NAME.get(scene_data.get("color", "white").lower(), ANSI.FG_WHITE)
     gap_base = (
         int(scene_data.get("gap_min", 2))
