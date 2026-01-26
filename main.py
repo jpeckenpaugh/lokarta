@@ -44,28 +44,19 @@ class ANSI:
     FG_BLUE = "\033[34m"
     FG_MAGENTA = "\033[35m"
 
+COLOR_BY_NAME = {
+    "white": ANSI.FG_WHITE,
+    "cyan": ANSI.FG_CYAN,
+    "green": ANSI.FG_GREEN,
+    "yellow": ANSI.FG_YELLOW,
+    "red": ANSI.FG_RED,
+    "blue": ANSI.FG_BLUE,
+}
+
 
 def color(text: str, *codes: str) -> str:
-    return "".join(codes) + text + ANSI.RESET
-
-
-def spawn_opponents(player_level: int) -> List[Opponent]:
-    return OPPONENTS.spawn(player_level, ANSI.FG_CYAN)
-
-
-def load_scene_data() -> dict:
-    return SCENES.all()
-
-
-def color_from_name(name: str) -> str:
-    return {
-        "white": ANSI.FG_WHITE,
-        "cyan": ANSI.FG_CYAN,
-        "green": ANSI.FG_GREEN,
-        "yellow": ANSI.FG_YELLOW,
-        "red": ANSI.FG_RED,
-        "blue": ANSI.FG_BLUE,
-    }.get(name.lower(), ANSI.FG_WHITE)
+    styled = "".join(codes) + text + ANSI.RESET
+    return styled
 
 
 ITEMS = ItemsData(os.path.join(DATA_DIR, "items.json"))
@@ -76,19 +67,11 @@ VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 
 
-def load_npc_data() -> dict:
-    return NPCS.all()
-
-
-def load_venue_data() -> dict:
-    return VENUES.all()
-
-
 def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
     art_template = venue.get("art", [])
-    art_color = color_from_name(venue.get("color", "white"))
+    art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
     npc_art = npc.get("art", [])
-    npc_color = color_from_name(npc.get("color", "white"))
+    npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
     gap_width = int(venue.get("gap_width", 0))
 
     if art_template:
@@ -244,7 +227,7 @@ def render_forest_art(
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None
 ) -> tuple[List[str], str]:
-    art_color = color_from_name(scene_data.get("color", "green"))
+    art_color = COLOR_BY_NAME.get(scene_data.get("color", "green").lower(), ANSI.FG_WHITE)
     opponent_blocks = build_opponent_blocks(
         opponents,
         flash_index=flash_index,
@@ -343,31 +326,8 @@ def render_forest_art(
     return forest_art, art_color
 
 
-def has_save() -> bool:
-    return SAVE_DATA.exists()
-
-
 def delete_save():
     SAVE_DATA.delete()
-
-
-def new_player() -> Player:
-    return Player(
-        name="WARRIOR",
-        level=1,
-        xp=0,
-        stat_points=0,
-        gold=10,
-        battle_speed="normal",
-        hp=10,
-        max_hp=10,
-        mp=10,
-        max_mp=10,
-        atk=10,
-        defense=10,
-        location="Town",
-        inventory={},
-    )
 
 
 def format_action_lines(actions: List[str]) -> List[str]:
@@ -406,14 +366,6 @@ def purchase_item(player: Player, key: str) -> str:
     player.gold -= price
     player.add_item(key, 1)
     return f"Purchased {item.get('name', key)}."
-
-
-def list_opponent_descriptions() -> List[str]:
-    return OPPONENTS.list_descriptions()
-
-
-def list_item_descriptions() -> List[str]:
-    return ITEMS.list_descriptions()
 
 
 def grant_xp(player: Player, amount: int) -> int:
@@ -461,13 +413,13 @@ def generate_demo_frame(
     elif player.location == "Town" and shop_mode:
         rations = ITEMS.get("rations", {})
         elixir = ITEMS.get("elixir", {})
-        venue = load_venue_data().get("town_shop", {})
+        venue = VENUES.get("town_shop", {})
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
         npc = {}
         if npc_ids:
             npc_lines = NPCS.format_greeting(npc_ids[0])
-            npc = load_npc_data().get(npc_ids[0], {})
+            npc = NPCS.get(npc_ids[0], {})
         body = []
         if npc_lines:
             body += npc_lines + [""]
@@ -486,17 +438,17 @@ def generate_demo_frame(
         ]
         actions = format_action_lines(actions)
     elif player.location == "Town" and hall_mode:
-        venue = load_venue_data().get("town_hall", {})
+        venue = VENUES.get("town_hall", {})
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
         npc = {}
         if npc_ids:
             npc_lines = NPCS.format_greeting(npc_ids[0])
-            npc = load_npc_data().get(npc_ids[0], {})
+            npc = NPCS.get(npc_ids[0], {})
         if hall_view == "items":
-            info_lines = list_item_descriptions()
+            info_lines = ITEMS.list_descriptions()
         elif hall_view == "opponents":
-            info_lines = list_opponent_descriptions()
+            info_lines = OPPONENTS.list_descriptions()
         else:
             info_lines = []
         body = []
@@ -539,9 +491,9 @@ def generate_demo_frame(
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif player.location == "Town":
-        scene_data = load_scene_data().get("town", {})
+        scene_data = SCENES.get("town", {})
         art_lines = scene_data.get("art", [])
-        art_color = color_from_name(scene_data.get("color", "yellow"))
+        art_color = COLOR_BY_NAME.get(scene_data.get("color", "yellow").lower(), ANSI.FG_WHITE)
         body = [
             "You arrive in town, safe behind sturdy wooden walls.",
             "",
@@ -562,7 +514,7 @@ def generate_demo_frame(
         ]
         actions = format_action_lines(actions)
     else:
-        scene_data = load_scene_data().get("forest", {})
+        scene_data = SCENES.get("forest", {})
         forest_art, art_color = render_forest_art(scene_data, opponents)
         opponent_lines = []
         for i, m in enumerate(opponents[:3], start=1):
@@ -690,10 +642,6 @@ def try_stun(opponent: Opponent, chance: float) -> int:
     return 0
 
 
-def alive_opponents(opponents: List[Opponent]) -> List[Opponent]:
-    return [opponent for opponent in opponents if opponent.hp > 0]
-
-
 def primary_opponent(opponents: List[Opponent]) -> Optional[Opponent]:
     for opponent in opponents:
         if opponent.hp > 0:
@@ -801,10 +749,6 @@ def apply_command(
 def clear_screen():
     sys.stdout.write("\033[2J\033[H\033[3J")
     sys.stdout.flush()
-
-
-def pad_or_trim(text: str, width: int) -> str:
-    return text[:width].ljust(width)
 
 
 def strip_ansi(s: str) -> str:
@@ -952,7 +896,7 @@ def render_forest_frame(
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None
 ):
-    scene_data = load_scene_data().get("forest", {})
+    scene_data = SCENES.get("forest", {})
     forest_art, art_color = render_forest_art(
         scene_data,
         art_opponents if art_opponents is not None else opponents,
@@ -1042,7 +986,7 @@ def animate_forest_gap(
 def animate_battle_start(player: Player, opponents: List[Opponent], message: str):
     if player.location != "Forrest" or not opponents:
         return
-    scene_data = load_scene_data().get("forest", {})
+    scene_data = SCENES.get("forest", {})
     gap_base = (
         int(scene_data.get("gap_min", 2))
         if scene_data.get("left")
@@ -1055,7 +999,7 @@ def animate_battle_start(player: Player, opponents: List[Opponent], message: str
 def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
     if player.location != "Forrest" or not opponents:
         return
-    scene_data = load_scene_data().get("forest", {})
+    scene_data = SCENES.get("forest", {})
     gap_base = (
         int(scene_data.get("gap_min", 2))
         if scene_data.get("left")
@@ -1081,7 +1025,7 @@ def flash_opponent(
 ):
     if index is None or player.location != "Forrest":
         return
-    scene_data = load_scene_data().get("forest", {})
+    scene_data = SCENES.get("forest", {})
     gap_target = compute_forest_gap_target(scene_data, opponents)
     render_forest_frame(
         player,
@@ -1112,7 +1056,7 @@ def melt_opponent(
     display_lines = [line[:width].center(width) for line in opponent.art_lines]
     display_lines.append(" " * width)
     display_lines.append(bar)
-    scene_data = load_scene_data().get("forest", {})
+    scene_data = SCENES.get("forest", {})
     gap_target = compute_forest_gap_target(scene_data, opponents)
     for removed in range(1, len(display_lines) + 1):
         trimmed = (
@@ -1228,7 +1172,7 @@ def main():
         print("Resize your terminal for best results.")
         input("Press Enter to continue anyway...")
 
-    player = new_player()
+    player = Player.from_dict({})
     opponents: List[Opponent] = []
     loot_bank = {"xp": 0, "gold": 0}
 
@@ -1246,9 +1190,9 @@ def main():
     title_confirm = False
     while True:
         if title_mode:
-            title_scene = load_scene_data().get("title", {})
+            title_scene = SCENES.get("title", {})
             title_art = title_scene.get("art", [])
-            title_color = color_from_name(title_scene.get("color", "cyan"))
+            title_color = COLOR_BY_NAME.get(title_scene.get("color", "cyan").lower(), ANSI.FG_WHITE)
             if title_confirm:
                 title_body = [
                     "World Builder",
@@ -1258,7 +1202,7 @@ def main():
                     "[Y] Yes, start new",
                     "[N] No, go back",
                 ]
-            elif has_save():
+            elif SAVE_DATA.exists():
                 title_body = [
                     "World Builder",
                     "",
@@ -1276,7 +1220,7 @@ def main():
                     "  [N] No, go back",
                     "  [Q] Quit",
                 ]
-            elif has_save():
+            elif SAVE_DATA.exists():
                 actions = [
                     "  [C] Continue",
                     "  [N] New Game",
@@ -1288,7 +1232,7 @@ def main():
                     "  [Q] Quit",
                 ]
 
-            if has_save():
+            if SAVE_DATA.exists():
                 saved_player = SAVE_DATA.load_player()
                 if saved_player:
                     hp_text = color(
@@ -1358,7 +1302,7 @@ def main():
             if title_confirm:
                 if ch.lower() == "y":
                     delete_save()
-                    player = new_player()
+                    player = Player.from_dict({})
                     opponents = []
                     loot_bank = {"xp": 0, "gold": 0}
                     title_mode = False
@@ -1374,17 +1318,17 @@ def main():
                     return
                 last_message = "Choose Y to confirm or N to cancel."
                 continue
-            if ch.lower() == "c" and has_save():
+            if ch.lower() == "c" and SAVE_DATA.exists():
                 loaded = SAVE_DATA.load_player()
                 if loaded:
                     player = loaded
                 else:
-                    player = new_player()
+                    player = Player.from_dict({})
             elif ch.lower() == "n":
-                if has_save():
+                if SAVE_DATA.exists():
                     title_confirm = True
                     continue
-                player = new_player()
+                player = Player.from_dict({})
             elif ch.lower() == "q":
                 clear_screen()
                 print("Goodbye.")
@@ -1553,7 +1497,7 @@ def main():
         if cmd == "F_KEY":
             if player.location == "Town":
                 player.location = "Forrest"
-                opponents = spawn_opponents(player.level)
+                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
@@ -1570,7 +1514,7 @@ def main():
                 if primary:
                     last_message = f"You are already facing a {primary.name}."
                 else:
-                    opponents = spawn_opponents(player.level)
+                    opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                     loot_bank = {"xp": 0, "gold": 0}
                     if opponents:
                         last_message = f"A {opponents[0].name} appears."
@@ -1585,7 +1529,7 @@ def main():
             if primary:
                 last_message = f"You are already facing a {primary.name}."
             else:
-                opponents = spawn_opponents(player.level)
+                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
@@ -1628,7 +1572,7 @@ def main():
                 last_message = "You are already in the Forrest."
             else:
                 player.location = "Forrest"
-                opponents = spawn_opponents(player.level)
+                opponents = OPPONENTS.spawn(player.level, ANSI.FG_CYAN)
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
@@ -1657,7 +1601,7 @@ def main():
                 last_message = cast_heal(player, boosted=False)
                 action_cmd = "HEAL"
             elif cmd == "SPARK":
-                if not alive_opponents(opponents):
+                if not any(opponent.hp > 0 for opponent in opponents):
                     last_message = "There is nothing to target."
                     continue
                 if player.mp < 2:
@@ -1682,7 +1626,7 @@ def main():
                 if cmd == "ATTACK":
                     action_cmd = "ATTACK"
 
-        if player.stat_points > 0 and not alive_opponents(opponents):
+        if player.stat_points > 0 and not any(opponent.hp > 0 for opponent in opponents):
             leveling_mode = True
 
         if action_cmd in ("ATTACK", "SPARK"):
@@ -1703,7 +1647,7 @@ def main():
                 opponents[index].melted = True
 
         player_defeated = False
-        if action_cmd in ("ATTACK", "SPARK", "HEAL") and alive_opponents(opponents):
+        if action_cmd in ("ATTACK", "SPARK", "HEAL") and any(opponent.hp > 0 for opponent in opponents):
             if player.location == "Forrest":
                 frame = generate_demo_frame(
                     player,
@@ -1780,7 +1724,7 @@ def main():
             continue
 
         if action_cmd in ("ATTACK", "SPARK"):
-            if not alive_opponents(opponents):
+            if not any(opponent.hp > 0 for opponent in opponents):
                 animate_battle_end(player, opponents, last_message)
                 opponents = []
                 if loot_bank["xp"] or loot_bank["gold"]:
