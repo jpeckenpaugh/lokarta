@@ -1,6 +1,6 @@
 # Main Loop Streamlining Plan
 
-[ ] Phase 1: Extract GameState
+[x] Phase 1: Extract GameState
 - Create a `GameState` dataclass to hold loop state (modes, message, opponents, loot).
 - Replace local variables in `main()` with `GameState` fields.
 
@@ -23,3 +23,4 @@
 Notes:
 - Preserve current behavior and timings.
 - Keep JSON-driven command flow intact.
+- Phase 1 introduced `GameState` and replaced loop locals with state fields.

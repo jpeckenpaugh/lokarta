@@ -16,7 +16,8 @@ from app.commands.registry import CommandContext, dispatch_command
 from app.commands.router import CommandState, handle_boost_confirm, handle_command
 from app.commands.scene_commands import scene_commands
 from app.input import read_keypress, read_keypress_timeout
-from app.models import Player, Opponent
+from app.models import Player
+from app.state import GameState
 from app.ui.ansi import ANSI
 from app.ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
 from app.ui.rendering import (
@@ -67,86 +68,87 @@ def main():
         print("Resize your terminal for best results.")
         input("Press Enter to continue anyway...")
 
-    player = Player.from_dict({})
-    opponents: List[Opponent] = []
-    loot_bank = {"xp": 0, "gold": 0}
-
-    last_message = ""
-    leveling_mode = False
-    boost_prompt: Optional[str] = None
-    shop_mode = False
-    inventory_mode = False
-    inventory_items: List[tuple[str, str]] = []
-    hall_mode = False
-    hall_view = "menu"
-    inn_mode = False
-    spell_mode = False
-    quit_confirm = False
-    title_mode = True
-    player.location = "Title"
+    state = GameState(
+        player=Player.from_dict({}),
+        opponents=[],
+        loot_bank={"xp": 0, "gold": 0},
+        last_message="",
+        leveling_mode=False,
+        boost_prompt=None,
+        shop_mode=False,
+        inventory_mode=False,
+        inventory_items=[],
+        hall_mode=False,
+        hall_view="menu",
+        inn_mode=False,
+        spell_mode=False,
+        quit_confirm=False,
+        title_mode=True,
+    )
+    state.player.location = "Title"
     def render_battle_pause(message: str):
         frame = generate_frame(
             SCREEN_CTX,
-            player,
-            opponents,
+            state.player,
+            state.opponents,
             message,
-            leveling_mode,
-            shop_mode,
-            inventory_mode,
-            inventory_items,
-            hall_mode,
-            hall_view,
-            inn_mode,
-            spell_mode,
+            state.leveling_mode,
+            state.shop_mode,
+            state.inventory_mode,
+            state.inventory_items,
+            state.hall_mode,
+            state.hall_view,
+            state.inn_mode,
+            state.spell_mode,
             suppress_actions=True
         )
         render_frame(frame)
-        time.sleep(battle_action_delay(player))
+        time.sleep(battle_action_delay(state.player))
 
     while True:
-        if title_mode:
-            player.has_save = SAVE_DATA.exists()
-        if inventory_mode:
-            inventory_items = player.list_inventory_items(ITEMS)
+        if state.title_mode:
+            state.player.has_save = SAVE_DATA.exists()
+        if state.inventory_mode:
+            state.inventory_items = state.player.list_inventory_items(ITEMS)
         frame = generate_frame(
             SCREEN_CTX,
-            player,
-            opponents,
-            last_message,
-            leveling_mode,
-            shop_mode,
-            inventory_mode,
-            inventory_items,
-            hall_mode,
-            hall_view,
-            inn_mode,
-            spell_mode
+            state.player,
+            state.opponents,
+            state.last_message,
+            state.leveling_mode,
+            state.shop_mode,
+            state.inventory_mode,
+            state.inventory_items,
+            state.hall_mode,
+            state.hall_view,
+            state.inn_mode,
+            state.spell_mode
         )
         render_frame(frame)
 
-        if boost_prompt:
+        if state.boost_prompt:
             choice = None
-            spell_id = boost_prompt
+            spell_id = state.boost_prompt
             spell_data = SPELLS.get(spell_id, {})
             prompt_seconds = int(spell_data.get("boost_prompt_seconds", 3))
             prompt_text = spell_data.get("boost_prompt_text", "Boost {name}? (Y/N)")
             prompt_text = prompt_text.replace("{name}", spell_data.get("name", spell_id.title()))
             default_choice = str(spell_data.get("boost_default", "N")).lower()
             for remaining in range(prompt_seconds, 0, -1):
-                countdown_message = f"{last_message} ({remaining})"
+                countdown_message = f"{state.last_message} ({remaining})"
                 frame = generate_frame(
                     SCREEN_CTX,
-                    player,
-                    opponents,
+                    state.player,
+                    state.opponents,
                     countdown_message,
-                    leveling_mode,
-                    shop_mode,
-                    inventory_mode,
-                    inventory_items,
-                    hall_mode,
-                    hall_view,
-                    inn_mode,
-                    spell_mode
+                    state.leveling_mode,
+                    state.shop_mode,
+                    state.inventory_mode,
+                    state.inventory_items,
+                    state.hall_mode,
+                    state.hall_view,
+                    state.inn_mode,
+                    state.spell_mode
                 )
                 render_frame(frame)
                 choice = read_keypress_timeout(1.0)
@@ -155,82 +157,82 @@ def main():
             ch = choice if choice else default_choice
         else:
             ch = read_keypress()
-        if quit_confirm:
+        if state.quit_confirm:
             if ch.lower() == "y":
-                SAVE_DATA.save_player(player)
+                SAVE_DATA.save_player(state.player)
                 clear_screen()
                 print("Goodbye.")
                 return
             if ch.lower() == "n":
-                quit_confirm = False
-                last_message = "Quit cancelled."
+                state.quit_confirm = False
+                state.last_message = "Quit cancelled."
                 continue
-            last_message = "Quit? (Y/N)"
+            state.last_message = "Quit? (Y/N)"
             continue
         action_cmd = None
         command_meta = None
         handled_boost = False
         handled_by_router = False
-        if boost_prompt:
+        if state.boost_prompt:
             if ch.lower() not in ("y", "n"):
-                last_message = "Choose Y or N to boost the spell."
+                state.last_message = "Choose Y or N to boost the spell."
                 continue
             boosted = ch.lower() == "y"
-            state = CommandState(
-                player=player,
-                opponents=opponents,
-                loot_bank=loot_bank,
-                last_message=last_message,
-                shop_mode=shop_mode,
-                inventory_mode=inventory_mode,
-                inventory_items=inventory_items,
-                hall_mode=hall_mode,
-                hall_view=hall_view,
-                inn_mode=inn_mode,
-                spell_mode=spell_mode,
+            cmd_state = CommandState(
+                player=state.player,
+                opponents=state.opponents,
+                loot_bank=state.loot_bank,
+                last_message=state.last_message,
+                shop_mode=state.shop_mode,
+                inventory_mode=state.inventory_mode,
+                inventory_items=state.inventory_items,
+                hall_mode=state.hall_mode,
+                hall_view=state.hall_view,
+                inn_mode=state.inn_mode,
+                spell_mode=state.spell_mode,
                 action_cmd=action_cmd,
             )
-            handle_boost_confirm(state, ROUTER_CTX, spell_id, boosted)
-            last_message = state.last_message
-            action_cmd = state.action_cmd
-            boost_prompt = None
+            handle_boost_confirm(cmd_state, ROUTER_CTX, spell_id, boosted)
+            state.last_message = cmd_state.last_message
+            action_cmd = cmd_state.action_cmd
+            state.boost_prompt = None
             handled_boost = True
 
         if not handled_boost:
             available_commands = None
-            if title_mode:
+            if state.title_mode:
                 title_scene = SCENES.get("title", {})
-                if getattr(player, "title_confirm", False):
+                if getattr(state.player, "title_confirm", False):
                     available_commands = title_scene.get("confirm_commands", [])
                 else:
                     available_commands = scene_commands(
                         SCENES,
                         COMMANDS_DATA,
                         "title",
-                        player,
-                        opponents
+                        state.player,
+                        state.opponents
                     )
-            elif inn_mode:
+            elif state.inn_mode:
                 venue = VENUES.get("town_inn", {})
                 available_commands = venue.get("commands", [])
             elif not any(
                 [
-                    leveling_mode,
-                    shop_mode,
-                    inventory_mode,
-                    hall_mode,
-                    inn_mode,
-                    spell_mode,
-                    boost_prompt,
+                    state.leveling_mode,
+                    state.shop_mode,
+                    state.inventory_mode,
+                    state.hall_mode,
+                    state.inn_mode,
+                    state.spell_mode,
+                    state.boost_prompt,
                 ]
             ):
-                scene_id = "town" if player.location == "Town" else "forest"
+                scene_id = "town" if state.player.location == "Town" else "forest"
                 available_commands = scene_commands(
                     SCENES,
                     COMMANDS_DATA,
                     scene_id,
-                    player,
-                    opponents
+                    state.player,
+                    state.opponents
                 )
             cmd = map_key_to_command(ch, available_commands)
             if available_commands and cmd:
@@ -242,62 +244,62 @@ def main():
             cmd = None
 
         if cmd == "QUIT":
-            quit_confirm = True
-            last_message = "Quit? (Y/N)"
+            state.quit_confirm = True
+            state.last_message = "Quit? (Y/N)"
             continue
 
         if cmd is None and not handled_boost:
             continue
 
-        if leveling_mode and not handled_boost:
-            last_message, leveling_done = player.handle_level_up_input(cmd)
+        if state.leveling_mode and not handled_boost:
+            state.last_message, leveling_done = state.player.handle_level_up_input(cmd)
             if leveling_done:
-                leveling_mode = False
+                state.leveling_mode = False
             continue
 
-        if cmd == "B_KEY" and not (shop_mode or hall_mode or inn_mode or spell_mode or inventory_mode):
+        if cmd == "B_KEY" and not (state.shop_mode or state.hall_mode or state.inn_mode or state.spell_mode or state.inventory_mode):
             continue
         if cmd == "X_KEY":
             continue
 
-        state = CommandState(
-            player=player,
-            opponents=opponents,
-            loot_bank=loot_bank,
-            last_message=last_message,
-            shop_mode=shop_mode,
-            inventory_mode=inventory_mode,
-            inventory_items=inventory_items,
-            hall_mode=hall_mode,
-            hall_view=hall_view,
-            inn_mode=inn_mode,
-            spell_mode=spell_mode,
+        cmd_state = CommandState(
+            player=state.player,
+            opponents=state.opponents,
+            loot_bank=state.loot_bank,
+            last_message=state.last_message,
+            shop_mode=state.shop_mode,
+            inventory_mode=state.inventory_mode,
+            inventory_items=state.inventory_items,
+            hall_mode=state.hall_mode,
+            hall_view=state.hall_view,
+            inn_mode=state.inn_mode,
+            spell_mode=state.spell_mode,
             action_cmd=action_cmd,
         )
-        if handle_command(cmd, state, ROUTER_CTX, key=ch):
-            opponents = state.opponents
-            loot_bank = state.loot_bank
-            last_message = state.last_message
-            shop_mode = state.shop_mode
-            inventory_mode = state.inventory_mode
-            inventory_items = state.inventory_items
-            hall_mode = state.hall_mode
-            hall_view = state.hall_view
-            inn_mode = state.inn_mode
-            spell_mode = state.spell_mode
-            action_cmd = state.action_cmd
-            if player.location == "Title" and state.player.location != "Title":
-                title_mode = False
-            player = state.player
+        if handle_command(cmd, cmd_state, ROUTER_CTX, key=ch):
+            state.opponents = cmd_state.opponents
+            state.loot_bank = cmd_state.loot_bank
+            state.last_message = cmd_state.last_message
+            state.shop_mode = cmd_state.shop_mode
+            state.inventory_mode = cmd_state.inventory_mode
+            state.inventory_items = cmd_state.inventory_items
+            state.hall_mode = cmd_state.hall_mode
+            state.hall_view = cmd_state.hall_view
+            state.inn_mode = cmd_state.inn_mode
+            state.spell_mode = cmd_state.spell_mode
+            action_cmd = cmd_state.action_cmd
+            if state.player.location == "Title" and cmd_state.player.location != "Title":
+                state.title_mode = False
+            state.player = cmd_state.player
             handled_by_router = True
-            if command_meta and command_meta.get("anim") == "battle_start" and opponents:
+            if command_meta and command_meta.get("anim") == "battle_start" and state.opponents:
                 animate_battle_start(
                     SCENES,
                     COMMANDS_DATA,
                     "forest",
-                    player,
-                    opponents,
-                    last_message
+                    state.player,
+                    state.opponents,
+                    state.last_message
                 )
             if action_cmd not in COMBAT_ACTIONS:
                 continue
@@ -310,32 +312,32 @@ def main():
             if spell_entry:
                 spell_id, spell = spell_entry
                 name = spell.get("name", spell_id.title())
-                if spell.get("requires_target") and not any(opponent.hp > 0 for opponent in opponents):
-                    last_message = "There is nothing to target."
+                if spell.get("requires_target") and not any(opponent.hp > 0 for opponent in state.opponents):
+                    state.last_message = "There is nothing to target."
                     continue
-                if spell_id == "healing" and player.hp == player.max_hp:
-                    last_message = "Your HP is already full."
+                if spell_id == "healing" and state.player.hp == state.player.max_hp:
+                    state.last_message = "Your HP is already full."
                     continue
                 mp_cost = int(spell.get("mp_cost", 2))
                 boosted_mp_cost = int(spell.get("boosted_mp_cost", mp_cost))
-                if player.mp < mp_cost:
-                    last_message = f"Not enough MP to cast {name}."
+                if state.player.mp < mp_cost:
+                    state.last_message = f"Not enough MP to cast {name}."
                     continue
-                if player.mp >= boosted_mp_cost:
-                    boost_prompt = spell_id
+                if state.player.mp >= boosted_mp_cost:
+                    state.boost_prompt = spell_id
                     prompt = spell.get("boost_prompt_text", "Boost {name}? (Y/N)")
-                    last_message = prompt.replace("{name}", name)
+                    state.last_message = prompt.replace("{name}", name)
                     continue
-                last_message = cast_spell(player, opponents, spell_id, boosted=False, loot=loot_bank, spells_data=SPELLS)
+                state.last_message = cast_spell(state.player, state.opponents, spell_id, boosted=False, loot=state.loot_bank, spells_data=SPELLS)
                 action_cmd = cmd
             else:
-                last_message = dispatch_command(
+                state.last_message = dispatch_command(
                     COMMANDS,
                     cmd,
                     CommandContext(
-                        player=player,
-                        opponents=opponents,
-                        loot=loot_bank,
+                        player=state.player,
+                        opponents=state.opponents,
+                        loot=state.loot_bank,
                         spells_data=SPELLS,
                         items_data=ITEMS,
                     ),
@@ -345,23 +347,23 @@ def main():
                 if command_meta and command_meta.get("anim") == "battle_start":
                     action_cmd = cmd
 
-        if player.needs_level_up() and not any(opponent.hp > 0 for opponent in opponents):
-            leveling_mode = True
+        if state.player.needs_level_up() and not any(opponent.hp > 0 for opponent in state.opponents):
+            state.leveling_mode = True
 
         if action_cmd in OFFENSIVE_ACTIONS:
-            target_index = primary_opponent_index(opponents)
+            target_index = primary_opponent_index(state.opponents)
             flash_opponent(
                 SCENES,
                 COMMANDS_DATA,
                 "forest",
-                player,
-                opponents,
-                last_message,
+                state.player,
+                state.opponents,
+                state.last_message,
                 target_index,
                 ANSI.FG_YELLOW
             )
             defeated_indices = [
-                i for i, m in enumerate(opponents)
+                i for i, m in enumerate(state.opponents)
                 if m.hp <= 0 and not m.melted
             ]
             for index in defeated_indices:
@@ -369,97 +371,97 @@ def main():
                     SCENES,
                     COMMANDS_DATA,
                     "forest",
-                    player,
-                    opponents,
-                    last_message,
+                    state.player,
+                    state.opponents,
+                    state.last_message,
                     index
                 )
-                opponents[index].melted = True
+                state.opponents[index].melted = True
 
         player_defeated = False
-        if action_cmd in COMBAT_ACTIONS and any(opponent.hp > 0 for opponent in opponents):
-            if player.location == "Forest":
-                render_battle_pause(last_message)
-            acting = [(i, m) for i, m in enumerate(opponents) if m.hp > 0]
+        if action_cmd in COMBAT_ACTIONS and any(opponent.hp > 0 for opponent in state.opponents):
+            if state.player.location == "Forest":
+                render_battle_pause(state.last_message)
+            acting = [(i, m) for i, m in enumerate(state.opponents) if m.hp > 0]
             for idx, (opp_index, m) in enumerate(acting):
                 if m.stunned_turns > 0:
                     m.stunned_turns -= 1
                     template = TEXTS.get("battle", "opponent_stunned", "The {name} is stunned.")
-                    last_message += " " + format_text(template, name=m.name)
+                    state.last_message += " " + format_text(template, name=m.name)
                 elif random.random() > m.action_chance:
                     template = TEXTS.get("battle", "opponent_hesitates", "The {name} hesitates.")
-                    last_message += " " + format_text(template, name=m.name)
+                    state.last_message += " " + format_text(template, name=m.name)
                 else:
-                    damage, crit, miss = roll_damage(m.atk, player.defense)
+                    damage, crit, miss = roll_damage(m.atk, state.player.defense)
                     if miss:
                         template = TEXTS.get("battle", "opponent_miss", "The {name} misses you.")
-                        last_message += " " + format_text(template, name=m.name)
+                        state.last_message += " " + format_text(template, name=m.name)
                     else:
-                        player.hp = max(0, player.hp - damage)
+                        state.player.hp = max(0, state.player.hp - damage)
                         if crit:
                             template = TEXTS.get("battle", "opponent_crit", "Critical hit! The {name} hits you for {damage}.")
-                            last_message += " " + format_text(template, name=m.name, damage=damage)
+                            state.last_message += " " + format_text(template, name=m.name, damage=damage)
                         else:
                             template = TEXTS.get("battle", "opponent_hit", "The {name} hits you for {damage}.")
-                            last_message += " " + format_text(template, name=m.name, damage=damage)
+                            state.last_message += " " + format_text(template, name=m.name, damage=damage)
                     flash_opponent(
                         SCENES,
                         COMMANDS_DATA,
                         "forest",
-                        player,
-                        opponents,
-                        last_message,
+                        state.player,
+                        state.opponents,
+                        state.last_message,
                         opp_index,
                         ANSI.FG_RED
                     )
-                    if player.hp == 0:
-                        lost_gp = player.gold // 2
-                        player.gold -= lost_gp
-                        player.location = "Town"
-                        player.hp = player.max_hp
-                        player.mp = player.max_mp
-                        opponents = []
-                        loot_bank = {"xp": 0, "gold": 0}
-                        last_message = (
+                    if state.player.hp == 0:
+                        lost_gp = state.player.gold // 2
+                        state.player.gold -= lost_gp
+                        state.player.location = "Town"
+                        state.player.hp = state.player.max_hp
+                        state.player.mp = state.player.max_mp
+                        state.opponents = []
+                        state.loot_bank = {"xp": 0, "gold": 0}
+                        state.last_message = (
                             "You were defeated and wake up at the inn. "
                             f"You lost {lost_gp} GP."
                         )
                         player_defeated = True
                         break
-                if player.location == "Forest" and idx < len(acting) - 1:
-                    render_battle_pause(last_message)
+                if state.player.location == "Forest" and idx < len(acting) - 1:
+                    render_battle_pause(state.last_message)
 
         if player_defeated:
-            SAVE_DATA.save_player(player)
+            SAVE_DATA.save_player(state.player)
             continue
 
         if action_cmd in OFFENSIVE_ACTIONS:
-            if not any(opponent.hp > 0 for opponent in opponents):
+            if not any(opponent.hp > 0 for opponent in state.opponents):
                 if BATTLE_END_COMMANDS:
                     animate_battle_end(
                         SCENES,
                         COMMANDS_DATA,
                         "forest",
-                        player,
-                        opponents,
-                        last_message
+                        state.player,
+                        state.opponents,
+                        state.last_message
                     )
-                opponents = []
-                if loot_bank["xp"] or loot_bank["gold"]:
-                    player.gain_xp(loot_bank["xp"])
-                    player.gold += loot_bank["gold"]
-                    last_message = (
-                        f"You gain {loot_bank['xp']} XP and "
-                        f"{loot_bank['gold']} gold."
+                state.opponents = []
+                if state.loot_bank["xp"] or state.loot_bank["gold"]:
+                    state.player.gain_xp(state.loot_bank["xp"])
+                    state.player.gold += state.loot_bank["gold"]
+                    state.last_message = (
+                        f"You gain {state.loot_bank['xp']} XP and "
+                        f"{state.loot_bank['gold']} gold."
                     )
-                    if player.needs_level_up():
-                        leveling_mode = True
+                    if state.player.needs_level_up():
+                        state.leveling_mode = True
                 else:
-                    last_message = ""
-                loot_bank = {"xp": 0, "gold": 0}
+                    state.last_message = ""
+                state.loot_bank = {"xp": 0, "gold": 0}
 
         if action_cmd in COMBAT_ACTIONS:
-            SAVE_DATA.save_player(player)
+            SAVE_DATA.save_player(state.player)
 
 
 if __name__ == "__main__":
