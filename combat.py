@@ -32,6 +32,22 @@ def primary_opponent(opponents: List[Opponent]) -> Optional[Opponent]:
     return None
 
 
+def primary_opponent_index(opponents: List[Opponent]) -> Optional[int]:
+    for idx, opponent in enumerate(opponents):
+        if opponent.hp > 0:
+            return idx
+    return None
+
+
+def battle_action_delay(player: Player) -> float:
+    speeds = {
+        "fast": 0.2,
+        "normal": 0.45,
+        "slow": 0.75,
+    }
+    return speeds.get(player.battle_speed, speeds["normal"])
+
+
 def add_loot(loot: dict, xp: int, gold: int):
     loot["xp"] = loot.get("xp", 0) + xp
     loot["gold"] = loot.get("gold", 0) + gold

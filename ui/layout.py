@@ -1,3 +1,6 @@
+from typing import Optional
+
+from commands.scene_commands import format_commands
 from ui.constants import ACTION_LINES, SCREEN_WIDTH
 
 
@@ -49,3 +52,21 @@ def format_action_lines(actions: list[str]) -> list[str]:
                 parts.append(" " * col_width)
         lines.append((" " * gap).join(parts))
     return lines
+
+
+def format_command_lines(commands: list[dict]) -> list[str]:
+    return format_action_lines(format_commands(commands))
+
+
+def format_menu_actions(menu_data: dict, replacements: Optional[dict] = None) -> list[str]:
+    actions = []
+    replacements = replacements or {}
+    for command in menu_data.get("actions", []):
+        key = str(command.get("key", "")).upper()
+        label = str(command.get("label", "")).strip()
+        if not key or not label:
+            continue
+        for token, value in replacements.items():
+            label = label.replace(token, value)
+        actions.append(f"  [{key}] {label}")
+    return format_action_lines(actions)

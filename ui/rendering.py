@@ -1,6 +1,7 @@
 import sys
 import time
 import textwrap
+from dataclasses import replace
 from typing import List, Optional
 
 from commands.scene_commands import format_commands, scene_commands
@@ -14,6 +15,7 @@ from ui.constants import (
     STAT_LINES,
 )
 from ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi
+from combat import battle_action_delay
 
 
 COLOR_BY_NAME = {
@@ -315,6 +317,144 @@ def animate_scene_gap(
             suppress_actions=True
         )
         time.sleep(delay)
+
+
+def animate_battle_start(
+    scenes_data,
+    commands_data,
+    scene_id: str,
+    player: Player,
+    opponents: List[Opponent],
+    message: str
+):
+    if not opponents:
+        return
+    scene_data = scenes_data.get(scene_id, {})
+    gap_base = (
+        int(scene_data.get("gap_min", 2))
+        if scene_data.get("left")
+        else int(scene_data.get("gap_width", 20))
+    )
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    animate_scene_gap(
+        scenes_data,
+        commands_data,
+        scene_id,
+        player,
+        opponents,
+        message,
+        gap_base,
+        gap_target,
+        art_opponents=[]
+    )
+
+
+def animate_battle_end(
+    scenes_data,
+    commands_data,
+    scene_id: str,
+    player: Player,
+    opponents: List[Opponent],
+    message: str
+):
+    if not opponents:
+        return
+    scene_data = scenes_data.get(scene_id, {})
+    gap_base = (
+        int(scene_data.get("gap_min", 2))
+        if scene_data.get("left")
+        else int(scene_data.get("gap_width", 20))
+    )
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    animate_scene_gap(
+        scenes_data,
+        commands_data,
+        scene_id,
+        player,
+        opponents,
+        message,
+        gap_target,
+        gap_base,
+        art_opponents=[]
+    )
+
+
+def flash_opponent(
+    scenes_data,
+    commands_data,
+    scene_id: str,
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    index: Optional[int],
+    flash_color: str
+):
+    if index is None:
+        return
+    scene_data = scenes_data.get(scene_id, {})
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    render_scene_frame(
+        scenes_data,
+        commands_data,
+        scene_id,
+        player,
+        opponents,
+        message,
+        gap_target,
+        flash_index=index,
+        flash_color=flash_color,
+        suppress_actions=True
+    )
+    time.sleep(max(0.08, battle_action_delay(player) / 2))
+
+
+def melt_opponent(
+    scenes_data,
+    commands_data,
+    scene_id: str,
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    index: Optional[int]
+):
+    if index is None:
+        return
+    if index < 0 or index >= len(opponents):
+        return
+    opponent = opponents[index]
+    if not opponent.art_lines:
+        return
+    width = OPPONENT_ART_WIDTH
+    bar = format_opponent_bar(opponent)
+    display_lines = [line[:width].center(width) for line in opponent.art_lines]
+    display_lines.append(" " * width)
+    display_lines.append(bar)
+    scene_data = scenes_data.get(scene_id, {})
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    for removed in range(1, len(display_lines) + 1):
+        trimmed = (
+            [" " * width for _ in range(removed)]
+            + display_lines[removed:]
+        )
+        art_overrides = []
+        for i, current in enumerate(opponents):
+            if i == index:
+                art_overrides.append(replace(current, art_lines=trimmed, hp=0))
+            else:
+                art_overrides.append(current)
+        render_scene_frame(
+            scenes_data,
+            commands_data,
+            scene_id,
+            player,
+            opponents,
+            message,
+            gap_target,
+            art_opponents=art_overrides,
+            manual_lines_indices={index},
+            suppress_actions=True
+        )
+        time.sleep(max(0.05, battle_action_delay(player) / 3))
 
 
 def format_player_stats(player: Player) -> List[str]:

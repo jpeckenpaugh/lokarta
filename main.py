@@ -3,16 +3,19 @@ import sys
 import shutil
 import random
 import time
-import json
-import textwrap
-from dataclasses import replace
 from typing import List, Optional
 
-from combat import cast_spell, primary_opponent, roll_damage
+from combat import (
+    battle_action_delay,
+    cast_spell,
+    primary_opponent,
+    primary_opponent_index,
+    roll_damage,
+)
 from commands import build_registry
 from commands.keymap import map_key_to_command
 from commands.registry import CommandContext
-from commands.scene_commands import format_commands, scene_commands
+from commands.scene_commands import scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
 from data_access.menus_data import MenusData
@@ -22,26 +25,22 @@ from data_access.npcs_data import NpcsData
 from data_access.venues_data import VenuesData
 from data_access.spells_data import SpellsData
 from data_access.save_data import SaveData
+from input import read_keypress, read_keypress_timeout
 from models import Frame, Player, Opponent
+from shop import purchase_item
 from ui.ansi import ANSI, color
-from ui.constants import (
-    OPPONENT_ART_WIDTH,
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
-)
+from ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
 from ui.layout import format_action_lines
 from ui.rendering import (
     COLOR_BY_NAME,
-    animate_scene_gap,
     clear_screen,
-    compute_scene_gap_target,
-    format_opponent_bar,
-    format_player_stats,
+    animate_battle_end,
+    animate_battle_start,
+    flash_opponent,
+    melt_opponent,
     render_frame,
-    render_scene_art,
-    render_scene_frame,
-    render_venue_art,
 )
+from ui.screens import ScreenContext, generate_frame
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 SAVE_PATH = os.path.join(os.path.dirname(__file__), "saves", "slot1.json")
@@ -56,220 +55,18 @@ COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
 MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 COMMANDS = build_registry()
+SCREEN_CTX = ScreenContext(
+    items=ITEMS,
+    opponents=OPPONENTS,
+    scenes=SCENES,
+    npcs=NPCS,
+    venues=VENUES,
+    menus=MENUS,
+    commands=COMMANDS_DATA,
+    spells=SPELLS,
+)
 
 
-def battle_action_delay(player: Player) -> float:
-    speeds = {
-        "fast": 0.2,
-        "normal": 0.45,
-        "slow": 0.75,
-    }
-    return speeds.get(player.battle_speed, speeds["normal"])
-
-
-def delete_save():
-    SAVE_DATA.delete()
-
-
-def format_command_lines(commands: List[dict]) -> List[str]:
-    return format_action_lines(format_commands(commands))
-
-
-def format_menu_actions(menu_data: dict, replacements: Optional[dict] = None) -> List[str]:
-    actions = []
-    replacements = replacements or {}
-    for command in menu_data.get("actions", []):
-        key = str(command.get("key", "")).upper()
-        label = str(command.get("label", "")).strip()
-        if not key or not label:
-            continue
-        for token, value in replacements.items():
-            label = label.replace(token, value)
-        actions.append(f"  [{key}] {label}")
-    return format_action_lines(actions)
-
-
-def purchase_item(player: Player, key: str) -> str:
-    item = ITEMS.get(key)
-    if not item:
-        return "That item is not available."
-    price = int(item.get("price", 0))
-    if player.gold < price:
-        return "Not enough GP."
-    player.gold -= price
-    player.add_item(key, 1)
-    return f"Purchased {item.get('name', key)}."
-
-
-def generate_demo_frame(
-    player: Player,
-    opponents: List[Opponent],
-    message: str = "",
-    leveling_mode: bool = False,
-    shop_mode: bool = False,
-    inventory_mode: bool = False,
-    inventory_items: Optional[List[tuple[str, str]]] = None,
-    hall_mode: bool = False,
-    hall_view: str = "menu",
-    spell_mode: bool = False,
-    suppress_actions: bool = False
-) -> Frame:
-    healing = SPELLS.get("healing", {})
-    spark = SPELLS.get("spark", {})
-    heal_name = healing.get("name", "Healing")
-    spark_name = spark.get("name", "Spark")
-    if leveling_mode:
-        body = [
-            "Level Up!",
-            "",
-            f"You reached level {player.level}.",
-            "",
-            f"Stat points available: {player.stat_points}",
-            "",
-            "Choose how to spend your points:",
-            "  [1] +HP",
-            "  [2] +MP",
-            "  [3] +ATK",
-            "  [4] +DEF",
-            "",
-            "  [B] Balanced allocation",
-            "  [X] Random allocation",
-        ]
-        actions = format_action_lines([])
-        art_lines = []
-        art_color = ANSI.FG_WHITE
-    elif player.location == "Town" and shop_mode:
-        venue = VENUES.get("town_shop", {})
-        npc_lines = []
-        npc_ids = venue.get("npc_ids", [])
-        npc = {}
-        if npc_ids:
-            npc_lines = NPCS.format_greeting(npc_ids[0])
-            npc = NPCS.get(npc_ids[0], {})
-        body = []
-        if npc_lines:
-            body += npc_lines + [""]
-        for entry in venue.get("inventory_items", []):
-            item_id = entry.get("item_id")
-            if not item_id:
-                continue
-            item = ITEMS.get(item_id, {})
-            label = entry.get("label", item.get("name", item_id))
-            price = item.get("price", 0)
-            body.append(f"{label}  {price} GP")
-        body.append("")
-        body += venue.get("narrative", [])
-        art_lines, art_color = render_venue_art(venue, npc)
-        actions = format_command_lines(venue.get("commands", []))
-    elif player.location == "Town" and hall_mode:
-        venue = VENUES.get("town_hall", {})
-        info_sections = venue.get("info_sections", [])
-        npc_lines = []
-        npc_ids = venue.get("npc_ids", [])
-        npc = {}
-        if npc_ids:
-            npc_lines = NPCS.format_greeting(npc_ids[0])
-            npc = NPCS.get(npc_ids[0], {})
-        section = next((entry for entry in info_sections if entry.get("key") == hall_view), None)
-        source = section.get("source") if section else None
-        if source == "items":
-            info_lines = ITEMS.list_descriptions()
-        elif source == "opponents":
-            info_lines = OPPONENTS.list_descriptions()
-        else:
-            info_lines = []
-        body = []
-        if npc_lines:
-            body += npc_lines + [""]
-        body += info_lines
-        body += venue.get("narrative", [])
-        actions = format_command_lines(venue.get("commands", []))
-        art_lines, art_color = render_venue_art(venue, npc)
-    elif inventory_mode:
-        inventory_menu = MENUS.get("inventory", {})
-        items = inventory_items or []
-        title = inventory_menu.get("title", "Inventory")
-        body = [title, ""]
-        if items:
-            for i, (_, label) in enumerate(items[:9], start=1):
-                body.append(f"{i}. {label}")
-        else:
-            body.append(inventory_menu.get("empty", "Inventory is empty."))
-        actions = format_menu_actions(inventory_menu)
-        art_lines = []
-        art_color = ANSI.FG_WHITE
-    elif spell_mode:
-        spell_menu = MENUS.get("spellbook", {})
-        heal_cost = int(healing.get("mp_cost", 2))
-        spark_cost = int(spark.get("mp_cost", 2))
-        body = [
-            spell_menu.get("title", "Spellbook"),
-            "",
-            f"{heal_name} ({heal_cost} MP)",
-            f"{spark_name} ({spark_cost} MP)",
-        ]
-        actions = format_menu_actions(
-            spell_menu,
-            replacements={
-                "{heal_name}": heal_name,
-                "{spark_name}": spark_name,
-            },
-        )
-        art_lines = []
-        art_color = ANSI.FG_WHITE
-    elif player.location == "Town":
-        scene_data = SCENES.get("town", {})
-        art_lines = scene_data.get("art", [])
-        art_color = COLOR_BY_NAME.get(scene_data.get("color", "yellow").lower(), ANSI.FG_WHITE)
-        body = scene_data.get("narrative", [])
-        actions = format_command_lines(
-            scene_commands(SCENES, COMMANDS_DATA, "town", player, opponents)
-        )
-    else:
-        scene_data = SCENES.get("forest", {})
-        forest_art, art_color = render_scene_art(scene_data, opponents)
-        opponent_lines = []
-        for i, m in enumerate(opponents[:3], start=1):
-            line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
-            if m.stunned_turns > 0:
-                line += f" (Stun {m.stunned_turns})"
-            opponent_lines.append(line)
-        primary = primary_opponent(opponents)
-        default_narrative = scene_data.get("narrative", ["All is quiet. No enemies in sight."])
-        if primary:
-            body = [f"A {primary.name} {primary.arrival}.", "", *opponent_lines]
-        else:
-            body = [*default_narrative, "", *opponent_lines]
-        actions = format_command_lines(
-            scene_commands(SCENES, COMMANDS_DATA, "forest", player, opponents)
-        )
-        art_lines = forest_art
-    if suppress_actions:
-        actions = format_action_lines([])
-
-    status_lines = (
-        textwrap.wrap(message, width=SCREEN_WIDTH - 4)
-        if message
-        else []
-    )
-
-    stats = format_player_stats(player)
-
-    return Frame(
-        title="World Builder — PROTOTYPE",
-        body_lines=body,
-        action_lines=actions,
-        stat_lines=stats,
-        footer_hint=(
-            "Keys: 1-4=Assign  B=Balanced  X=Random  Q=Quit"
-            if leveling_mode
-            else "Keys: use the action panel"
-        ),
-        location=player.location,
-        art_lines=art_lines,
-        art_color=art_color,
-        status_lines=status_lines,
-    )
 
 
 def apply_command(
@@ -289,197 +86,6 @@ def apply_command(
     if handled is not None:
         return handled
     return "Unknown action."
-
-
-def animate_battle_start(player: Player, opponents: List[Opponent], message: str):
-    if player.location != "Forest" or not opponents:
-        return
-    scene_data = SCENES.get("forest", {})
-    gap_base = (
-        int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
-        else int(scene_data.get("gap_width", 20))
-    )
-    gap_target = compute_scene_gap_target(scene_data, opponents)
-    animate_scene_gap(
-        SCENES,
-        COMMANDS_DATA,
-        "forest",
-        player,
-        opponents,
-        message,
-        gap_base,
-        gap_target,
-        art_opponents=[]
-    )
-
-
-def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
-    if player.location != "Forest" or not opponents:
-        return
-    scene_data = SCENES.get("forest", {})
-    gap_base = (
-        int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
-        else int(scene_data.get("gap_width", 20))
-    )
-    gap_target = compute_scene_gap_target(scene_data, opponents)
-    animate_scene_gap(
-        SCENES,
-        COMMANDS_DATA,
-        "forest",
-        player,
-        opponents,
-        message,
-        gap_target,
-        gap_base,
-        art_opponents=[]
-    )
-
-
-def primary_opponent_index(opponents: List[Opponent]) -> Optional[int]:
-    for idx, opponent in enumerate(opponents):
-        if opponent.hp > 0:
-            return idx
-    return None
-
-
-def flash_opponent(
-    player: Player,
-    opponents: List[Opponent],
-    message: str,
-    index: Optional[int],
-    flash_color: str
-):
-    if index is None or player.location != "Forest":
-        return
-    scene_data = SCENES.get("forest", {})
-    gap_target = compute_scene_gap_target(scene_data, opponents)
-    render_scene_frame(
-        SCENES,
-        COMMANDS_DATA,
-        "forest",
-        player,
-        opponents,
-        message,
-        gap_target,
-        flash_index=index,
-        flash_color=flash_color,
-        suppress_actions=True
-    )
-    time.sleep(max(0.08, battle_action_delay(player) / 2))
-
-
-def melt_opponent(
-    player: Player,
-    opponents: List[Opponent],
-    message: str,
-    index: Optional[int]
-):
-    if index is None or player.location != "Forest":
-        return
-    if index < 0 or index >= len(opponents):
-        return
-    opponent = opponents[index]
-    if not opponent.art_lines:
-        return
-    width = OPPONENT_ART_WIDTH
-    bar = format_opponent_bar(opponent)
-    display_lines = [line[:width].center(width) for line in opponent.art_lines]
-    display_lines.append(" " * width)
-    display_lines.append(bar)
-    scene_data = SCENES.get("forest", {})
-    gap_target = compute_scene_gap_target(scene_data, opponents)
-    for removed in range(1, len(display_lines) + 1):
-        trimmed = (
-            [" " * width for _ in range(removed)]
-            + display_lines[removed:]
-        )
-        art_overrides = []
-        for i, current in enumerate(opponents):
-            if i == index:
-                art_overrides.append(replace(current, art_lines=trimmed, hp=0))
-            else:
-                art_overrides.append(current)
-        render_scene_frame(
-            SCENES,
-            COMMANDS_DATA,
-            "forest",
-            player,
-            opponents,
-            message,
-            gap_target,
-            art_opponents=art_overrides,
-            manual_lines_indices={index},
-            suppress_actions=True
-        )
-        time.sleep(max(0.05, battle_action_delay(player) / 3))
-
-
-# -----------------------------
-# Single-key input (macOS/Linux)
-# -----------------------------
-
-def read_keypress() -> str:
-    """
-    Read a single keypress without requiring Enter (POSIX terminals).
-    Returns a single-character string.
-    """
-    if os.name == "nt":
-        import msvcrt
-        ch = msvcrt.getch()
-        if ch in (b"\x00", b"\xe0"):
-            msvcrt.getch()
-            return ""
-        try:
-            return ch.decode("utf-8", errors="ignore")
-        except Exception:
-            return ""
-    else:
-        import termios
-        import tty
-
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        try:
-            tty.setcbreak(fd)  # cbreak: immediate input, but still handles signals
-            ch = sys.stdin.read(1)
-            return ch
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
-
-
-def read_keypress_timeout(timeout_sec: float) -> Optional[str]:
-    if os.name == "nt":
-        import msvcrt
-        end = time.monotonic() + timeout_sec
-        while time.monotonic() < end:
-            if msvcrt.kbhit():
-                ch = msvcrt.getch()
-                if ch in (b"\x00", b"\xe0"):
-                    msvcrt.getch()
-                    return ""
-                try:
-                    return ch.decode("utf-8", errors="ignore")
-                except Exception:
-                    return ""
-            time.sleep(0.01)
-        return None
-    else:
-        import select
-        import termios
-        import tty
-
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        try:
-            tty.setcbreak(fd)
-            ready, _, _ = select.select([sys.stdin], [], [], timeout_sec)
-            if ready:
-                return sys.stdin.read(1)
-            return None
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 # -----------------------------
@@ -592,7 +198,8 @@ def main():
         else:
             if inventory_mode:
                 inventory_items = player.list_inventory_items(ITEMS)
-            frame = generate_demo_frame(
+            frame = generate_frame(
+                SCREEN_CTX,
                 player,
                 opponents,
                 last_message,
@@ -610,7 +217,8 @@ def main():
             choice = None
             for remaining in range(3, 0, -1):
                 countdown_message = f"{last_message} ({remaining})"
-                frame = generate_demo_frame(
+                frame = generate_frame(
+                    SCREEN_CTX,
                     player,
                     opponents,
                     countdown_message,
@@ -644,7 +252,7 @@ def main():
         if title_mode:
             if title_confirm:
                 if ch.lower() == "y":
-                    delete_save()
+                    SAVE_DATA.delete()
                     player = Player.from_dict({})
                     opponents = []
                     loot_bank = {"xp": 0, "gold": 0}
@@ -807,7 +415,7 @@ def main():
                 if selection:
                     item_id = selection.get("item_id")
                     if item_id:
-                        last_message = purchase_item(player, item_id)
+                        last_message = purchase_item(player, ITEMS, item_id)
                         SAVE_DATA.save_player(player)
             continue
 
@@ -847,7 +455,14 @@ def main():
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(player, opponents, last_message)
+                    animate_battle_start(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "forest",
+                        player,
+                        opponents,
+                        last_message
+                    )
                 else:
                     last_message = "All is quiet. No enemies in sight."
                 shop_mode = False
@@ -864,7 +479,14 @@ def main():
                     loot_bank = {"xp": 0, "gold": 0}
                     if opponents:
                         last_message = f"A {opponents[0].name} appears."
-                        animate_battle_start(player, opponents, last_message)
+                        animate_battle_start(
+                            SCENES,
+                            COMMANDS_DATA,
+                            "forest",
+                            player,
+                            opponents,
+                            last_message
+                        )
                     else:
                         last_message = "All is quiet. No enemies in sight."
                 SAVE_DATA.save_player(player)
@@ -879,7 +501,14 @@ def main():
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(player, opponents, last_message)
+                    animate_battle_start(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "forest",
+                        player,
+                        opponents,
+                        last_message
+                    )
                 else:
                     last_message = "All is quiet. No enemies in sight."
             SAVE_DATA.save_player(player)
@@ -923,7 +552,14 @@ def main():
                     loot_bank = {"xp": 0, "gold": 0}
                     if opponents:
                         last_message = f"A {opponents[0].name} appears."
-                        animate_battle_start(player, opponents, last_message)
+                        animate_battle_start(
+                            SCENES,
+                            COMMANDS_DATA,
+                            "forest",
+                            player,
+                            opponents,
+                            last_message
+                        )
                     else:
                         last_message = "All is quiet. No enemies in sight."
             else:
@@ -932,7 +568,14 @@ def main():
                 loot_bank = {"xp": 0, "gold": 0}
                 if opponents:
                     last_message = f"A {opponents[0].name} appears."
-                    animate_battle_start(player, opponents, last_message)
+                    animate_battle_start(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "forest",
+                        player,
+                        opponents,
+                        last_message
+                    )
                 else:
                     last_message = "All is quiet. No enemies in sight."
             shop_mode = False
@@ -994,6 +637,9 @@ def main():
         if action_cmd in ("ATTACK", "SPARK"):
             target_index = primary_opponent_index(opponents)
             flash_opponent(
+                SCENES,
+                COMMANDS_DATA,
+                "forest",
                 player,
                 opponents,
                 last_message,
@@ -1005,13 +651,22 @@ def main():
                 if m.hp <= 0 and not m.melted
             ]
             for index in defeated_indices:
-                melt_opponent(player, opponents, last_message, index)
+                melt_opponent(
+                    SCENES,
+                    COMMANDS_DATA,
+                    "forest",
+                    player,
+                    opponents,
+                    last_message,
+                    index
+                )
                 opponents[index].melted = True
 
         player_defeated = False
         if action_cmd in ("ATTACK", "SPARK", "HEAL") and any(opponent.hp > 0 for opponent in opponents):
             if player.location == "Forest":
-                frame = generate_demo_frame(
+                frame = generate_frame(
+                    SCREEN_CTX,
                     player,
                     opponents,
                     last_message,
@@ -1046,6 +701,9 @@ def main():
                         else:
                             last_message += f" The {m.name} hits you for {damage}."
                     flash_opponent(
+                        SCENES,
+                        COMMANDS_DATA,
+                        "forest",
                         player,
                         opponents,
                         last_message,
@@ -1067,7 +725,8 @@ def main():
                         player_defeated = True
                         break
                 if player.location == "Forest" and idx < len(acting) - 1:
-                    frame = generate_demo_frame(
+                    frame = generate_frame(
+                        SCREEN_CTX,
                         player,
                         opponents,
                         last_message,
@@ -1089,7 +748,14 @@ def main():
 
         if action_cmd in ("ATTACK", "SPARK"):
             if not any(opponent.hp > 0 for opponent in opponents):
-                animate_battle_end(player, opponents, last_message)
+                animate_battle_end(
+                    SCENES,
+                    COMMANDS_DATA,
+                    "forest",
+                    player,
+                    opponents,
+                    last_message
+                )
                 opponents = []
                 if loot_bank["xp"] or loot_bank["gold"]:
                     player.gain_xp(loot_bank["xp"])
