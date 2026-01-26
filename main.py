@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import random
+import time
 import json
 import textwrap
 from dataclasses import dataclass
@@ -74,7 +75,7 @@ class Player:
 
 
 @dataclass
-class Monster:
+class Opponent:
     name: str
     level: int
     hp: int
@@ -87,7 +88,7 @@ class Monster:
     arrival: str
 
 
-def create_monster(data: dict) -> Monster:
+def create_opponent(data: dict) -> Opponent:
     name = data.get("name", "Slime")
     level = int(data.get("level", 1))
     hp = int(data.get("hp", 10))
@@ -95,7 +96,7 @@ def create_monster(data: dict) -> Monster:
     defense = int(data.get("defense", 5))
     art_lines = data.get("art", [])
     arrival = data.get("arrival", "appears")
-    return Monster(
+    return Opponent(
         name=name,
         level=level,
         hp=hp,
@@ -109,11 +110,11 @@ def create_monster(data: dict) -> Monster:
     )
 
 
-def spawn_monsters(player_level: int) -> List[Monster]:
-    monsters = load_monster_data()
-    if not monsters:
+def spawn_opponents(player_level: int) -> List[Opponent]:
+    opponents = load_opponent_data()
+    if not opponents:
         return []
-    candidates = list(monsters.values())
+    candidates = list(opponents.values())
     total_level = 0
     spawned = []
     attempts = 0
@@ -124,17 +125,17 @@ def spawn_monsters(player_level: int) -> List[Monster]:
         if not choices:
             break
         data = random.choice(choices)
-        spawned.append(create_monster(data))
+        spawned.append(create_opponent(data))
         total_level += int(data.get("level", 1))
         if total_level >= player_level:
             break
     if not spawned:
-        spawned.append(create_monster(candidates[0]))
+        spawned.append(create_opponent(candidates[0]))
     return spawned
 
 
-def load_monster_data() -> dict:
-    path = os.path.join(os.path.dirname(__file__), "monsters.json")
+def load_opponent_data() -> dict:
+    path = os.path.join(os.path.dirname(__file__), "opponents.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -146,7 +147,18 @@ def load_scene_data() -> dict:
     path = os.path.join(os.path.dirname(__file__), "scenes.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        forest = data.get("forest")
+        if isinstance(forest, dict):
+            left = forest.get("left")
+            right = forest.get("right")
+            if isinstance(left, list) and left:
+                max_left = max(len(line) for line in left)
+                forest["left"] = [line.ljust(max_left) for line in left]
+            if isinstance(right, list) and right:
+                max_right = max(len(line) for line in right)
+                forest["right"] = [line.ljust(max_right) for line in right]
+        return data
     except (OSError, json.JSONDecodeError):
         return {}
 
@@ -169,6 +181,233 @@ def load_item_data() -> dict:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return {}
+
+
+def load_npc_data() -> dict:
+    path = os.path.join(os.path.dirname(__file__), "npcs.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def load_venue_data() -> dict:
+    path = os.path.join(os.path.dirname(__file__), "venues.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def format_npc_greeting(npc_id: str) -> List[str]:
+    npc = load_npc_data().get(npc_id, {})
+    name = npc.get("name", "")
+    role = npc.get("role", "")
+    greeting = npc.get("greeting", "")
+    if greeting:
+        speaker = name or role
+        if speaker:
+            return [f"{speaker}: {greeting}"]
+        return [greeting]
+    return []
+
+
+def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
+    art_template = venue.get("art", [])
+    art_color = color_from_name(venue.get("color", "white"))
+    npc_art = npc.get("art", [])
+    npc_color = color_from_name(npc.get("color", "white"))
+    gap_width = int(venue.get("gap_width", 0))
+
+    if art_template:
+        if gap_width > 0:
+            art_lines = []
+            start_row = (len(art_template) - len(npc_art)) // 2
+            for i, line in enumerate(art_template):
+                gap_fill = " " * gap_width
+                if npc_art and start_row <= i < start_row + len(npc_art):
+                    npc_line = npc_art[i - start_row]
+                    pad_left = (gap_width - len(npc_line)) // 2
+                    pad_right = gap_width - len(npc_line) - pad_left
+                    gap_fill = (
+                        (" " * pad_left)
+                        + npc_color + npc_line + art_color
+                        + (" " * pad_right)
+                    )
+                art_lines.append(line.replace("{GAP}", gap_fill))
+            return art_lines, art_color
+        return art_template, art_color
+    if npc_art:
+        return npc_art, npc_color
+    return [], ANSI.FG_WHITE
+
+
+def mirror_line(line: str) -> str:
+    swaps = str.maketrans({
+        "/": "\\",
+        "\\": "/",
+        "(": ")",
+        ")": "(",
+        "<": ">",
+        ">": "<",
+        "[": "]",
+        "]": "[",
+        "{": "}",
+        "}": "{",
+    })
+    return line[::-1].translate(swaps)
+
+
+def format_player_stats(player: Player) -> List[str]:
+    hp_text = color(f"HP: {player.hp} / {player.max_hp}", ANSI.FG_GREEN)
+    mp_text = color(f"MP: {player.mp} / {player.max_mp}", ANSI.FG_MAGENTA)
+    atk_text = color(f"ATK: {player.atk}", ANSI.DIM)
+    def_text = color(f"DEF: {player.defense}", ANSI.DIM)
+    level_text = color(f"Level: {player.level}", ANSI.FG_CYAN)
+    xp_text = color(f"XP: {player.xp}", ANSI.FG_GREEN)
+    gp_text = color(f"GP: {player.gold}", ANSI.FG_YELLOW)
+    return [
+        f"{hp_text}    {mp_text}    {atk_text}    {def_text}",
+        f"{level_text}    {xp_text}    {gp_text}",
+    ]
+
+
+def build_opponent_blocks(opponents: List[Opponent]) -> List[dict]:
+    blocks = []
+    for opponent in opponents[:3]:
+        if not opponent.art_lines:
+            continue
+        width = max(len(line) for line in opponent.art_lines)
+        if opponent.hp > 0:
+            lines = opponent.art_lines
+        else:
+            lines = [" " * width for _ in opponent.art_lines]
+        blocks.append(
+            {
+                "lines": lines,
+                "width": width,
+                "color": opponent.art_color,
+            }
+        )
+    return blocks
+
+
+def compute_forest_gap_target(scene_data: dict, opponents: List[Opponent]) -> int:
+    gap_min = int(scene_data.get("gap_min", 2))
+    gap_width = int(scene_data.get("gap_width", gap_min))
+    left = scene_data.get("left", [])
+    opponent_blocks = build_opponent_blocks(opponents)
+    if not opponent_blocks:
+        return gap_min if left else gap_width
+    gap_pad = 2
+    inter_pad = 2
+    content_width = (
+        (gap_pad * 2)
+        + sum(block["width"] for block in opponent_blocks)
+        + (inter_pad * (len(opponent_blocks) - 1))
+    )
+    if left:
+        return max(gap_min, content_width)
+    return max(gap_width, content_width)
+
+
+def render_forest_art(
+    scene_data: dict,
+    opponents: List[Opponent],
+    gap_override: Optional[int] = None
+) -> tuple[List[str], str]:
+    art_color = color_from_name(scene_data.get("color", "green"))
+    opponent_blocks = build_opponent_blocks(opponents)
+    left = scene_data.get("left", [])
+    right = scene_data.get("right")
+
+    if left:
+        if right is None:
+            right = [mirror_line(line) for line in left]
+        gap_min = int(scene_data.get("gap_min", 2))
+        if gap_override is not None:
+            gap_min = gap_override
+        gap_pad = 2
+        inter_pad = 2
+        gap_width = gap_min
+        if opponent_blocks:
+            content_width = (
+                (gap_pad * 2)
+                + sum(block["width"] for block in opponent_blocks)
+                + (inter_pad * (len(opponent_blocks) - 1))
+            )
+            gap_width = max(gap_min, content_width)
+        art_lines = []
+        max_rows = max(len(left), len(right))
+        max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
+        start_row = (max_rows - max_opp_rows) // 2 if max_opp_rows else 0
+        for i in range(max_rows):
+            left_line = left[i] if i < len(left) else ""
+            right_line = right[i] if i < len(right) else ""
+            gap_fill = " " * gap_width
+            if opponent_blocks and start_row <= i < start_row + max_opp_rows:
+                row_index = i - start_row
+                segments = []
+                for block in opponent_blocks:
+                    line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
+                    line = line.ljust(block["width"])
+                    if line.strip():
+                        segments.append(block["color"] + line + art_color)
+                    else:
+                        segments.append(" " * block["width"])
+                content = (" " * inter_pad).join(segments)
+                content_width = (gap_pad * 2) + len(content)
+                pad_left = max(0, (gap_width - content_width) // 2)
+                pad_right = max(0, gap_width - content_width - pad_left)
+                gap_fill = (
+                    (" " * pad_left)
+                    + (" " * gap_pad)
+                    + content
+                    + (" " * gap_pad)
+                    + (" " * pad_right)
+                )
+            art_lines.append(left_line + gap_fill + right_line)
+        return art_lines, art_color
+
+        gap_width = int(scene_data.get("gap_width", 20))
+        if gap_override is not None:
+            gap_width = gap_override
+    forest_template = scene_data.get("art", [])
+    forest_art = []
+    for i, line in enumerate(forest_template):
+        gap_fill = " " * gap_width
+        if opponent_blocks:
+            max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
+            start_row = (len(forest_template) - max_opp_rows) // 2
+            if start_row <= i < start_row + max_opp_rows:
+                row_index = i - start_row
+                segments = []
+                for block in opponent_blocks:
+                    line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
+                    width = block["width"]
+                    line = line.ljust(width)
+                    if line.strip():
+                        segments.append(block["color"] + line + art_color)
+                    else:
+                        segments.append(" " * width)
+                inter_pad = 2
+                gap_pad = 2
+                content = (" " * inter_pad).join(segments)
+                content_width = (gap_pad * 2) + len(content)
+                gap_width = max(gap_width, content_width)
+                pad_left = max(0, (gap_width - content_width) // 2)
+                pad_right = max(0, gap_width - content_width - pad_left)
+                gap_fill = (
+                    (" " * pad_left)
+                    + (" " * gap_pad)
+                    + content
+                    + (" " * gap_pad)
+                    + (" " * pad_right)
+                )
+        forest_art.append(line.replace("{GAP}", gap_fill))
+    return forest_art, art_color
 
 
 def save_game(player: Player):
@@ -335,10 +574,10 @@ def use_item(player: Player, key: str) -> str:
     return f"Used {item.get('name', key)}."
 
 
-def list_monster_descriptions() -> List[str]:
-    monsters = load_monster_data()
+def list_opponent_descriptions() -> List[str]:
+    opponents = load_opponent_data()
     lines = []
-    for data in monsters.values():
+    for data in opponents.values():
         name = data.get("name", "Unknown")
         desc = data.get("desc", "")
         lines.append(f"{name}: {desc}")
@@ -367,14 +606,14 @@ def grant_xp(player: Player, amount: int) -> int:
 
 def generate_demo_frame(
     player: Player,
-    monsters: List[Monster],
+    opponents: List[Opponent],
     message: str = "",
     leveling_mode: bool = False,
     shop_mode: bool = False,
     inventory_mode: bool = False,
     inventory_items: Optional[List[tuple[str, str]]] = None,
     hall_mode: bool = False,
-    hall_view: str = "monsters",
+    hall_view: str = "menu",
     spell_mode: bool = False
 ) -> Frame:
     if leveling_mode:
@@ -401,16 +640,23 @@ def generate_demo_frame(
         items = load_item_data()
         rations = items.get("rations", {})
         elixir = items.get("elixir", {})
-        body = [
-            "Town Shop",
-            "",
+        venue = load_venue_data().get("town_shop", {})
+        npc_lines = []
+        npc_ids = venue.get("npc_ids", [])
+        npc = {}
+        if npc_ids:
+            npc_lines = format_npc_greeting(npc_ids[0])
+            npc = load_npc_data().get(npc_ids[0], {})
+        body = []
+        if npc_lines:
+            body += npc_lines + [""]
+        body += [
             f"Rations (+5 HP/MP)  {rations.get('price', 0)} GP",
             f"Elixir (+20 HP/MP)  {elixir.get('price', 0)} GP",
             "",
-            f"Your GP: {player.gold}",
-            "",
             "Choose an item to purchase.",
         ]
+        art_lines, art_color = render_venue_art(venue, npc)
         actions = [
             "  [1] Buy Rations",
             "  [2] Buy Elixir",
@@ -418,25 +664,32 @@ def generate_demo_frame(
             "  [Q] Quit",
         ]
         actions = format_action_lines(actions)
-        art_lines = []
-        art_color = ANSI.FG_WHITE
     elif player.location == "Town" and hall_mode:
+        venue = load_venue_data().get("town_hall", {})
+        npc_lines = []
+        npc_ids = venue.get("npc_ids", [])
+        npc = {}
+        if npc_ids:
+            npc_lines = format_npc_greeting(npc_ids[0])
+            npc = load_npc_data().get(npc_ids[0], {})
         if hall_view == "items":
             info_lines = list_item_descriptions()
-            title = "Town Hall - Items"
+        elif hall_view == "opponents":
+            info_lines = list_opponent_descriptions()
         else:
-            info_lines = list_monster_descriptions()
-            title = "Town Hall - Monsters"
-        body = [title, ""] + info_lines
+            info_lines = []
+        body = []
+        if npc_lines:
+            body += npc_lines + [""]
+        body += info_lines
         actions = [
-            "  [1] Monsters",
+            "  [1] Opponents",
             "  [2] Items",
             "  [B] Back",
             "  [Q] Quit",
         ]
         actions = format_action_lines(actions)
-        art_lines = []
-        art_color = ANSI.FG_WHITE
+        art_lines, art_color = render_venue_art(venue, npc)
     elif inventory_mode:
         items = inventory_items or []
         body = ["Inventory", ""]
@@ -489,42 +742,26 @@ def generate_demo_frame(
         actions = format_action_lines(actions)
     else:
         scene_data = load_scene_data().get("forest", {})
-        gap_width = int(scene_data.get("gap_width", 20))
-        forest_template = scene_data.get("art", [])
-        forest_art = []
-        for i, line in enumerate(forest_template):
-            gap_fill = " " * gap_width
-            primary = monsters[0] if monsters else None
-            if primary and primary.art_lines:
-                art = primary.art_lines or []
-                start_row = (len(forest_template) - len(art)) // 2
-                if start_row <= i < start_row + len(art):
-                    monster_line = art[i - start_row]
-                    pad_left = (gap_width - len(monster_line)) // 2
-                    pad_right = gap_width - len(monster_line) - pad_left
-                    monster_colored = (
-                        primary.art_color + monster_line + ANSI.FG_GREEN
-                    )
-                    gap_fill = (" " * pad_left) + monster_colored + (" " * pad_right)
-            forest_art.append(line.replace("{GAP}", gap_fill))
-        monster_lines = []
-        for i, m in enumerate(monsters[:3], start=1):
+        forest_art, art_color = render_forest_art(scene_data, opponents)
+        opponent_lines = []
+        for i, m in enumerate(opponents[:3], start=1):
             line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
             if m.stunned_turns > 0:
                 line += f" (Stun {m.stunned_turns})"
-            monster_lines.append(line)
+            opponent_lines.append(line)
+        primary = primary_opponent(opponents)
         body = [
             (
-                f"A {monsters[0].name} {monsters[0].arrival}."
-                if monsters
+                f"A {primary.name} {primary.arrival}."
+                if primary
                 else "All is quiet. No enemies in sight."
             ),
             "",
-            *monster_lines,
+            *opponent_lines,
         ]
-        if monsters:
+        if primary:
             actions = [
-                f"  [A] Attack the {monsters[0].name.lower()}",
+                f"  [A] Attack the {primary.name.lower()}",
             ]
             actions += [
                 "  [M] Magic",
@@ -534,7 +771,7 @@ def generate_demo_frame(
             ]
         else:
             actions = [
-                "  [F] Find a monster to fight",
+                "  [F] Find an opponent to fight",
             ]
             actions += [
                 "  [M] Magic",
@@ -544,7 +781,6 @@ def generate_demo_frame(
             ]
         actions = format_action_lines(actions)
         art_lines = forest_art
-        art_color = color_from_name(scene_data.get("color", "green"))
 
     status_lines = (
         textwrap.wrap(message, width=SCREEN_WIDTH - 4)
@@ -552,17 +788,7 @@ def generate_demo_frame(
         else []
     )
 
-    hp_text = color(f"HP: {player.hp} / {player.max_hp}", ANSI.FG_GREEN)
-    mp_text = color(f"MP: {player.mp} / {player.max_mp}", ANSI.FG_MAGENTA)
-    atk_text = color(f"ATK: {player.atk}", ANSI.DIM)
-    def_text = color(f"DEF: {player.defense}", ANSI.DIM)
-    level_text = color(f"Level: {player.level}", ANSI.FG_CYAN)
-    xp_text = color(f"XP: {player.xp}", ANSI.FG_GREEN)
-    gp_text = color(f"GP: {player.gold}", ANSI.FG_YELLOW)
-    stats = [
-        f"{hp_text}    {mp_text}    {atk_text}    {def_text}",
-        f"{level_text}    {xp_text}    {gp_text}",
-    ]
+    stats = format_player_stats(player)
 
     return Frame(
         title="World Builder — PROTOTYPE",
@@ -635,44 +861,55 @@ def allocate_random(player: Player):
         player.stat_points -= 1
 
 
-def try_stun(monster: Monster, chance: float) -> int:
+def try_stun(opponent: Opponent, chance: float) -> int:
     if random.random() < chance:
         turns = random.randint(1, 3)
-        monster.stunned_turns = max(monster.stunned_turns, turns)
+        opponent.stunned_turns = max(opponent.stunned_turns, turns)
         return turns
     return 0
 
 
-def cast_spark(player: Player, monsters: List[Monster], boosted: bool) -> str:
-    if not monsters:
+def alive_opponents(opponents: List[Opponent]) -> List[Opponent]:
+    return [opponent for opponent in opponents if opponent.hp > 0]
+
+
+def primary_opponent(opponents: List[Opponent]) -> Optional[Opponent]:
+    for opponent in opponents:
+        if opponent.hp > 0:
+            return opponent
+    return None
+
+
+def cast_spark(player: Player, opponents: List[Opponent], boosted: bool) -> str:
+    opponent = primary_opponent(opponents)
+    if not opponent:
         return "There is nothing to target."
-    monster = monsters[0]
     mp_cost = 4 if boosted else 2
     if player.mp < mp_cost:
         return "Not enough MP to cast Spark."
     player.mp -= mp_cost
-    damage, crit, miss = roll_damage(player.atk + 2, monster.defense)
+    damage, crit, miss = roll_damage(player.atk + 2, opponent.defense)
     if boosted:
         damage *= 2
     if miss:
-        return f"Your Spark misses the {monster.name}."
-    monster.hp = max(0, monster.hp - damage)
-    if monster.hp == 0:
-        xp_gain = random.randint(monster.max_hp // 2, monster.max_hp)
-        gold_gain = random.randint(monster.max_hp // 2, monster.max_hp)
+        return f"Your Spark misses the {opponent.name}."
+    opponent.hp = max(0, opponent.hp - damage)
+    if opponent.hp == 0:
+        xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
+        gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
         grant_xp(player, xp_gain)
         player.gold += gold_gain
         message = (
-            f"Your Spark fells the {monster.name}. You gain "
+            f"Your Spark fells the {opponent.name}. You gain "
             f"{xp_gain} XP and {gold_gain} gold."
         )
         return message
     stun_chance = 0.80 if boosted else 0.40
-    stunned_turns = try_stun(monster, stun_chance)
+    stunned_turns = try_stun(opponent, stun_chance)
     if crit:
-        message = f"Critical Spark! You hit the {monster.name} for {damage}."
+        message = f"Critical Spark! You hit the {opponent.name} for {damage}."
     else:
-        message = f"You hit the {monster.name} with Spark for {damage}."
+        message = f"You hit the {opponent.name} with Spark for {damage}."
     if stunned_turns > 0:
         message += f" It is stunned for {stunned_turns} turn(s)."
     return message
@@ -694,36 +931,36 @@ def cast_heal(player: Player, boosted: bool) -> str:
 def apply_command(
     command: str,
     player: Player,
-    monsters: List[Monster]
+    opponents: List[Opponent]
 ) -> str:
     # Placeholder for real game logic: return a message to display.
     if command == "ATTACK":
-        if not monsters:
+        opponent = primary_opponent(opponents)
+        if not opponent:
             return "There is nothing to attack."
-        monster = monsters[0]
-        damage, crit, miss = roll_damage(player.atk, monster.defense)
+        damage, crit, miss = roll_damage(player.atk, opponent.defense)
         if miss:
-            return f"You miss the {monster.name}."
-        monster.hp = max(0, monster.hp - damage)
-        if monster.hp == 0:
-            xp_gain = random.randint(monster.max_hp // 2, monster.max_hp)
-            gold_gain = random.randint(monster.max_hp // 2, monster.max_hp)
+            return f"You miss the {opponent.name}."
+        opponent.hp = max(0, opponent.hp - damage)
+        if opponent.hp == 0:
+            xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
+            gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
             grant_xp(player, xp_gain)
             player.gold += gold_gain
             message = (
-                f"You strike down the {monster.name} and gain "
+                f"You strike down the {opponent.name} and gain "
                 f"{xp_gain} XP and {gold_gain} gold."
             )
             return message
         if crit:
-            return f"Critical hit! You hit the {monster.name} for {damage}."
-        return f"You hit the {monster.name} for {damage}."
+            return f"Critical hit! You hit the {opponent.name} for {damage}."
+        return f"You hit the {opponent.name} for {damage}."
     if command == "HEAL":
         return cast_heal(player, boosted=False)
     if command == "INVENTORY":
         return format_inventory(player)
     if command == "SPARK":
-        return cast_spark(player, monsters, boosted=False)
+        return cast_spark(player, opponents, boosted=False)
     return "Unknown action."
 
 
@@ -872,6 +1109,121 @@ def render_frame(frame: Frame):
     print(border)
 
 
+def render_forest_frame(
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    gap_override: int,
+    art_opponents: Optional[List[Opponent]] = None
+):
+    scene_data = load_scene_data().get("forest", {})
+    forest_art, art_color = render_forest_art(
+        scene_data,
+        art_opponents if art_opponents is not None else opponents,
+        gap_override=gap_override
+    )
+    opponent_lines = []
+    for i, m in enumerate(opponents[:3], start=1):
+        line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
+        if m.stunned_turns > 0:
+            line += f" (Stun {m.stunned_turns})"
+        opponent_lines.append(line)
+    primary = primary_opponent(opponents)
+    body = [
+        (
+            f"A {primary.name} {primary.arrival}."
+            if primary
+            else "All is quiet. No enemies in sight."
+        ),
+        "",
+        *opponent_lines,
+    ]
+    if primary:
+        actions = [
+            f"  [A] Attack the {primary.name.lower()}",
+        ]
+        actions += [
+            "  [M] Magic",
+            "  [O] Open inventory",
+            "  [T] Return to Town",
+            "  [Q] Quit",
+        ]
+    else:
+        actions = [
+            "  [F] Find an opponent to fight",
+        ]
+        actions += [
+            "  [M] Magic",
+            "  [O] Open inventory",
+            "  [T] Return to Town",
+            "  [Q] Quit",
+        ]
+    frame = Frame(
+        title="World Builder — PROTOTYPE",
+        body_lines=body,
+        action_lines=format_action_lines(actions),
+        stat_lines=format_player_stats(player),
+        footer_hint=(
+            "Keys: A=Attack  H=Heal  S=Spark  I=Inventory  "
+            "R=Rest  N=Next  T=Town  F=Forrest  Q=Quit"
+        ),
+        location=player.location,
+        art_lines=forest_art,
+        art_color=art_color,
+        status_lines=(
+            textwrap.wrap(message, width=SCREEN_WIDTH - 4)
+            if message
+            else []
+        ),
+    )
+    render_frame(frame)
+
+
+def animate_forest_gap(
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    start_gap: int,
+    end_gap: int,
+    steps: int = 6,
+    delay: float = 0.06,
+    art_opponents: Optional[List[Opponent]] = None
+):
+    if start_gap == end_gap or steps <= 0:
+        return
+    for step in range(1, steps + 1):
+        t = step / steps
+        gap = int(round(start_gap + (end_gap - start_gap) * t))
+        render_forest_frame(player, opponents, message, gap, art_opponents)
+        time.sleep(delay)
+
+
+def animate_battle_start(player: Player, opponents: List[Opponent], message: str):
+    if player.location != "Forrest" or not opponents:
+        return
+    scene_data = load_scene_data().get("forest", {})
+    gap_base = (
+        int(scene_data.get("gap_min", 2))
+        if scene_data.get("left")
+        else int(scene_data.get("gap_width", 20))
+    )
+    gap_target = compute_forest_gap_target(scene_data, opponents)
+    animate_forest_gap(player, opponents, message, gap_base, gap_target, art_opponents=[])
+
+
+def animate_battle_end(player: Player, opponents: List[Opponent], message: str):
+    if player.location != "Forrest" or not opponents:
+        return
+    scene_data = load_scene_data().get("forest", {})
+    gap_base = (
+        int(scene_data.get("gap_min", 2))
+        if scene_data.get("left")
+        else int(scene_data.get("gap_width", 20))
+    )
+    gap_target = compute_forest_gap_target(scene_data, opponents)
+    animate_forest_gap(player, opponents, message, gap_target, gap_base, art_opponents=[])
+
+
 # -----------------------------
 # Single-key input (macOS/Linux)
 # -----------------------------
@@ -964,7 +1316,7 @@ def main():
         input("Press Enter to continue anyway...")
 
     player = new_player()
-    monsters: List[Monster] = []
+    opponents: List[Opponent] = []
 
     last_message = ""
     leveling_mode = False
@@ -973,7 +1325,7 @@ def main():
     inventory_mode = False
     inventory_items: List[tuple[str, str]] = []
     hall_mode = False
-    hall_view = "monsters"
+    hall_view = "menu"
     spell_mode = False
     quit_confirm = False
     title_mode = True
@@ -1063,7 +1415,7 @@ def main():
                 inventory_items = list_inventory_items(player)
             frame = generate_demo_frame(
                 player,
-                monsters,
+                opponents,
                 last_message,
                 leveling_mode,
                 shop_mode,
@@ -1093,7 +1445,7 @@ def main():
                 if ch.lower() == "y":
                     delete_save()
                     player = new_player()
-                    monsters = []
+                    opponents = []
                     title_mode = False
                     title_confirm = False
                     last_message = "You arrive in town."
@@ -1125,7 +1477,7 @@ def main():
             else:
                 last_message = "Choose C to continue, N for a new game, or Q to quit."
                 continue
-            monsters = []
+            opponents = []
             player.location = "Town"
             title_mode = False
             shop_mode = False
@@ -1149,7 +1501,7 @@ def main():
                 last_message = cast_heal(player, boosted)
                 action_cmd = "HEAL"
             else:
-                last_message = cast_spark(player, monsters, boosted)
+                last_message = cast_spark(player, opponents, boosted)
                 action_cmd = "SPARK"
             boost_prompt = None
             handled_boost = True
@@ -1236,8 +1588,8 @@ def main():
                 hall_mode = False
                 last_message = "You leave the hall."
             elif cmd == "NUM1":
-                hall_view = "monsters"
-                last_message = "Viewing monster info."
+                hall_view = "opponents"
+                last_message = "Viewing opponent info."
             elif cmd == "NUM2":
                 hall_view = "items"
                 last_message = "Viewing item info."
@@ -1270,7 +1622,7 @@ def main():
         if cmd == "HALL":
             if player.location == "Town":
                 hall_mode = True
-                hall_view = "monsters"
+                hall_view = "menu"
                 last_message = "Welcome to the hall."
                 continue
 
@@ -1285,9 +1637,10 @@ def main():
         if cmd == "F_KEY":
             if player.location == "Town":
                 player.location = "Forrest"
-                monsters = spawn_monsters(player.level)
-                if monsters:
-                    last_message = f"A {monsters[0].name} appears."
+                opponents = spawn_opponents(player.level)
+                if opponents:
+                    last_message = f"A {opponents[0].name} appears."
+                    animate_battle_start(player, opponents, last_message)
                 else:
                     last_message = "All is quiet. No enemies in sight."
                 shop_mode = False
@@ -1296,24 +1649,28 @@ def main():
                 spell_mode = False
                 save_game(player)
             else:
-                if monsters:
-                    last_message = f"You are already facing a {monsters[0].name}."
+                primary = primary_opponent(opponents)
+                if primary:
+                    last_message = f"You are already facing a {primary.name}."
                 else:
-                    monsters = spawn_monsters(player.level)
-                    if monsters:
-                        last_message = f"A {monsters[0].name} appears."
+                    opponents = spawn_opponents(player.level)
+                    if opponents:
+                        last_message = f"A {opponents[0].name} appears."
+                        animate_battle_start(player, opponents, last_message)
                     else:
                         last_message = "All is quiet. No enemies in sight."
                 save_game(player)
             continue
 
         if cmd == "NEXT":
-            if monsters:
-                last_message = f"You are already facing a {monsters[0].name}."
+            primary = primary_opponent(opponents)
+            if primary:
+                last_message = f"You are already facing a {primary.name}."
             else:
-                monsters = spawn_monsters(player.level)
-                if monsters:
-                    last_message = f"A {monsters[0].name} appears."
+                opponents = spawn_opponents(player.level)
+                if opponents:
+                    last_message = f"A {opponents[0].name} appears."
+                    animate_battle_start(player, opponents, last_message)
                 else:
                     last_message = "All is quiet. No enemies in sight."
             save_game(player)
@@ -1337,7 +1694,7 @@ def main():
                 last_message = "You are already in town."
             else:
                 player.location = "Town"
-                monsters = []
+                opponents = []
                 last_message = "You return to town."
             shop_mode = False
             inventory_mode = False
@@ -1351,9 +1708,10 @@ def main():
                 last_message = "You are already in the Forrest."
             else:
                 player.location = "Forrest"
-                monsters = spawn_monsters(player.level)
-                if monsters:
-                    last_message = f"A {monsters[0].name} appears."
+                opponents = spawn_opponents(player.level)
+                if opponents:
+                    last_message = f"A {opponents[0].name} appears."
+                    animate_battle_start(player, opponents, last_message)
                 else:
                     last_message = "All is quiet. No enemies in sight."
             shop_mode = False
@@ -1378,7 +1736,7 @@ def main():
                 last_message = cast_heal(player, boosted=False)
                 action_cmd = "HEAL"
             elif cmd == "SPARK":
-                if not monsters:
+                if not alive_opponents(opponents):
                     last_message = "There is nothing to target."
                     continue
                 if player.mp < 2:
@@ -1388,7 +1746,7 @@ def main():
                     boost_prompt = "SPARK"
                     last_message = "Boost Spark? (Y/N)"
                     continue
-                last_message = cast_spark(player, monsters, boosted=False)
+                last_message = cast_spark(player, opponents, boosted=False)
                 action_cmd = "SPARK"
             else:
                 if cmd == "INVENTORY":
@@ -1399,15 +1757,15 @@ def main():
                         inventory_mode = True
                         last_message = "Choose an item to use."
                     continue
-                last_message = apply_command(cmd, player, monsters)
+                last_message = apply_command(cmd, player, opponents)
                 if cmd == "ATTACK":
                     action_cmd = "ATTACK"
 
         if player.stat_points > 0:
             leveling_mode = True
 
-        if action_cmd in ("ATTACK", "SPARK", "HEAL") and monsters:
-            for m in list(monsters):
+        if action_cmd in ("ATTACK", "SPARK", "HEAL") and alive_opponents(opponents):
+            for m in list(opponents):
                 if m.hp <= 0:
                     continue
                 if m.stunned_turns > 0:
@@ -1431,7 +1789,7 @@ def main():
                     player.location = "Town"
                     player.hp = player.max_hp
                     player.mp = player.max_mp
-                    monsters = []
+                    opponents = []
                     last_message = (
                         "You were defeated and wake up at the inn. "
                         f"You lost {lost_gp} GP."
@@ -1439,7 +1797,9 @@ def main():
                     break
 
         if action_cmd in ("ATTACK", "SPARK"):
-            monsters = [m for m in monsters if m.hp > 0]
+            if not alive_opponents(opponents):
+                animate_battle_end(player, opponents, last_message)
+                opponents = []
 
         if action_cmd in ("ATTACK", "SPARK", "HEAL"):
             save_game(player)

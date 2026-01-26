@@ -1,0 +1,30 @@
+{
+  "shopkeeper_1": {
+    "name": "Kara",
+    "role": "Shopkeeper",
+    "greeting": "Welcome in. Take your time.",
+    "color": "cyan",
+    "art": [
+      "  .--.   ",
+      " /o_o \\  ",
+      " \\_^_/   ",
+      " /| | |\\ ",
+      "  | | |  ",
+      "  |_|_|  "
+    ]
+  },
+  "mayor_1": {
+    "name": "Mayor",
+    "role": "Town Hall",
+    "greeting": "Stay informed. The board is up to date.",
+    "color": "cyan",
+    "art": [
+      "  .--.   ",
+      " / _  \\  ",
+      " \\__/ /  ",
+      " /|==|\\ ",
+      "  |  |  ",
+      "  |_|_|  "
+    ]
+  }
+}

@@ -33,7 +33,7 @@ Once validated locally, the same engine and assets can be migrated to:
 - Spellbook (Healing / Spark) and boosted casting prompts
 - Items (Rations, Elixir) and purchasing via the shop
 - Inventory item usage with numbered selection
-- Multi-monster encounters (up to 3) with level-budget spawns
+- Multi-opponent encounters (up to 3) with level-budget spawns
 - Combat with variance, crits, misses, and Spark stun
 - Leveling: +10 stat points per level, allocation screen, auto-heal
 
@@ -67,7 +67,7 @@ Title Screen:
 
 Town:
 - `I` Inn (Rest, 10 GP) — only shown when HP/MP not full
-- `H` Hall (info on monsters/items)
+- `H` Hall (info on opponents/items)
 - `S` Shop
 - `O` Open Inventory
 - `F` Set out for the Forrest
@@ -77,13 +77,13 @@ Forest:
 - `A` Attack
 - `M` Magic (Spellbook)
 - `O` Open Inventory
-- `F` Find a monster to fight
+- `F` Find an opponent to fight
 - `T` Return to Town
 - `Q` Quit
 
 Menus:
 - Shop: `1` Rations, `2` Elixir, `B` Back, `Q` Quit
-- Hall: `1` Monsters, `2` Items, `B` Back, `Q` Quit
+- Hall: `1` Opponents, `2` Items, `B` Back, `Q` Quit
 - Spellbook: `1` Healing, `2` Spark, `B` Back, `Q` Quit
 - Inventory: `1-9` Use item, `B` Back, `Q` Quit
 - Level Up: `1-4` allocate stats, `B` Balanced, `X` Random
@@ -93,9 +93,11 @@ Menus:
 ## Assets
 
 Game data is externalized into JSON:
-- `monsters.json` — monster stats, art, descriptions
+- `opponents.json` — opponent stats, art, descriptions
 - `items.json` — item effects, prices, descriptions
 - `scenes.json` — scene art and colors
+- `npcs.json` — NPC names and dialog snippets
+- `venues.json` — venue metadata and NPC links
 
 ---
 
@@ -115,12 +117,11 @@ python3 main.py
 ### Currently Supported
 - macOS terminal
 - Linux terminal
-
-(Single-key input uses POSIX `termios` / `tty`.)
+- Windows terminal (uses `msvcrt.getch()` for single-key input)
 
 ### Not Yet Supported
-- Windows native terminal (would require `msvcrt.getch()` adapter)
 - Web UI
+- SSH/BBS frontend
 
 ---
 

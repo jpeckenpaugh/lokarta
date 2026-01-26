@@ -1,0 +1,43 @@
+{
+  "town_shop": {
+    "name": "Town Shop",
+    "scene_id": "shop",
+    "npc_ids": ["shopkeeper_1"],
+    "actions": ["buy", "leave"],
+    "inventory_source": "basic",
+    "color": "yellow",
+    "gap_width": 11,
+    "art": [
+      "               {GAP}               ",
+      "      .--.     {GAP}     .--.      ",
+      "     _________{GAP}_________     ",
+      "    /        {GAP}        \\    ",
+      "   /   TOWN  {GAP}  SHOP   \\   ",
+      "  |   GOODS  {GAP}         |  ",
+      "  |_________{GAP}_________|  ",
+      "     |  |   {GAP}  |  |     ",
+      "     |__|   {GAP}  |__|     ",
+      "               {GAP}               "
+    ]
+  },
+  "town_hall": {
+    "name": "Town Hall",
+    "scene_id": "hall",
+    "npc_ids": ["mayor_1"],
+    "actions": ["info_opponents", "info_items", "leave"],
+    "color": "yellow",
+    "gap_width": 13,
+    "art": [
+      "      _______{GAP}______      ",
+      "     /      {GAP}      \\     ",
+      "    /  TOWN {GAP}  HALL  \\    ",
+      "   |  NOTICE{GAP} BOARD  |   ",
+      "   |________{GAP}________|   ",
+      "      |  |  {GAP}  |  |      ",
+      "      |  |  {GAP}  |  |      ",
+      "      |__|  {GAP}  |__|      ",
+      "      |  |  {GAP}  |  |      ",
+      "      |__|  {GAP}  |__|      "
+    ]
+  }
+}
