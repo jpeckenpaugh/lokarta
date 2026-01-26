@@ -4,6 +4,45 @@
     "scene_id": "shop",
     "npc_ids": ["shopkeeper_1"],
     "actions": ["buy", "leave"],
+    "welcome_message": "Welcome to the shop.",
+    "leave_message": "You leave the shop.",
+    "commands": [
+      {
+        "key": "1",
+        "label": "Buy Rations",
+        "command": "NUM1"
+      },
+      {
+        "key": "2",
+        "label": "Buy Elixir",
+        "command": "NUM2"
+      },
+      {
+        "key": "B",
+        "label": "Back",
+        "command": "B_KEY"
+      },
+      {
+        "key": "Q",
+        "label": "Quit",
+        "command": "QUIT"
+      }
+    ],
+    "narrative": [
+      "Choose an item to purchase."
+    ],
+    "inventory_items": [
+      {
+        "command": "NUM1",
+        "item_id": "rations",
+        "label": "Rations (+5 HP/MP)"
+      },
+      {
+        "command": "NUM2",
+        "item_id": "elixir",
+        "label": "Elixir (+20 HP/MP)"
+      }
+    ],
     "inventory_source": "basic",
     "color": "yellow",
     "gap_width": 11,
@@ -25,6 +64,47 @@
     "scene_id": "hall",
     "npc_ids": ["mayor_1"],
     "actions": ["info_opponents", "info_items", "leave"],
+    "welcome_message": "Welcome to the hall.",
+    "leave_message": "You leave the hall.",
+    "commands": [
+      {
+        "key": "1",
+        "label": "Opponents",
+        "command": "NUM1"
+      },
+      {
+        "key": "2",
+        "label": "Items",
+        "command": "NUM2"
+      },
+      {
+        "key": "B",
+        "label": "Back",
+        "command": "B_KEY"
+      },
+      {
+        "key": "Q",
+        "label": "Quit",
+        "command": "QUIT"
+      }
+    ],
+    "info_sections": [
+      {
+        "key": "opponents",
+        "label": "Opponents",
+        "source": "opponents",
+        "command": "NUM1",
+        "message": "Viewing opponent info."
+      },
+      {
+        "key": "items",
+        "label": "Items",
+        "source": "items",
+        "command": "NUM2",
+        "message": "Viewing item info."
+      }
+    ],
+    "narrative": [],
     "color": "yellow",
     "gap_width": 13,
     "art": [

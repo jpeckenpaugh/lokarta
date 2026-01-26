@@ -13,6 +13,13 @@
       "   |_____|      |______|      |______|   ",
       " _/       \\_   _/      \\_    _/      \\_  "
     ],
+    "narrative": [
+      "You arrive in town, safe behind sturdy wooden walls.",
+      "",
+      "The inn's lantern glows warmly in the evening light.",
+      "A local shop can provide you with basic items.",
+      "If you are lost, check the town hall for instructions."
+    ],
     "commands": [
       {
         "key": "F",
@@ -51,6 +58,9 @@
       " /___\\___\\___\\/___\\",
       "~~~  ~~~  ~~~  ~~~",
       " ~~~  ~~~  ~~~  ~~~"
+    ],
+    "narrative": [
+      "All is quiet. No enemies in sight."
     ],
     "commands": [
       {

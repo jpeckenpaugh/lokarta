@@ -15,6 +15,7 @@ from commands.registry import CommandContext
 from commands.scene_commands import format_commands, scene_commands
 from data_access.commands_data import CommandsData
 from data_access.items_data import ItemsData
+from data_access.menus_data import MenusData
 from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
 from data_access.npcs_data import NpcsData
@@ -52,6 +53,7 @@ NPCS = NpcsData(os.path.join(DATA_DIR, "npcs.json"))
 VENUES = VenuesData(os.path.join(DATA_DIR, "venues.json"))
 SPELLS = SpellsData(os.path.join(DATA_DIR, "spells.json"))
 COMMANDS_DATA = CommandsData(os.path.join(DATA_DIR, "commands.json"))
+MENUS = MenusData(os.path.join(DATA_DIR, "menus.json"))
 SAVE_DATA = SaveData(SAVE_PATH)
 COMMANDS = build_registry()
 
@@ -71,6 +73,20 @@ def delete_save():
 
 def format_command_lines(commands: List[dict]) -> List[str]:
     return format_action_lines(format_commands(commands))
+
+
+def format_menu_actions(menu_data: dict, replacements: Optional[dict] = None) -> List[str]:
+    actions = []
+    replacements = replacements or {}
+    for command in menu_data.get("actions", []):
+        key = str(command.get("key", "")).upper()
+        label = str(command.get("label", "")).strip()
+        if not key or not label:
+            continue
+        for token, value in replacements.items():
+            label = label.replace(token, value)
+        actions.append(f"  [{key}] {label}")
+    return format_action_lines(actions)
 
 
 def purchase_item(player: Player, key: str) -> str:
@@ -123,8 +139,6 @@ def generate_demo_frame(
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif player.location == "Town" and shop_mode:
-        rations = ITEMS.get("rations", {})
-        elixir = ITEMS.get("elixir", {})
         venue = VENUES.get("town_shop", {})
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
@@ -135,31 +149,32 @@ def generate_demo_frame(
         body = []
         if npc_lines:
             body += npc_lines + [""]
-        body += [
-            f"Rations (+5 HP/MP)  {rations.get('price', 0)} GP",
-            f"Elixir (+20 HP/MP)  {elixir.get('price', 0)} GP",
-            "",
-            "Choose an item to purchase.",
-        ]
+        for entry in venue.get("inventory_items", []):
+            item_id = entry.get("item_id")
+            if not item_id:
+                continue
+            item = ITEMS.get(item_id, {})
+            label = entry.get("label", item.get("name", item_id))
+            price = item.get("price", 0)
+            body.append(f"{label}  {price} GP")
+        body.append("")
+        body += venue.get("narrative", [])
         art_lines, art_color = render_venue_art(venue, npc)
-        actions = [
-            "  [1] Buy Rations",
-            "  [2] Buy Elixir",
-            "  [B] Back",
-            "  [Q] Quit",
-        ]
-        actions = format_action_lines(actions)
+        actions = format_command_lines(venue.get("commands", []))
     elif player.location == "Town" and hall_mode:
         venue = VENUES.get("town_hall", {})
+        info_sections = venue.get("info_sections", [])
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
         npc = {}
         if npc_ids:
             npc_lines = NPCS.format_greeting(npc_ids[0])
             npc = NPCS.get(npc_ids[0], {})
-        if hall_view == "items":
+        section = next((entry for entry in info_sections if entry.get("key") == hall_view), None)
+        source = section.get("source") if section else None
+        if source == "items":
             info_lines = ITEMS.list_descriptions()
-        elif hall_view == "opponents":
+        elif source == "opponents":
             info_lines = OPPONENTS.list_descriptions()
         else:
             info_lines = []
@@ -167,59 +182,46 @@ def generate_demo_frame(
         if npc_lines:
             body += npc_lines + [""]
         body += info_lines
-        actions = [
-            "  [1] Opponents",
-            "  [2] Items",
-            "  [B] Back",
-            "  [Q] Quit",
-        ]
-        actions = format_action_lines(actions)
+        body += venue.get("narrative", [])
+        actions = format_command_lines(venue.get("commands", []))
         art_lines, art_color = render_venue_art(venue, npc)
     elif inventory_mode:
+        inventory_menu = MENUS.get("inventory", {})
         items = inventory_items or []
-        body = ["Inventory", ""]
+        title = inventory_menu.get("title", "Inventory")
+        body = [title, ""]
         if items:
             for i, (_, label) in enumerate(items[:9], start=1):
                 body.append(f"{i}. {label}")
         else:
-            body.append("Inventory is empty.")
-        actions = [
-            "  [1-9] Use item",
-            "  [B] Back",
-            "  [Q] Quit",
-        ]
-        actions = format_action_lines(actions)
+            body.append(inventory_menu.get("empty", "Inventory is empty."))
+        actions = format_menu_actions(inventory_menu)
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif spell_mode:
+        spell_menu = MENUS.get("spellbook", {})
         heal_cost = int(healing.get("mp_cost", 2))
         spark_cost = int(spark.get("mp_cost", 2))
         body = [
-            "Spellbook",
+            spell_menu.get("title", "Spellbook"),
             "",
             f"{heal_name} ({heal_cost} MP)",
             f"{spark_name} ({spark_cost} MP)",
         ]
-        actions = [
-            f"  [1] {heal_name}",
-            f"  [2] {spark_name}",
-            "  [B] Back",
-            "  [Q] Quit",
-        ]
-        actions = format_action_lines(actions)
+        actions = format_menu_actions(
+            spell_menu,
+            replacements={
+                "{heal_name}": heal_name,
+                "{spark_name}": spark_name,
+            },
+        )
         art_lines = []
         art_color = ANSI.FG_WHITE
     elif player.location == "Town":
         scene_data = SCENES.get("town", {})
         art_lines = scene_data.get("art", [])
         art_color = COLOR_BY_NAME.get(scene_data.get("color", "yellow").lower(), ANSI.FG_WHITE)
-        body = [
-            "You arrive in town, safe behind sturdy wooden walls.",
-            "",
-            "The inn's lantern glows warmly in the evening light.",
-            "A local shop can provide you with basic items.",
-            "If you are lost, check the town hall for instructions."
-        ]
+        body = scene_data.get("narrative", [])
         actions = format_command_lines(
             scene_commands(SCENES, COMMANDS_DATA, "town", player, opponents)
         )
@@ -233,15 +235,11 @@ def generate_demo_frame(
                 line += f" (Stun {m.stunned_turns})"
             opponent_lines.append(line)
         primary = primary_opponent(opponents)
-        body = [
-            (
-                f"A {primary.name} {primary.arrival}."
-                if primary
-                else "All is quiet. No enemies in sight."
-            ),
-            "",
-            *opponent_lines,
-        ]
+        default_narrative = scene_data.get("narrative", ["All is quiet. No enemies in sight."])
+        if primary:
+            body = [f"A {primary.name} {primary.arrival}.", "", *opponent_lines]
+        else:
+            body = [*default_narrative, "", *opponent_lines]
         actions = format_command_lines(
             scene_commands(SCENES, COMMANDS_DATA, "forest", player, opponents)
         )
@@ -781,27 +779,36 @@ def main():
                 continue
 
         if hall_mode and not handled_boost:
+            venue = VENUES.get("town_hall", {})
+            info_sections = venue.get("info_sections", [])
             if cmd == "B_KEY":
                 hall_mode = False
-                last_message = "You leave the hall."
-            elif cmd == "NUM1":
-                hall_view = "opponents"
-                last_message = "Viewing opponent info."
-            elif cmd == "NUM2":
-                hall_view = "items"
-                last_message = "Viewing item info."
+                last_message = venue.get("leave_message", "You leave the hall.")
+            else:
+                selected = next(
+                    (entry for entry in info_sections if entry.get("command") == cmd),
+                    None
+                )
+                if selected:
+                    hall_view = selected.get("key", hall_view)
+                    last_message = selected.get("message", last_message)
             continue
 
         if shop_mode and not handled_boost:
+            venue = VENUES.get("town_shop", {})
             if cmd == "B_KEY":
                 shop_mode = False
-                last_message = "You leave the shop."
-            elif cmd == "NUM1":
-                last_message = purchase_item(player, "rations")
-                SAVE_DATA.save_player(player)
-            elif cmd == "NUM2":
-                last_message = purchase_item(player, "elixir")
-                SAVE_DATA.save_player(player)
+                last_message = venue.get("leave_message", "You leave the shop.")
+            else:
+                selection = next(
+                    (entry for entry in venue.get("inventory_items", []) if entry.get("command") == cmd),
+                    None
+                )
+                if selection:
+                    item_id = selection.get("item_id")
+                    if item_id:
+                        last_message = purchase_item(player, item_id)
+                        SAVE_DATA.save_player(player)
             continue
 
         if cmd == "B_KEY":
@@ -812,7 +819,8 @@ def main():
         if cmd == "S_KEY":
             if player.location == "Town":
                 shop_mode = True
-                last_message = "Welcome to the shop."
+                venue = VENUES.get("town_shop", {})
+                last_message = venue.get("welcome_message", "Welcome to the shop.")
                 continue
             continue
 
@@ -820,7 +828,8 @@ def main():
             if player.location == "Town":
                 hall_mode = True
                 hall_view = "menu"
-                last_message = "Welcome to the hall."
+                venue = VENUES.get("town_hall", {})
+                last_message = venue.get("welcome_message", "Welcome to the hall.")
                 continue
 
         if cmd == "SPELLBOOK":
