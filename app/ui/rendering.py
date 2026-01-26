@@ -16,7 +16,7 @@ from app.ui.constants import (
     SCREEN_WIDTH,
     STAT_LINES,
 )
-from app.ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi
+from app.ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi, pad_ansi, strip_ansi
 from app.combat import battle_action_delay
 
 
@@ -92,7 +92,10 @@ def render_scene_art(
             continue
         is_visible = visible_indices is None or i in visible_indices
         if manual_lines_indices and i in manual_lines_indices:
-            art_lines = opponent.art_lines
+            raw_lines = [line[:OPPONENT_ART_WIDTH] for line in opponent.art_lines]
+            max_len = max((len(line) for line in raw_lines), default=0)
+            left_aligned = [line.ljust(max_len) for line in raw_lines]
+            art_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_aligned]
         elif opponent.hp > 0 and is_visible:
             raw_lines = [line[:OPPONENT_ART_WIDTH].rstrip() for line in opponent.art_lines]
             max_len = max((len(line) for line in raw_lines), default=0)
@@ -100,7 +103,7 @@ def render_scene_art(
             art_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_aligned]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
-                art_lines.append(format_opponent_bar(opponent))
+                art_lines.append(pad_ansi(format_opponent_bar(opponent), OPPONENT_ART_WIDTH))
         elif is_visible:
             art_lines = [" " * OPPONENT_ART_WIDTH for _ in opponent.art_lines]
             if include_bars:
@@ -111,6 +114,9 @@ def render_scene_art(
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
+        if manual_lines_indices and i in manual_lines_indices and include_bars:
+            art_lines.append(" " * OPPONENT_ART_WIDTH)
+            art_lines.append(" " * OPPONENT_ART_WIDTH)
         color_to_use = opponent.art_color
         if flash_index == i and flash_color:
             color_to_use = flash_color
@@ -153,7 +159,7 @@ def render_scene_art(
                 for block in opponent_blocks:
                     art_line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
                     width = block["width"]
-                    art_line = art_line.ljust(width)
+                    art_line = pad_ansi(art_line, width)
                     if art_line.strip():
                         segments.append(block["color"] + art_line + art_color)
                     else:
@@ -161,7 +167,8 @@ def render_scene_art(
                 inter_pad = 2
                 gap_pad = 2
                 content = (" " * inter_pad).join(segments)
-                content_width = (gap_pad * 2) + len(content)
+                visible_width = len(strip_ansi(content))
+                content_width = (gap_pad * 2) + visible_width
                 pad_left = 0
                 pad_right = max(0, gap_width - content_width)
                 gap_fill = (
@@ -186,7 +193,7 @@ def render_scene_art(
                 for block in opponent_blocks:
                     art_line = block["lines"][row_index] if row_index < len(block["lines"]) else ""
                     width = block["width"]
-                    art_line = art_line.ljust(width)
+                    art_line = pad_ansi(art_line, width)
                     if art_line.strip():
                         segments.append(block["color"] + art_line + art_color)
                     else:
@@ -194,7 +201,8 @@ def render_scene_art(
                 inter_pad = 2
                 gap_pad = 2
                 content = (" " * inter_pad).join(segments)
-                content_width = (gap_pad * 2) + len(content)
+                visible_width = len(strip_ansi(content))
+                content_width = (gap_pad * 2) + visible_width
                 gap_width = max(gap_width, content_width)
                 pad_left = 0
                 pad_right = max(0, gap_width - content_width)
@@ -431,10 +439,10 @@ def melt_opponent(
     if not opponent.art_lines:
         return
     width = OPPONENT_ART_WIDTH
-    bar = format_opponent_bar(opponent)
-    display_lines = [line[:width].center(width) for line in opponent.art_lines]
-    display_lines.append(" " * width)
-    display_lines.append(bar)
+    raw_lines = [line[:width].rstrip() for line in opponent.art_lines]
+    max_len = max((len(line) for line in raw_lines), default=0)
+    left_aligned = [line.ljust(max_len) for line in raw_lines]
+    display_lines = [line.center(width) for line in left_aligned]
     scene_data = scenes_data.get(scene_id, {})
     gap_target = compute_scene_gap_target(scene_data, opponents)
     for removed in range(1, len(display_lines) + 1):

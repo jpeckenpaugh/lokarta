@@ -21,6 +21,14 @@ def pad_or_trim_ansi(text: str, width: int) -> str:
     return text + (" " * (width - len(visible)))
 
 
+def pad_ansi(text: str, width: int) -> str:
+    # Pad based on visible length, never trim ANSI sequences.
+    visible = strip_ansi(text)
+    if len(visible) >= width:
+        return text
+    return text + (" " * (width - len(visible)))
+
+
 def center_ansi(text: str, width: int) -> str:
     visible_len = len(strip_ansi(text))
     if visible_len >= width:
