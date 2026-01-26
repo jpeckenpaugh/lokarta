@@ -2,8 +2,13 @@
   "town_shop": {
     "name": "Town Shop",
     "scene_id": "shop",
-    "npc_ids": ["shopkeeper_1"],
-    "actions": ["buy", "leave"],
+    "npc_ids": [
+      "shopkeeper_1"
+    ],
+    "actions": [
+      "buy",
+      "leave"
+    ],
     "welcome_message": "Welcome to the shop.",
     "leave_message": "You leave the shop.",
     "commands": [
@@ -14,8 +19,13 @@
       },
       {
         "key": "2",
-        "label": "Buy Elixir",
+        "label": "Buy Herbal Tea",
         "command": "NUM2"
+      },
+      {
+        "key": "3",
+        "label": "Buy Elixir",
+        "command": "NUM3"
       },
       {
         "key": "B",
@@ -39,6 +49,11 @@
       },
       {
         "command": "NUM2",
+        "item_id": "herbal_tea",
+        "label": "Herbal Tea (+10 HP/MP)"
+      },
+      {
+        "command": "NUM3",
         "item_id": "elixir",
         "label": "Elixir (+20 HP/MP)"
       }
@@ -62,8 +77,14 @@
   "town_hall": {
     "name": "Town Hall",
     "scene_id": "hall",
-    "npc_ids": ["mayor_1"],
-    "actions": ["info_opponents", "info_items", "leave"],
+    "npc_ids": [
+      "mayor_1"
+    ],
+    "actions": [
+      "info_opponents",
+      "info_items",
+      "leave"
+    ],
     "welcome_message": "Welcome to the hall.",
     "leave_message": "You leave the hall.",
     "commands": [
@@ -123,8 +144,13 @@
   "town_inn": {
     "name": "Town Inn",
     "scene_id": "inn",
-    "npc_ids": ["innkeeper_1"],
-    "actions": ["rest", "leave"],
+    "npc_ids": [
+      "innkeeper_1"
+    ],
+    "actions": [
+      "rest",
+      "leave"
+    ],
     "welcome_message": "Warm lights and quiet rooms await.",
     "leave_message": "You step back into the street.",
     "commands": [
