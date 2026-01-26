@@ -18,6 +18,11 @@
 - Update JSON assets instead of hardcoding data.
 - Avoid introducing non-ASCII characters unless already used.
 - Keep UI text concise to avoid truncation.
+- Keep commands data-driven; avoid hard-coded keys in `main.py`.
+- Place loop helpers in `app/loop.py` to keep the entrypoint thin.
+- Route menu actions through the router to avoid duplicate input handling.
+- Preserve trailing spaces in ASCII art JSON (alignment depends on them).
+- When adding venues, wire `scenes.json` → `venues.json` → router support.
 
 ## Quick Start
 - Run: `python3 main.py`.
