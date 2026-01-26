@@ -55,12 +55,16 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
 
     if art_template:
         if gap_width > 0:
+            raw_lines = [line[:gap_width].rstrip() for line in npc_art]
+            max_len = max((len(line) for line in raw_lines), default=0)
+            left_aligned = [line.ljust(max_len) for line in raw_lines]
+            centered = [line.center(gap_width) for line in left_aligned]
             art_lines = []
-            start_row = (len(art_template) - len(npc_art)) // 2
+            start_row = (len(art_template) - len(centered)) // 2
             for i, line in enumerate(art_template):
                 gap_fill = " " * gap_width
-                if npc_art and start_row <= i < start_row + len(npc_art):
-                    npc_line = npc_art[i - start_row].ljust(gap_width)
+                if centered and start_row <= i < start_row + len(centered):
+                    npc_line = centered[i - start_row]
                     gap_fill = npc_color + npc_line + art_color
                 art_lines.append(line.replace("{GAP}", gap_fill))
             return art_lines, art_color
