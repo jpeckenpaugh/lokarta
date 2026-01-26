@@ -29,9 +29,15 @@ Once validated locally, the same engine and assets can be migrated to:
 - `main.py` — game loop and state orchestration
 - `models.py` — core dataclasses (`Player`, `Opponent`, `Frame`)
 - `combat.py` — combat helpers and timing
+- `input.py` — single-key input handling
+- `shop.py` — shop interaction helpers
 - `commands/` — command registry and command modules
 - `ui/` — layout, rendering, and screen composition helpers
 - `data_access/` — JSON data loaders
+- `data/` — JSON content packs
+- `saves/` — local save slots
+- `docs/` — schema and design notes
+- `tests/` — unit tests
 
 ---
 
@@ -82,6 +88,7 @@ Town/Forest/Menus:
   `data/venues.json`, and `data/menus.json`.
 - The action panel reflects the active commands and their conditions.
 - Command schema notes: `docs/commands.md`.
+- Boost prompts and timing are driven by `data/spells.json`.
 
 ---
 

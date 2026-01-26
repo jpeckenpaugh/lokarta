@@ -11,7 +11,7 @@ Commands are defined in JSON (global, scenes, venues, menus) and merged at runti
 ## Optional Fields
 
 - `target`: string target used by the command (e.g., `"forest"`, `"town_shop"`)
-- `when`: string condition for filtering (e.g., `"has_opponents"`, `"no_opponents"`, `"needs_rest"`)
+- `when`: string condition for filtering (e.g., `"has_opponents"`, `"no_opponents"`, `"needs_rest"`, `"has_save"`)
 
 ## Examples
 
@@ -29,5 +29,14 @@ Commands are defined in JSON (global, scenes, venues, menus) and merged at runti
   "key": "1",
   "label": "Buy Rations",
   "command": "NUM1"
+}
+```
+
+```json
+{
+  "key": "S",
+  "label": "Shop",
+  "command": "ENTER_VENUE",
+  "target": "town_shop"
 }
 ```
