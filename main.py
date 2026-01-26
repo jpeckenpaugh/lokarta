@@ -8,6 +8,7 @@ import textwrap
 from dataclasses import replace
 from typing import List, Optional
 
+from combat import add_loot, cast_spell, primary_opponent, roll_damage
 from data_access.items_data import ItemsData
 from data_access.opponents_data import OpponentsData
 from data_access.scenes_data import ScenesData
@@ -586,99 +587,6 @@ def generate_demo_frame(
     )
 
 
-def roll_damage(attacker_atk: int, defender_def: int) -> tuple[int, bool, bool]:
-    base = max(1, attacker_atk - defender_def)
-    low = max(1, base - 2)
-    high = base + 2
-    if random.random() < 0.05:
-        return 0, False, True
-    damage = random.randint(low, high)
-    crit = random.random() < 0.10
-    if crit:
-        damage *= 2
-    return damage, crit, False
-
-
-def try_stun(opponent: Opponent, chance: float) -> int:
-    if random.random() < chance:
-        turns = random.randint(1, 3)
-        opponent.stunned_turns = max(opponent.stunned_turns, turns)
-        return turns
-    return 0
-
-
-def primary_opponent(opponents: List[Opponent]) -> Optional[Opponent]:
-    for opponent in opponents:
-        if opponent.hp > 0:
-            return opponent
-    return None
-
-
-def add_loot(loot: dict, xp: int, gold: int):
-    loot["xp"] = loot.get("xp", 0) + xp
-    loot["gold"] = loot.get("gold", 0) + gold
-
-
-def cast_spell(
-    player: Player,
-    opponents: List[Opponent],
-    spell_id: str,
-    boosted: bool,
-    loot: dict
-) -> str:
-    spell = SPELLS.get(spell_id, {})
-    name = spell.get("name", spell_id.title())
-    mp_cost = int(spell.get("boosted_mp_cost", 4 if boosted else 2))
-    if not boosted:
-        mp_cost = int(spell.get("mp_cost", 2))
-    if player.mp < mp_cost:
-        return f"Not enough MP to cast {name}."
-
-    if spell_id == "healing":
-        if player.hp == player.max_hp:
-            return "Your HP is already full."
-        player.mp -= mp_cost
-        heal_amount = int(spell.get("boosted_heal", 20 if boosted else 10))
-        if not boosted:
-            heal_amount = int(spell.get("heal", 10))
-        heal = min(heal_amount, player.max_hp - player.hp)
-        player.hp += heal
-        return f"You cast {name} and restore {heal} HP."
-
-    if spell_id == "spark":
-        opponent = primary_opponent(opponents)
-        if not opponent:
-            return "There is nothing to target."
-        player.mp -= mp_cost
-        atk_bonus = int(spell.get("atk_bonus", 2))
-        damage, crit, miss = roll_damage(player.atk + atk_bonus, opponent.defense)
-        if boosted:
-            damage *= int(spell.get("boosted_multiplier", 2))
-        if miss:
-            return f"Your {name} misses the {opponent.name}."
-        opponent.hp = max(0, opponent.hp - damage)
-        if opponent.hp == 0:
-            xp_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-            gold_gain = random.randint(opponent.max_hp // 2, opponent.max_hp)
-            add_loot(loot, xp_gain, gold_gain)
-            opponent.melted = False
-            message = f"Your {name} fells the {opponent.name}."
-            return message
-        stun_chance = float(spell.get("boosted_stun_chance", 0.8 if boosted else 0.4))
-        if not boosted:
-            stun_chance = float(spell.get("stun_chance", 0.4))
-        stunned_turns = try_stun(opponent, stun_chance)
-        if crit:
-            message = f"Critical {name}! You hit the {opponent.name} for {damage}."
-        else:
-            message = f"You hit the {opponent.name} with {name} for {damage}."
-        if stunned_turns > 0:
-            message += f" It is stunned for {stunned_turns} turn(s)."
-        return message
-
-    return f"{name} fizzles with no effect."
-
-
 def apply_command(
     command: str,
     player: Player,
@@ -707,11 +615,11 @@ def apply_command(
             return f"Critical hit! You hit the {opponent.name} for {damage}."
         return f"You hit the {opponent.name} for {damage}."
     if command == "HEAL":
-        return cast_spell(player, opponents, "healing", boosted=False, loot=loot)
+        return cast_spell(player, opponents, "healing", boosted=False, loot=loot, spells_data=SPELLS)
     if command == "INVENTORY":
         return player.format_inventory(ITEMS)
     if command == "SPARK":
-        return cast_spell(player, opponents, "spark", boosted=False, loot=loot)
+        return cast_spell(player, opponents, "spark", boosted=False, loot=loot, spells_data=SPELLS)
     return "Unknown action."
 
 
@@ -1335,10 +1243,10 @@ def main():
                 continue
 
             if boost_prompt == "HEAL":
-                last_message = cast_spell(player, opponents, "healing", boosted, loot_bank)
+                last_message = cast_spell(player, opponents, "healing", boosted, loot_bank, SPELLS)
                 action_cmd = "HEAL"
             else:
-                last_message = cast_spell(player, opponents, "spark", boosted, loot_bank)
+                last_message = cast_spell(player, opponents, "spark", boosted, loot_bank, SPELLS)
                 action_cmd = "SPARK"
             boost_prompt = None
             handled_boost = True
@@ -1550,7 +1458,7 @@ def main():
                     boost_prompt = "HEAL"
                     last_message = f"Boost {healing.get('name', 'Healing')}? (Y/N)"
                     continue
-                last_message = cast_spell(player, opponents, "healing", boosted=False, loot=loot_bank)
+                last_message = cast_spell(player, opponents, "healing", boosted=False, loot=loot_bank, spells_data=SPELLS)
                 action_cmd = "HEAL"
             elif cmd == "SPARK":
                 if not any(opponent.hp > 0 for opponent in opponents):
@@ -1566,7 +1474,7 @@ def main():
                     boost_prompt = "SPARK"
                     last_message = f"Boost {spark.get('name', 'Spark')}? (Y/N)"
                     continue
-                last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank)
+                last_message = cast_spell(player, opponents, "spark", boosted=False, loot=loot_bank, spells_data=SPELLS)
                 action_cmd = "SPARK"
             else:
                 if cmd == "INVENTORY":
