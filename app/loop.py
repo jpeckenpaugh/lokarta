@@ -15,12 +15,20 @@ from app.ui.rendering import animate_battle_end, animate_battle_start, flash_opp
 from app.ui.text import format_text
 
 
+def _status_message(state: GameState, message: Optional[str]) -> str:
+    if message is not None:
+        return message
+    if state.player.location == "Forest" and state.battle_log:
+        return "\n".join(state.battle_log)
+    return state.last_message
+
+
 def render_frame_state(ctx, render_frame, state: GameState, generate_frame, message: Optional[str] = None, suppress_actions: bool = False) -> None:
     frame = generate_frame(
         ctx.screen_ctx,
         state.player,
         state.opponents,
-        state.last_message if message is None else message,
+        _status_message(state, message),
         state.leveling_mode,
         state.shop_mode,
         state.inventory_mode,
@@ -35,7 +43,8 @@ def render_frame_state(ctx, render_frame, state: GameState, generate_frame, mess
 
 
 def render_battle_pause(ctx, render_frame, state: GameState, generate_frame, message: str) -> None:
-    render_frame_state(ctx, render_frame, state, generate_frame, message=message, suppress_actions=True)
+    log_message = "\n".join(state.battle_log) if state.battle_log else message
+    render_frame_state(ctx, render_frame, state, generate_frame, message=log_message, suppress_actions=True)
     time.sleep(battle_action_delay(state.player))
 
 
@@ -85,6 +94,7 @@ def run_target_select(ctx, render_frame, state: GameState, generate_frame, read_
         state.target_index = indices[0]
     blink_on = True
     while state.target_select:
+        message = "\n".join(state.battle_log)
         flash_index = state.target_index if blink_on else None
         gap_target = ctx.scenes.get("forest", {}).get("gap_width", 0)
         if isinstance(gap_target, str):
@@ -98,11 +108,12 @@ def run_target_select(ctx, render_frame, state: GameState, generate_frame, read_
             "forest",
             state.player,
             state.opponents,
-            "Select target (←/→, Enter)",
+            message,
             gap_override=gap_target,
             flash_index=flash_index,
             flash_color=ANSI.FG_YELLOW,
             suppress_actions=True,
+            show_target_prompt=True,
         )
         ch = read_keypress_timeout(0.4)
         if ch is None:
@@ -188,12 +199,32 @@ def maybe_begin_target_select(ctx, state: GameState, cmd: Optional[str]) -> bool
     return True
 
 
+def push_battle_message(state: GameState, message: str, max_lines: int = 6) -> None:
+    state.last_message = message
+    if state.player.location != "Forest":
+        return
+    if message:
+        if not state.battle_log and _is_arrival_message(state, message):
+            return
+        state.battle_log.append(message)
+        if len(state.battle_log) > max_lines:
+            state.battle_log = state.battle_log[-max_lines:]
+
+
+def _is_arrival_message(state: GameState, message: str) -> bool:
+    if message == "Opponents emerge from the forest.":
+        return True
+    if message.startswith("A ") and message.endswith("."):
+        return True
+    return False
+
+
 def apply_boost_confirm(ctx, state: GameState, ch: str, action_cmd: Optional[str]) -> tuple[bool, Optional[str], bool]:
     if not state.boost_prompt:
         return False, action_cmd, False
     if ch.lower() not in ("y", "n"):
-        state.last_message = "Choose Y or N to boost the spell."
-        return True, action_cmd, True
+            state.last_message = "Choose Y or N to boost the spell."
+            return True, action_cmd, True
     boosted = ch.lower() == "y"
     spell_id = state.boost_prompt
     cmd_state = CommandState(
@@ -212,7 +243,7 @@ def apply_boost_confirm(ctx, state: GameState, ch: str, action_cmd: Optional[str
         target_index=state.target_index,
     )
     handle_boost_confirm(cmd_state, ctx.router_ctx, spell_id, boosted)
-    state.last_message = cmd_state.last_message
+    push_battle_message(state, cmd_state.last_message)
     state.boost_prompt = None
     return True, cmd_state.action_cmd, False
 
@@ -246,7 +277,7 @@ def apply_router_command(
         return False, action_cmd, cmd, False
     state.opponents = cmd_state.opponents
     state.loot_bank = cmd_state.loot_bank
-    state.last_message = cmd_state.last_message
+    push_battle_message(state, cmd_state.last_message)
     state.shop_mode = cmd_state.shop_mode
     state.inventory_mode = cmd_state.inventory_mode
     state.inventory_items = cmd_state.inventory_items
@@ -259,6 +290,8 @@ def apply_router_command(
         state.title_mode = False
     state.player = cmd_state.player
     if command_meta and command_meta.get("anim") == "battle_start" and state.opponents:
+        if not state.battle_log and _is_arrival_message(state, state.last_message):
+            state.last_message = ""
         animate_battle_start(
             ctx.scenes,
             ctx.commands_data,
@@ -305,17 +338,18 @@ def resolve_player_action(
             prompt = spell.get("boost_prompt_text", "Boost {name}? (Y/N)")
             state.last_message = prompt.replace("{name}", name)
             return None
-        state.last_message = cast_spell(
-            state.player,
-            state.opponents,
-            spell_id,
-            boosted=False,
-            loot=state.loot_bank,
-            spells_data=ctx.spells,
-            target_index=state.target_index,
-        )
-        return cmd
-    state.last_message = dispatch_command(
+    message = cast_spell(
+        state.player,
+        state.opponents,
+        spell_id,
+        boosted=False,
+        loot=state.loot_bank,
+        spells_data=ctx.spells,
+        target_index=state.target_index,
+    )
+    push_battle_message(state, message)
+    return cmd
+    message = dispatch_command(
         ctx.registry,
         cmd,
         CommandContext(
@@ -327,6 +361,7 @@ def resolve_player_action(
             target_index=state.target_index,
         ),
     )
+    push_battle_message(state, message)
     if command_meta and command_meta.get("type") == "combat":
         return cmd
     if command_meta and command_meta.get("anim") == "battle_start":
@@ -337,6 +372,7 @@ def resolve_player_action(
 def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) -> None:
     if action_cmd not in ctx.offensive_actions:
         return
+    message = _status_message(state, None)
     target_index = primary_opponent_index(state.opponents)
     flash_opponent(
         ctx.scenes,
@@ -344,7 +380,7 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
         "forest",
         state.player,
         state.opponents,
-        state.last_message,
+        message,
         target_index,
         ANSI.FG_YELLOW
     )
@@ -359,7 +395,7 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
             "forest",
             state.player,
             state.opponents,
-            state.last_message,
+            message,
             index
         )
         state.opponents[index].melted = True
@@ -369,36 +405,36 @@ def run_opponent_turns(ctx, render_frame, state: GameState, generate_frame, acti
     if action_cmd not in ctx.combat_actions or not any(opponent.hp > 0 for opponent in state.opponents):
         return False
     if state.player.location == "Forest":
-        render_battle_pause(ctx, render_frame, state, generate_frame, state.last_message)
+        render_battle_pause(ctx, render_frame, state, generate_frame, _status_message(state, None))
     acting = [(i, m) for i, m in enumerate(state.opponents) if m.hp > 0]
     for idx, (opp_index, m) in enumerate(acting):
         if m.stunned_turns > 0:
             m.stunned_turns -= 1
             template = ctx.texts.get("battle", "opponent_stunned", "The {name} is stunned.")
-            state.last_message += " " + format_text(template, name=m.name)
+            push_battle_message(state, format_text(template, name=m.name))
         elif random.random() > m.action_chance:
             template = ctx.texts.get("battle", "opponent_hesitates", "The {name} hesitates.")
-            state.last_message += " " + format_text(template, name=m.name)
+            push_battle_message(state, format_text(template, name=m.name))
         else:
             damage, crit, miss = roll_damage(m.atk, state.player.defense)
             if miss:
                 template = ctx.texts.get("battle", "opponent_miss", "The {name} misses you.")
-                state.last_message += " " + format_text(template, name=m.name)
+                push_battle_message(state, format_text(template, name=m.name))
             else:
                 state.player.hp = max(0, state.player.hp - damage)
                 if crit:
                     template = ctx.texts.get("battle", "opponent_crit", "Critical hit! The {name} hits you for {damage}.")
-                    state.last_message += " " + format_text(template, name=m.name, damage=damage)
+                    push_battle_message(state, format_text(template, name=m.name, damage=damage))
                 else:
                     template = ctx.texts.get("battle", "opponent_hit", "The {name} hits you for {damage}.")
-                    state.last_message += " " + format_text(template, name=m.name, damage=damage)
+                    push_battle_message(state, format_text(template, name=m.name, damage=damage))
             flash_opponent(
                 ctx.scenes,
                 ctx.commands_data,
                 "forest",
                 state.player,
                 state.opponents,
-                state.last_message,
+                _status_message(state, None),
                 opp_index,
                 ANSI.FG_RED
             )
@@ -410,10 +446,10 @@ def run_opponent_turns(ctx, render_frame, state: GameState, generate_frame, acti
                 state.player.mp = state.player.max_mp
                 state.opponents = []
                 state.loot_bank = {"xp": 0, "gold": 0}
-                state.last_message = (
+                push_battle_message(state, (
                     "You were defeated and wake up at the inn. "
                     f"You lost {lost_gp} GP."
-                )
+                ))
                 return True
         if state.player.location == "Forest" and idx < len(acting) - 1:
             render_battle_pause(ctx, render_frame, state, generate_frame, state.last_message)
@@ -438,12 +474,13 @@ def handle_battle_end(ctx, state: GameState, action_cmd: Optional[str]) -> None:
     if state.loot_bank["xp"] or state.loot_bank["gold"]:
         state.player.gain_xp(state.loot_bank["xp"])
         state.player.gold += state.loot_bank["gold"]
-        state.last_message = (
+        push_battle_message(state, (
             f"You gain {state.loot_bank['xp']} XP and "
             f"{state.loot_bank['gold']} gold."
-        )
+        ))
         if state.player.needs_level_up():
             state.leveling_mode = True
     else:
         state.last_message = ""
+    state.battle_log = []
     state.loot_bank = {"xp": 0, "gold": 0}

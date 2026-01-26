@@ -1,6 +1,6 @@
 """State container for the main game loop."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 from app.models import Player, Opponent
@@ -26,3 +26,4 @@ class GameState:
     target_select: bool = False
     target_index: Optional[int] = None
     target_command: Optional[str] = None
+    battle_log: list[str] = field(default_factory=list)

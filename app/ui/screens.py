@@ -196,30 +196,40 @@ def generate_frame(
     else:
         scene_data = ctx.scenes.get("forest", {})
         forest_art, art_color = render_scene_art(scene_data, opponents)
-        opponent_lines = []
-        for i, m in enumerate(opponents[:3], start=1):
-            line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
-            if m.stunned_turns > 0:
-                line += f" (Stun {m.stunned_turns})"
-            opponent_lines.append(line)
-        primary = next((o for o in opponents if o.hp > 0), None)
+        alive = [o for o in opponents if o.hp > 0]
         default_text = ctx.text.get("battle", "quiet", "All is quiet. No enemies in sight.")
         default_narrative = scene_data.get("narrative", [default_text])
-        if primary:
-            arrival = ctx.text.get("battle", "opponent_arrival", "A {name} {arrival}.")
-            body = [format_text(arrival, name=primary.name, arrival=primary.arrival), "", *opponent_lines]
+        if alive:
+            if len(alive) > 1:
+                arrival = ctx.text.get("battle", "opponent_arrival_plural", "Opponents emerge from the forest.")
+                body = [arrival]
+            else:
+                primary = alive[0]
+                arrival = ctx.text.get("battle", "opponent_arrival", "A {name} {arrival}.")
+                body = [format_text(arrival, name=primary.name, arrival=primary.arrival)]
         else:
-            body = [*default_narrative, "", *opponent_lines]
+            body = [*default_narrative]
+        if message:
+            lines = [line for line in message.splitlines() if line.strip() != ""]
+            if lines:
+                if body and lines and lines[0].startswith("A ") and lines[0].endswith("."):
+                    lines = []
+                body += lines
         actions = format_command_lines(
             scene_commands(ctx.scenes, ctx.commands, "forest", player, opponents)
         )
         art_lines = forest_art
 
-    status_lines = (
-        textwrap.wrap(message, width=SCREEN_WIDTH - 4)
-        if message
-        else []
-    )
+    if player.location == "Forest":
+        status_lines = []
+    elif message and "\n" in message:
+        status_lines = [line for line in message.splitlines() if line.strip() != ""]
+    else:
+        status_lines = (
+            textwrap.wrap(message, width=SCREEN_WIDTH - 4)
+            if message
+            else []
+        )
 
     return Frame(
         title="World Builder — PROTOTYPE",

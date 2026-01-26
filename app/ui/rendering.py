@@ -250,7 +250,8 @@ def render_scene_frame(
     visible_indices: Optional[set] = None,
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None,
-    suppress_actions: bool = False
+    suppress_actions: bool = False,
+    show_target_prompt: bool = False,
 ):
     scene_data = scenes_data.get(scene_id, {})
     art_lines, art_color = render_scene_art(
@@ -263,22 +264,19 @@ def render_scene_frame(
         include_bars=include_bars,
         manual_lines_indices=manual_lines_indices
     )
-    opponent_lines = []
-    for i, m in enumerate(opponents[:3], start=1):
-        line = f"{i}) {m.name} L{m.level} HP {m.hp}/{m.max_hp} ATK {m.atk} DEF {m.defense}"
-        if m.stunned_turns > 0:
-            line += f" (Stun {m.stunned_turns})"
-        opponent_lines.append(line)
-    primary = next((o for o in opponents if o.hp > 0), None)
-    body = [
-        (
-            f"A {primary.name} {primary.arrival}."
-            if primary
-            else "All is quiet. No enemies in sight."
-        ),
-        "",
-        *opponent_lines,
-    ]
+    alive = [o for o in opponents if o.hp > 0]
+    if alive:
+        if len(alive) > 1:
+            body = ["Opponents emerge from the forest."]
+        else:
+            primary = alive[0]
+            body = [f"A {primary.name} {primary.arrival}."]
+    else:
+        body = ["All is quiet. No enemies in sight."]
+    if message:
+        lines = [line for line in message.splitlines() if line.strip() != ""]
+        if lines:
+            body += lines
     commands = scene_commands(scenes_data, commands_data, scene_id, player, opponents)
     actions = format_action_lines(format_commands(commands))
     if suppress_actions:
@@ -292,11 +290,7 @@ def render_scene_frame(
         location=player.location,
         art_lines=art_lines,
         art_color=art_color,
-        status_lines=(
-            textwrap.wrap(message, width=SCREEN_WIDTH - 4)
-            if message
-            else []
-        ),
+        status_lines=["Select target (←/→, Enter)"] if show_target_prompt else [],
     )
     render_frame(frame)
 
@@ -535,14 +529,13 @@ def render_frame(frame: Frame):
         divider_row = "-" * (SCREEN_WIDTH - 4)
         body_rows.append(color(divider_row, ANSI.FG_BLUE))
 
-    narrative_index = 0
-    for _ in range(narrative_space):
-        raw = (
-            frame.body_lines[narrative_index]
-            if narrative_index < len(frame.body_lines)
-            else ""
-        )
-        narrative_index += 1
+    if frame.location == "Forest":
+        visible_lines = frame.body_lines[-narrative_space:] if narrative_space > 0 else []
+    else:
+        visible_lines = frame.body_lines[:narrative_space]
+
+    for i in range(narrative_space):
+        raw = visible_lines[i] if i < len(visible_lines) else ""
         if raw:
             raw = (" " * NARRATIVE_INDENT) + raw
         body_rows.append(pad_or_trim_ansi(raw, SCREEN_WIDTH - 4))
