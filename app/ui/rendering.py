@@ -53,6 +53,7 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
     gap_width = int(venue.get("gap_width", 0))
     left = venue.get("left", [])
     right = venue.get("right", [])
+    top = venue.get("top")
 
     if left:
         if not right:
@@ -72,7 +73,9 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
             left_line = left[i] if i < len(left) else (" " * max_left)
             right_line = right[i] if i < len(right) else (" " * max_right)
             gap_fill = " " * gap_width
-            if centered and start_row <= i < start_row + len(centered):
+            if top and i == 0:
+                gap_fill = "=" * gap_width
+            elif centered and start_row <= i < start_row + len(centered):
                 npc_line = centered[i - start_row]
                 gap_fill = npc_color + npc_line + art_color
             art_lines.append(left_line + gap_fill + right_line)
