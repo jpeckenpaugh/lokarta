@@ -57,7 +57,12 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
     top_color = venue.get("top_color", "")
     left_color = venue.get("left_color", [])
     right_color = venue.get("right_color", [])
-    color_map = venue.get("color_map") or (color_map_override or {})
+    color_map = {}
+    if isinstance(color_map_override, dict):
+        color_map.update(color_map_override)
+    venue_color_map = venue.get("color_map")
+    if isinstance(venue_color_map, dict):
+        color_map.update(venue_color_map)
 
     def truecolor(code: str) -> str:
         value = code.lstrip("#")
@@ -112,6 +117,20 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                 out.append(ch)
         return "".join(out)
 
+    def apply_npc_mask(line: str, mask: str) -> str:
+        if not color_by_key or not mask:
+            return npc_color + line + art_color
+        base = npc_color
+        out = [base]
+        for i, ch in enumerate(line):
+            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            if code:
+                out.append(code + ch + ANSI.RESET + base)
+            else:
+                out.append(ch)
+        out.append(art_color)
+        return "".join(out)
+
     if left:
         if not right:
             right = [mirror_line(line) for line in left]
@@ -141,7 +160,14 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                 gap_fill = apply_color_mask("=" * gap_width, mask)
             elif centered and start_row <= i < start_row + len(centered):
                 npc_line = centered[i - start_row]
-                gap_fill = npc_color + npc_line + art_color
+                npc_mask_line = ""
+                npc_mask = npc.get("color_map")
+                if isinstance(npc_mask, list):
+                    npc_mask_line = npc_mask[i - start_row] if i - start_row < len(npc_mask) else ""
+                if npc_mask_line:
+                    gap_fill = apply_npc_mask(npc_line, npc_mask_line)
+                else:
+                    gap_fill = npc_color + npc_line + art_color
             art_lines.append(left_line + gap_fill + right_line)
         return art_lines, art_color
 
@@ -156,8 +182,15 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             start_row = max(0, len(art_template) - len(centered))
             for i, line in enumerate(art_template):
                 gap_fill = " " * gap_width
-                if centered and start_row <= i < start_row + len(centered):
-                    npc_line = centered[i - start_row]
+            if centered and start_row <= i < start_row + len(centered):
+                npc_line = centered[i - start_row]
+                npc_mask_line = ""
+                npc_mask = npc.get("color_map")
+                if isinstance(npc_mask, list):
+                    npc_mask_line = npc_mask[i - start_row] if i - start_row < len(npc_mask) else ""
+                if npc_mask_line:
+                    gap_fill = apply_npc_mask(npc_line, npc_mask_line)
+                else:
                     gap_fill = npc_color + npc_line + art_color
                 art_lines.append(line.replace("{GAP}", gap_fill))
             return art_lines, art_color
@@ -173,7 +206,12 @@ def render_venue_objects(
 ) -> tuple[List[str], str, Optional[int]]:
     art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
     npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
-    color_map = venue.get("color_map") or (color_map_override or {})
+    color_map = {}
+    if isinstance(color_map_override, dict):
+        color_map.update(color_map_override)
+    venue_color_map = venue.get("color_map")
+    if isinstance(venue_color_map, dict):
+        color_map.update(venue_color_map)
 
     def truecolor(code: str) -> str:
         value = code.lstrip("#")
@@ -217,6 +255,8 @@ def render_venue_objects(
 
     npc_key = "@"
     color_by_key[npc_key] = npc_color
+    npc_mask_lines = npc.get("color_map", []) if isinstance(npc.get("color_map"), list) else []
+    npc_has_mask = len(npc_mask_lines) > 0
 
     def apply_color_mask(line: str, mask: str) -> str:
         if not color_by_key or not mask:
@@ -245,7 +285,7 @@ def render_venue_objects(
 
     def _obj_mask(obj_id: str) -> List[str]:
         if obj_id == "npc":
-            return []
+            return npc_mask_lines
         return _obj_def(obj_id).get("color_mask", [])
 
     def _obj_align(entry: dict, obj_id: str) -> float:
@@ -379,7 +419,10 @@ def render_venue_objects(
                     min_x = 0
                     max_x = max((len(line) for line in art), default=1) - 1
                 npc_anchor = x + min_x + max(0, (max_x - min_x) // 2)
-            _blit(art, mask, x, y, mask_override=npc_key)
+            if npc_has_mask:
+                _blit(art, mask, x, y)
+            else:
+                _blit(art, mask, x, y, mask_override=npc_key)
         else:
             _blit(art, mask, x, y)
 
@@ -803,7 +846,7 @@ def format_player_stats(player: Player) -> List[str]:
 
 
 def clear_screen():
-    sys.stdout.write("\033[2J\033[H\033[3J")
+    sys.stdout.write("\033[H\033[J")
     sys.stdout.flush()
 
 
@@ -836,7 +879,14 @@ def format_gradient_location_text(location: str) -> str:
 
 
 def render_frame(frame: Frame):
+    sys.stdout.write(ANSI.CURSOR_HIDE)
     clear_screen()
+    output = []
+    cols, rows = SCREEN_WIDTH, SCREEN_HEIGHT
+    pad_left = 0
+    pad_right = 0
+    pad_top = 0
+    pad_bottom = 0
 
     def _truecolor(r: int, g: int, b: int) -> str:
         return f"\033[38;2;{r};{g};{b}m"
@@ -879,6 +929,35 @@ def render_frame(frame: Frame):
             out.append(_gradient_char(x, y, SCREEN_WIDTH, SCREEN_HEIGHT, ch))
         return "".join(out)
 
+    def _compose_line(_y: int, canvas_line: str) -> str:
+        return canvas_line
+
+    def _bg_for_row(y: int, x: int) -> str:
+        # Solid background (no gradient).
+        r, g, b = (50, 50, 50)
+        return f"\033[48;2;{r};{g};{b}m"
+
+    def _apply_bg(line: str, y: int) -> str:
+        out = []
+        vis_x = 0
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if ch == "\x1b" and i + 1 < len(line) and line[i + 1] == "[":
+                j = i + 2
+                while j < len(line) and line[j] != "m":
+                    j += 1
+                if j < len(line):
+                    out.append(line[i:j + 1])
+                    i = j + 1
+                    continue
+            bg = _bg_for_row(y, vis_x)
+            out.append(bg + ch)
+            vis_x += 1
+            i += 1
+        out.append(ANSI.RESET)
+        return "".join(out)
+
     def _gradient_content_line(y: int, content: str) -> str:
         out = []
         for i, ch in enumerate(content):
@@ -887,8 +966,9 @@ def render_frame(frame: Frame):
         return "".join(out)
 
     row_idx = 0
+    abs_row_base = 0
     top_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
-    print(_gradient_line(row_idx, top_border))
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(_gradient_line(row_idx, top_border), row_idx)))
     row_idx += 1
 
     gradient_location = format_gradient_location_text(frame.location)
@@ -910,10 +990,10 @@ def render_frame(frame: Frame):
 
     left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
     right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
-    print(left_border + location_row + right_border)
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(left_border + location_row + right_border, row_idx)))
     row_idx += 1
     sep_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
-    print(_gradient_line(row_idx, sep_border))
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(_gradient_line(row_idx, sep_border), row_idx)))
     row_idx += 1
 
     status_lines = frame.status_lines[:]
@@ -935,9 +1015,9 @@ def render_frame(frame: Frame):
             SCREEN_WIDTH - 2,
             anchor_x=frame.art_anchor_x
         )
-        styled = color(cropped, frame.art_color)
         if len(strip_ansi(cropped)) < (SCREEN_WIDTH - 2):
-            styled = center_ansi(styled, SCREEN_WIDTH - 2)
+            cropped = center_ansi(cropped, SCREEN_WIDTH - 2)
+        styled = color(cropped, frame.art_color)
         body_rows.append(styled)
 
     divider_row = None
@@ -966,7 +1046,7 @@ def render_frame(frame: Frame):
         right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
         if divider_row is not None and i < len(body_rows) and body_rows[i] == divider_row:
             line = _gradient_content_line(row_idx, divider_row)
-        print(left_border + line + right_border)
+        output.append(_compose_line(abs_row_base + row_idx, _apply_bg(left_border + line + right_border, row_idx)))
         row_idx += 1
 
     actions_label = "Actions"
@@ -978,24 +1058,26 @@ def render_frame(frame: Frame):
     left_content = actions_label_row[:label_start] if label_start != -1 else actions_label_row
     mid_label = actions_label if label_start != -1 else ""
     right_content = actions_label_row[label_end:] if label_start != -1 else ""
-    print(
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(
         left_border
         + _gradient_segment(row_idx, 1, left_content)
         + color(mid_label, ANSI.FG_WHITE, ANSI.BOLD)
         + _gradient_segment(row_idx, 1 + len(left_content) + len(mid_label), right_content)
-        + right_border
-    )
+        + right_border,
+        row_idx
+    )))
     row_idx += 1
 
     for i in range(len(frame.action_lines)):
         line = frame.action_lines[i] if i < len(frame.action_lines) else ""
         left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
         right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
-        print(
+        output.append(_compose_line(abs_row_base + row_idx, _apply_bg(
             left_border
             + pad_or_trim_ansi(line, SCREEN_WIDTH - 2)
-            + right_border
-        )
+            + right_border,
+            row_idx
+        )))
         row_idx += 1
 
     stats_label = "Player-Stats"
@@ -1007,13 +1089,14 @@ def render_frame(frame: Frame):
     left_content = stats_label_row[:label_start] if label_start != -1 else stats_label_row
     mid_label = stats_label if label_start != -1 else ""
     right_content = stats_label_row[label_end:] if label_start != -1 else ""
-    print(
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(
         left_border
         + _gradient_segment(row_idx, 1, left_content)
         + color(mid_label, ANSI.FG_WHITE, ANSI.BOLD)
         + _gradient_segment(row_idx, 1 + len(left_content) + len(mid_label), right_content)
-        + right_border
-    )
+        + right_border,
+        row_idx
+    )))
     row_idx += 1
     for i in range(STAT_LINES):
         raw = frame.stat_lines[i] if i < len(frame.stat_lines) else ""
@@ -1030,11 +1113,16 @@ def render_frame(frame: Frame):
         centered = center_ansi(styled, SCREEN_WIDTH - 2)
         left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
         right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
-        print(left_border + centered + right_border)
+        output.append(_compose_line(abs_row_base + row_idx, _apply_bg(left_border + centered + right_border, row_idx)))
         row_idx += 1
 
     bottom_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
-    print(_gradient_line(row_idx, bottom_border))
+    output.append(_compose_line(abs_row_base + row_idx, _apply_bg(_gradient_line(row_idx, bottom_border), row_idx)))
+    row_idx += 1
+
+    sys.stdout.write("\n".join(output) + "\n")
+    sys.stdout.write(ANSI.CURSOR_SHOW)
+    sys.stdout.flush()
 
 
 def format_opponent_bar(opponent: Opponent) -> str:

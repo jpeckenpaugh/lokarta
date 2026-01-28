@@ -1,12 +1,15 @@
 import shutil
 import os
 import sys
+import json
+from json import JSONDecodeError
 from typing import Optional
 
 if os.name != 'nt':
     import termios
 
 from app.bootstrap import create_app
+from app.config import DATA_DIR
 from app.loop import (
     apply_boost_confirm,
     apply_router_command,
@@ -27,6 +30,21 @@ from app.ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
 from app.ui.rendering import clear_screen, render_frame
 from app.ui.screens import generate_frame
 
+def warn_on_invalid_json(data_dir: str) -> None:
+    if not os.path.isdir(data_dir):
+        return
+    for name in sorted(os.listdir(data_dir)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(data_dir, name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                json.load(f)
+        except (OSError, JSONDecodeError) as exc:
+            print(f"WARNING: Invalid JSON in {path}: {exc}")
+
+
+warn_on_invalid_json(DATA_DIR)
 APP = create_app()
 ITEMS = APP.items
 SAVE_DATA = APP.save_data
@@ -36,6 +54,9 @@ SAVE_DATA = APP.save_data
 # -----------------------------
 
 def main():
+    if os.name != 'nt':
+        sys.stdout.write("\033[?1049h")
+        sys.stdout.flush()
     cols, rows = shutil.get_terminal_size(fallback=(0, 0))
     if cols < SCREEN_WIDTH or rows < SCREEN_HEIGHT:
         print(f"WARNING: Terminal size is {cols}x{rows}. Recommended is 100x30.")
@@ -86,6 +107,9 @@ def main():
                 SAVE_DATA.save_player(state.player)
                 clear_screen()
                 print("Goodbye.")
+                if os.name != 'nt':
+                    sys.stdout.write("\033[?1049l")
+                    sys.stdout.flush()
                 return
             state.title_mode = True
             state.player.location = "Title"
@@ -172,4 +196,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        if os.name != 'nt':
+            sys.stdout.write("\033[?1049l")
+            sys.stdout.flush()

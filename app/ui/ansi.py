@@ -14,6 +14,10 @@ class ANSI:
     FG_BLUE = "\033[34m"
     FG_MAGENTA = "\033[35m"
 
+    CURSOR_HIDE = "\033[?25l"
+    CURSOR_SHOW = "\033[?25h"
+    BG_LIGHT_GRAY = "\033[48;2;220;220;220m"
+
 
 def color(text: str, *codes: str) -> str:
     styled = "".join(codes) + text + ANSI.RESET
