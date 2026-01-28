@@ -156,6 +156,59 @@
     ],
     "align": 0
   },
+  "table": {
+    "art": [
+      " ___________",
+      "|___________|",
+      "|           |",
+      "|           |",
+      "|           |",
+      "|           |",
+      "o           o"
+    ],
+    "color_mask": [
+      " xxxxxxxxxxx",
+      "xXXXXXXXXXXXx",
+      "x           x",
+      "x           x",
+      "x           x",
+      "x           x",
+      "w           w"
+    ],
+    "align": 0
+  },
+  "bush_small": {
+    "art": [
+      "  _--_ ",
+      " /####\\",
+      " \\####/",
+      "  |##|   "
+    ],
+    "color_mask": [
+      "  gGGg ",
+      " gGGGGg",
+      " gGGGGg",
+      "  dDDd   "
+    ],
+    "align": 0
+  },
+  "tree_small": {
+    "art": [
+      "   /\\  ",
+      "  /##\\ ",
+      " /####\\",
+      "   ||  ",
+      "  _||_ "
+    ],
+    "color_mask": [
+      "   gg  ",
+      "  gGGg ",
+      " gGGGGg",
+      "   dd  ",
+      "  dddd "
+    ],
+    "align": 0
+  },
   "roof": {
     "art": [
       "="
