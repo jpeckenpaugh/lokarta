@@ -571,6 +571,12 @@ def render_scene_art(
                 "color": color_to_use,
             }
         )
+    if opponent_blocks:
+        max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
+        for block in opponent_blocks:
+            pad = max_opp_rows - len(block["lines"])
+            if pad > 0:
+                block["lines"] = ([" " * block["width"]] * pad) + block["lines"]
     if has_left_objects:
         def _render_object_strip(objects_list: list) -> list[str]:
             if not objects_list or objects_data is None:
