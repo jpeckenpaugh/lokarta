@@ -3,7 +3,7 @@
     "name": "Town Hall",
     "scene_id": "hall",
     "npc_ids": [
-      "mayor_1"
+      "shopkeeper_1"
     ],
     "actions": [
       "info_opponents",
@@ -125,57 +125,6 @@
       {
         "id": "house_wall_left"
       }
-    ],
-    "gap_width": 7,
-    "top": "=",
-    "top_color": "2",
-    "left": [
-      "                    /============",
-      "                   /             ",
-      "                  /_   o         ",
-      "                   |   |         ",
-      "                   |   |         ",
-      "    (O)  o   o     |   |         ",
-      "   (O*O)o*o o*o    |   =====     ",
-      "    (O)  o   o     |   |   |     ",
-      "    _|___|___|_    |   |   |     ",
-      "__=[           ]=__|   o   o     "
-    ],
-    "right": [
-      "============\\",
-      "       __    \\",
-      "      /  \\   _\\         ___",
-      "     /____\\  |         /===\\",
-      "       ||    |         \\===/",
-      "       ||    |          |^|",
-      "       ||    |o         |^|",
-      "       ||    |          |^|",
-      "       ||    |          |^|",
-      "      /[]\\   |======___[|^|]___"
-    ],
-    "left_color": [
-      "                    2222222222222",
-      "                   2             ",
-      "                  2w   2         ",
-      "                   2   1         ",
-      "                   2   1         ",
-      "    prp  r   r     2   1         ",
-      "   pryrpryr ryr    2   11111     ",
-      "    prp  r   r     2   1   1     ",
-      "    1g111g111g1    2   1   1     ",
-      "ggw1           1wgg2   2   2     "
-    ],
-    "right_color": [
-      "2222222222222",
-      "       yy    2",
-      "      y  y   w2         ___",
-      "     yyyyyy  2         /===\\",
-      "       ||    2         \\===/",
-      "       ||    2          |i|",
-      "       ||    2w         |i|",
-      "       ||    2          |i|",
-      "       ||    2          |i|",
-      "      2mm2   2wwwwwwggg[|i|]ggg"
     ]
   },
   "town_hall": {
@@ -304,85 +253,31 @@
       {
         "id": "house_wall_left"
       }
-    ],
-    "gap_width": 7,
-    "top": "=",
-    "top_color": "2",
-    "left": [
-      "                    /============",
-      "                   /             ",
-      "                  /_   o         ",
-      "                   |   |         ",
-      "                   |   |         ",
-      "    (O)  o   o     |   |         ",
-      "   (O*O)o*o o*o    |   =====     ",
-      "    (O)  o   o     |   |   |     ",
-      "    _|___|___|_    |   |   |     ",
-      "__=[           ]=__|   o   o     "
-    ],
-    "right": [
-      "============\\",
-      "       __    \\",
-      "      /  \\   _\\         ___",
-      "     /____\\  |         /===\\",
-      "       ||    |         \\===/",
-      "       ||    |          |^|",
-      "       ||    |o         |^|",
-      "       ||    |          |^|",
-      "       ||    |          |^|",
-      "      /[]\\   |======___[|^|]___"
-    ],
-    "left_color": [
-      "                    2222222222222",
-      "                   2             ",
-      "                  2w   2         ",
-      "                   2   1         ",
-      "                   2   1         ",
-      "    prp  r   r     2   1         ",
-      "   pryrpryr ryr    2   11111     ",
-      "    prp  r   r     2   1   1     ",
-      "    1g111g111g1    2   1   1     ",
-      "ggw1           1wgg2   2   2     "
-    ],
-    "right_color": [
-      "2222222222222",
-      "       yy    2",
-      "      y  y   w2         ___",
-      "     yyyyyy  2         /===\\",
-      "       ||    2         \\===/",
-      "       ||    2          |i|",
-      "       ||    2w         |i|",
-      "       ||    2          |i|",
-      "       ||    2          |i|",
-      "      2mm2   2wwwwwwggg[|i|]ggg"
     ]
   },
   "town_inn": {
-    "name": "Town Inn",
-    "scene_id": "inn",
+    "name": "Town Hall",
+    "scene_id": "hall",
     "npc_ids": [
       "innkeeper_1"
     ],
     "actions": [
-      "rest",
+      "info_opponents",
+      "info_items",
       "leave"
     ],
-    "welcome_message": "Warm lights and quiet rooms await.",
-    "leave_message": "You step back into the street.",
+    "welcome_message": "Welcome to the hall.",
+    "leave_message": "You leave the hall.",
     "commands": [
       {
-        "key": "R",
-        "label": "Rest (10 GP)",
-        "command": "USE_SERVICE",
-        "target": "town_inn",
-        "service_id": "rest"
+        "key": "1",
+        "label": "Opponents",
+        "command": "NUM1"
       },
       {
-        "key": "M",
-        "label": "Hot meal (3 GP)",
-        "command": "USE_SERVICE",
-        "target": "town_inn",
-        "service_id": "meal"
+        "key": "2",
+        "label": "Items",
+        "command": "NUM2"
       },
       {
         "key": "B",
@@ -395,78 +290,97 @@
         "command": "QUIT"
       }
     ],
-    "narrative": [
-      "Rest by the hearth for the night.",
-      "A bed costs 10 GP. A hot meal is 3 GP."
-    ],
-    "gap_width": 15,
-    "services": {
-      "rest": {
-        "type": "rest",
-        "cost": 10,
-        "heal_full": true,
-        "full_message": "You're already fully rested.",
-        "message": "You rest at the inn and feel fully restored.",
-        "insufficient_message": "Not enough GP to rest at the inn.",
-        "location_message": "The inn is only in town."
+    "info_sections": [
+      {
+        "key": "opponents",
+        "label": "Opponents",
+        "source": "opponents",
+        "command": "NUM1",
+        "message": "Viewing opponent info."
       },
-      "meal": {
-        "type": "meal",
-        "item_id": "hot_meal",
-        "cost": 3,
-        "full_message": "You're already fully rested.",
-        "message": "You enjoy a hot meal and feel refreshed.",
-        "insufficient_message": "Not enough GP for a hot meal.",
-        "location_message": "The inn is only in town."
+      {
+        "key": "items",
+        "label": "Items",
+        "source": "items",
+        "command": "NUM2",
+        "message": "Viewing item info."
       }
-    },
-    "left": [
-      "      _______",
-      "     /      ",
-      "    /  TOWN ",
-      "   |  REST  ",
-      "   |________",
-      "      |  |  ",
-      "      |  |  ",
-      "      |__|  ",
-      "      |  |  ",
-      "      |__|  "
     ],
-    "right": [
-      "______      ",
-      "      \\     ",
-      "  INN   \\    ",
-      "  HERE  |   ",
-      "________|   ",
-      "  |  |      ",
-      "  |  |      ",
-      "  |__|      ",
-      "  |  |      ",
-      "  |__|      "
-    ],
-    "left_color": [
-      "      _______",
-      "     /      ",
-      "    /  TOWN ",
-      "   |  REST  ",
-      "   |________",
-      "      |  |  ",
-      "      |  |  ",
-      "      |__|  ",
-      "      |  |  ",
-      "      |__|  "
-    ],
-    "right_color": [
-      "______      ",
-      "      \\     ",
-      "  INN   \\    ",
-      "  HERE  |   ",
-      "________|   ",
-      "  |  |      ",
-      "  |  |      ",
-      "  |__|      ",
-      "  |  |      ",
-      "  |__|      "
+    "narrative": [],
+    "objects": [
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "bush_large"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "bush_small"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "house_wall_left"
+      },
+      {
+        "id": "roof",
+        "mode": "span_until",
+        "target": "house_wall_right"
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "table",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "npc",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "lamp",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "tree_large"
+      },
+      {
+        "id": "grass",
+        "repeat": 4
+      },
+      {
+        "id": "house_wall_left"
+      }
     ]
   }
 }
