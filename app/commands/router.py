@@ -411,6 +411,9 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
                 width += obj_width(obj_id)
                 if obj_width(obj_id) == 0:
                     break
+                if width < target_width and objects_data.get("grass_1", {}).get("art"):
+                    strip.append({"id": "grass_1"})
+                    width += obj_width("grass_1")
             return strip
         scene["objects_left"] = build_strip()
         scene["objects_right"] = build_strip()
