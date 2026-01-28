@@ -233,6 +233,7 @@
       "  __----__",
       " /########\\",
       "/##########\\",
+      "|##########|",
       "\\##########/",
       " \\########/",
       "~~|######|~~"
@@ -240,9 +241,10 @@
     "color_mask": [
       "  ggGgGGgg",
       " gGGGGGgGGg",
-      "gGGGgGGGgGGg",
-      "gGgGGGGGgGGg",
-      " gGGGgGGGGg",
+      "gGGGgGeGgGGg",
+      "gGGGgGGGgEGg",
+      "gGgEGGGGgGGg",
+      " gGGGgGeGGg",
       "GgdDDDDDDdGg"
     ],
     "align": 0
@@ -319,5 +321,74 @@
       "d"
     ],
     "align": 1
+  },
+  "tree_large_2": {
+    "art": [
+      "      __",
+      "     /##\\",
+      "    /####\\",
+      "   /######\\",
+      "  /########\\",
+      "  \\########/",
+      "   \\######/",
+      "~~~~~/||\\~~~~~"
+    ],
+    "color_mask": [
+      "      gg",
+      "     gGGg",
+      "    gGdGGg",
+      "   gGeGdJgg",
+      "  gGJdgGGgdg",
+      "  gGGGgEGjgg",
+      "   gGdGgGdG",
+      "gGgGgDddDGgGgG"
+    ],
+    "align": 0
+  },
+  "tree_large_3": {
+    "art": [
+      "      /\\",
+      "     /##\\",
+      "    /####\\",
+      "   /######\\",
+      "  /########\\",
+      " /##########\\",
+      " \\##########/",
+      "~~~~~/||\\~~~~~"
+    ],
+    "color_mask": [
+      "      gg",
+      "     gGGg",
+      "    gidGGg",
+      "   gGgGdVgg",
+      "  gGGrgGGgdg",
+      " ggGGGgdfggGg",
+      " gGgvdGgGuGgG",
+      "gGgGgDddDGgGgG"
+    ],
+    "align": 0
+  },
+  "bush_large_2": {
+    "art": [
+      "  __-_--_-__",
+      " /##o######o\\",
+      "/############\\",
+      "|##o####o####|",
+      "|############|",
+      "\\#########o##/",
+      " \\#o########/",
+      "~~~|######|~~~"
+    ],
+    "color_mask": [
+      "  ggGgGgGGgg",
+      " gGGrGGgGgGrg",
+      "gGGGgGGgGGgGGg",
+      "gGgrGGgGRGgGGg",
+      "gGGGgGGgGGgGGg",
+      "gGgGGGgGGgrgGg",
+      " gGRGGggGGGGg",
+      "GgGdDDDDDDdGgG"
+    ],
+    "align": 0
   }
 }
