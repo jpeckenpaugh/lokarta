@@ -10,6 +10,7 @@ from app.data_access.colors_data import ColorsData
 from app.data_access.items_data import ItemsData
 from app.data_access.menus_data import MenusData
 from app.data_access.npcs_data import NpcsData
+from app.data_access.objects_data import ObjectsData
 from app.data_access.opponents_data import OpponentsData
 from app.data_access.scenes_data import ScenesData
 from app.data_access.spells_data import SpellsData
@@ -24,6 +25,7 @@ from app.ui.rendering import (
     format_player_stats,
     render_scene_art,
     render_venue_art,
+    render_venue_objects,
 )
 from app.ui.text import format_text
 
@@ -34,6 +36,7 @@ class ScreenContext:
     opponents: OpponentsData
     scenes: ScenesData
     npcs: NpcsData
+    objects: ObjectsData
     venues: VenuesData
     menus: MenusData
     commands: CommandsData
@@ -62,6 +65,7 @@ def generate_frame(
     spark = ctx.spells.get("spark", {})
     heal_name = healing.get("name", "Healing")
     spark_name = spark.get("name", "Spark")
+    art_anchor_x = None
     if leveling_mode:
         body = [
             "Level Up!",
@@ -103,7 +107,11 @@ def generate_frame(
             body.append(f"{label}  {price} GP")
         body.append("")
         body += venue.get("narrative", [])
-        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
+        art_anchor_x = None
+        if venue.get("objects"):
+            art_lines, art_color, art_anchor_x = render_venue_objects(venue, npc, ctx.objects, ctx.colors.all())
+        else:
+            art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
         actions = format_command_lines(venue.get("commands", []))
     elif player.location == "Town" and hall_mode:
         venue = ctx.venues.get("town_hall", {})
@@ -128,7 +136,11 @@ def generate_frame(
         body += info_lines
         body += venue.get("narrative", [])
         actions = format_command_lines(venue.get("commands", []))
-        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
+        art_anchor_x = None
+        if venue.get("objects"):
+            art_lines, art_color, art_anchor_x = render_venue_objects(venue, npc, ctx.objects, ctx.colors.all())
+        else:
+            art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
     elif player.location == "Town" and inn_mode:
         venue = ctx.venues.get("town_inn", {})
         npc_lines = []
@@ -142,7 +154,11 @@ def generate_frame(
             body += npc_lines + [""]
         body += venue.get("narrative", [])
         actions = format_command_lines(venue.get("commands", []))
-        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
+        art_anchor_x = None
+        if venue.get("objects"):
+            art_lines, art_color, art_anchor_x = render_venue_objects(venue, npc, ctx.objects, ctx.colors.all())
+        else:
+            art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
     elif inventory_mode:
         inventory_menu = ctx.menus.get("inventory", {})
         items = inventory_items or []
@@ -221,6 +237,7 @@ def generate_frame(
             scene_commands(ctx.scenes, ctx.commands, "forest", player, opponents)
         )
         art_lines = forest_art
+        art_anchor_x = None
 
     if player.location == "Forest":
         status_lines = []
@@ -228,7 +245,7 @@ def generate_frame(
         status_lines = [line for line in message.splitlines() if line.strip() != ""]
     else:
         status_lines = (
-            textwrap.wrap(message, width=SCREEN_WIDTH - 4)
+            textwrap.wrap(message, width=SCREEN_WIDTH - 2)
             if message
             else []
         )
@@ -247,4 +264,5 @@ def generate_frame(
         art_lines=art_lines,
         art_color=art_color,
         status_lines=status_lines,
+        art_anchor_x=art_anchor_x,
     )

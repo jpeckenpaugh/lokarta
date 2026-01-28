@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -13,6 +13,7 @@ class Frame:
     art_lines: List[str]
     art_color: str
     status_lines: List[str]
+    art_anchor_x: Optional[int] = None
 
 
 @dataclass

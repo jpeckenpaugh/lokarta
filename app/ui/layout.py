@@ -38,6 +38,44 @@ def center_ansi(text: str, width: int) -> str:
     return (" " * left) + text + (" " * right)
 
 
+def center_crop_ansi(text: str, width: int, anchor_x: Optional[int] = None) -> str:
+    visible = strip_ansi(text)
+    visible_len = len(visible)
+    if visible_len <= width:
+        return center_ansi(text, width)
+    if anchor_x is None:
+        start = (visible_len - width) // 2
+    else:
+        try:
+            anchor = int(anchor_x)
+        except (TypeError, ValueError):
+            anchor = visible_len // 2
+        anchor = max(0, min(anchor, max(visible_len - 1, 0)))
+        start = anchor - (width // 2)
+        start = max(0, min(start, visible_len - width))
+    end = start + width
+    out = []
+    vis_idx = 0
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+            j = i + 2
+            while j < len(text) and text[j] != "m":
+                j += 1
+            if j < len(text):
+                seq = text[i:j + 1]
+                if start <= vis_idx < end:
+                    out.append(seq)
+                i = j + 1
+                continue
+        if start <= vis_idx < end:
+            out.append(ch)
+        vis_idx += 1
+        i += 1
+    return "".join(out)
+
+
 def format_action_lines(actions: list[str]) -> list[str]:
     clean = [a for a in actions if a.strip()]
     count = len(clean)
@@ -47,7 +85,7 @@ def format_action_lines(actions: list[str]) -> list[str]:
         cols = 2
     else:
         cols = 3
-    content_width = SCREEN_WIDTH - 4
+    content_width = SCREEN_WIDTH - 2
     gap = 2
     col_width = (content_width - gap * (cols - 1)) // cols
     rows = ACTION_LINES

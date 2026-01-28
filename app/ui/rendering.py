@@ -16,7 +16,7 @@ from app.ui.constants import (
     SCREEN_WIDTH,
     STAT_LINES,
 )
-from app.ui.layout import center_ansi, format_action_lines, pad_or_trim_ansi, pad_ansi, strip_ansi
+from app.ui.layout import center_ansi, center_crop_ansi, format_action_lines, pad_or_trim_ansi, pad_ansi, strip_ansi
 from app.combat import battle_action_delay
 
 
@@ -163,6 +163,232 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             return art_lines, art_color
         return art_template, art_color
     return [], art_color
+
+
+def render_venue_objects(
+    venue: dict,
+    npc: dict,
+    objects_data: object,
+    color_map_override: Optional[dict] = None
+) -> tuple[List[str], str, Optional[int]]:
+    art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
+    npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
+    color_map = venue.get("color_map") or (color_map_override or {})
+
+    def truecolor(code: str) -> str:
+        value = code.lstrip("#")
+        if len(value) != 6:
+            return ""
+        try:
+            r = int(value[0:2], 16)
+            g = int(value[2:4], 16)
+            b = int(value[4:6], 16)
+        except ValueError:
+            return ""
+        return f"\033[38;2;{r};{g};{b}m"
+
+    color_by_key = {}
+    for key, entry in color_map.items():
+        if isinstance(entry, dict):
+            hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
+            name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
+        elif isinstance(entry, str):
+            hex_code = ""
+            name = entry
+        else:
+            continue
+        name = name.strip()
+        hex_code = hex_code.strip()
+        if not hex_code:
+            hex_start = name.find("#")
+            hex_code = name[hex_start:] if hex_start != -1 else ""
+        if hex_code:
+            code = truecolor(hex_code)
+            if code:
+                color_by_key[key] = code
+                continue
+        lowered = name.lower()
+        if lowered == "brown":
+            color_by_key[key] = ANSI.FG_YELLOW + ANSI.DIM
+        elif lowered in ("gray", "grey"):
+            color_by_key[key] = ANSI.FG_WHITE + ANSI.DIM
+        else:
+            color_by_key[key] = COLOR_BY_NAME.get(lowered, ANSI.FG_WHITE)
+
+    npc_key = "@"
+    color_by_key[npc_key] = npc_color
+
+    def apply_color_mask(line: str, mask: str) -> str:
+        if not color_by_key or not mask:
+            return line
+        base = art_color
+        out = []
+        for i, ch in enumerate(line):
+            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            if code:
+                out.append(code + ch + ANSI.RESET + base)
+            else:
+                out.append(ch)
+        return "".join(out)
+
+    venue_objects = venue.get("objects", [])
+    if not isinstance(venue_objects, list) or not venue_objects:
+        return [], art_color, None
+
+    def _obj_def(obj_id: str) -> dict:
+        return objects_data.get(obj_id, {}) if hasattr(objects_data, "get") else {}
+
+    def _obj_art(obj_id: str) -> List[str]:
+        if obj_id == "npc":
+            return npc.get("art", [])
+        return _obj_def(obj_id).get("art", [])
+
+    def _obj_mask(obj_id: str) -> List[str]:
+        if obj_id == "npc":
+            return []
+        return _obj_def(obj_id).get("color_mask", [])
+
+    def _obj_align(entry: dict, obj_id: str) -> float:
+        align = entry.get("align", None)
+        if align is None:
+            align = _obj_def(obj_id).get("align", 0)
+        try:
+            return float(align)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _obj_size(entry: dict, obj_id: str) -> tuple[int, int]:
+        if obj_id == "space":
+            width = int(entry.get("width", 1) or 1)
+            return max(0, width), 0
+        art = _obj_art(obj_id)
+        width = max((len(line) for line in art), default=0)
+        height = len(art)
+        return width, height
+
+    expanded = []
+    for entry in venue_objects:
+        if not isinstance(entry, dict):
+            continue
+        repeat = int(entry.get("repeat", 1) or 1)
+        repeat = max(1, repeat)
+        for _ in range(repeat):
+            expanded.append(entry)
+
+    positions = []
+    cursor = 0
+    max_height = 0
+    for entry in expanded:
+        obj_id = entry.get("id", "")
+        mode = entry.get("mode", "")
+        width, height = _obj_size(entry, obj_id)
+        if mode == "span_until":
+            width = 0
+        positions.append({"entry": entry, "id": obj_id, "x": cursor})
+        cursor += width
+        max_height = max(max_height, height)
+
+    if max_height <= 0 or cursor <= 0:
+        return [], art_color, None
+
+    canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
+    mask_canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
+    npc_anchor = None
+
+    def _place_mask(mask_char: str, x: int, y: int):
+        if 0 <= y < max_height and 0 <= x < cursor and mask_char:
+            mask_canvas[y][x] = mask_char
+
+    def _blit(art: List[str], mask: List[str], x: int, y: int, mask_override: Optional[str] = None):
+        for row_idx, line in enumerate(art):
+            target_y = y + row_idx
+            if target_y < 0 or target_y >= max_height:
+                continue
+            mask_line = mask[row_idx] if row_idx < len(mask) else ""
+            for col_idx, ch in enumerate(line):
+                target_x = x + col_idx
+                if target_x < 0 or target_x >= cursor:
+                    continue
+                if ch != " ":
+                    canvas[target_y][target_x] = ch
+                if mask_override:
+                    if ch != " ":
+                        _place_mask(mask_override, target_x, target_y)
+                else:
+                    mask_char = mask_line[col_idx] if col_idx < len(mask_line) else ""
+                    if mask_char and ch != " ":
+                        _place_mask(mask_char, target_x, target_y)
+
+    for idx, item in enumerate(positions):
+        entry = item["entry"]
+        obj_id = item["id"]
+        mode = entry.get("mode", "")
+        x = item["x"]
+        align = _obj_align(entry, obj_id)
+
+        if mode == "span_until":
+            target_id = entry.get("target")
+            if not target_id:
+                continue
+            target_index = None
+            for next_idx in range(idx + 1, len(positions)):
+                if positions[next_idx]["id"] == target_id:
+                    target_index = next_idx
+                    break
+            if target_index is None:
+                continue
+            span = positions[target_index]["x"] - x
+            if span <= 0:
+                continue
+            art = _obj_art(obj_id)
+            mask = _obj_mask(obj_id)
+            if not art:
+                continue
+            char = art[0][0] if art[0] else " "
+            mask_char = mask[0][0] if mask and mask[0] else ""
+            y = int((1 - align) * max(0, max_height - 1))
+            for dx in range(span):
+                if char != " ":
+                    canvas[y][x + dx] = char
+                if mask_char and char != " ":
+                    mask_canvas[y][x + dx] = mask_char
+            continue
+
+        if obj_id == "space":
+            continue
+
+        art = _obj_art(obj_id)
+        if not art:
+            continue
+        mask = _obj_mask(obj_id)
+        obj_height = len(art)
+        y = int((1 - align) * max(0, max_height - obj_height))
+
+        if obj_id == "npc":
+            if npc_anchor is None:
+                min_x = None
+                max_x = -1
+                for line in art:
+                    for idx, ch in enumerate(line):
+                        if ch != " ":
+                            if min_x is None or idx < min_x:
+                                min_x = idx
+                            if idx > max_x:
+                                max_x = idx
+                if min_x is None:
+                    min_x = 0
+                    max_x = max((len(line) for line in art), default=1) - 1
+                npc_anchor = x + min_x + max(0, (max_x - min_x) // 2)
+            _blit(art, mask, x, y, mask_override=npc_key)
+        else:
+            _blit(art, mask, x, y)
+
+    art_lines = []
+    for row_idx in range(max_height):
+        line = "".join(canvas[row_idx])
+        mask_line = "".join(mask_canvas[row_idx])
+        art_lines.append(apply_color_mask(line, mask_line))
+    return art_lines, art_color, npc_anchor
 
 
 def render_scene_art(
@@ -649,11 +875,18 @@ def render_frame(frame: Frame):
 
     for i in range(art_count):
         art_line = frame.art_lines[i]
-        styled = color(art_line, frame.art_color)
-        body_rows.append(center_ansi(styled, SCREEN_WIDTH - 4))
+        cropped = center_crop_ansi(
+            art_line,
+            SCREEN_WIDTH - 2,
+            anchor_x=frame.art_anchor_x
+        )
+        styled = color(cropped, frame.art_color)
+        if len(strip_ansi(cropped)) < (SCREEN_WIDTH - 2):
+            styled = center_ansi(styled, SCREEN_WIDTH - 2)
+        body_rows.append(styled)
 
     if art_count > 0:
-        divider_row = "-" * (SCREEN_WIDTH - 4)
+        divider_row = "-" * (SCREEN_WIDTH - 2)
         body_rows.append(color(divider_row, ANSI.FG_BLUE))
 
     if frame.location == "Forest":
@@ -665,18 +898,18 @@ def render_frame(frame: Frame):
         raw = visible_lines[i] if i < len(visible_lines) else ""
         if raw:
             raw = (" " * NARRATIVE_INDENT) + raw
-        body_rows.append(pad_or_trim_ansi(raw, SCREEN_WIDTH - 4))
+        body_rows.append(pad_or_trim_ansi(raw, SCREEN_WIDTH - 2))
 
     for line in status_lines:
         colored = color(line, ANSI.FG_YELLOW)
-        body_rows.append(center_ansi(colored, SCREEN_WIDTH - 4))
+        body_rows.append(center_ansi(colored, SCREEN_WIDTH - 2))
 
     for i in range(body_height):
         line = body_rows[i] if i < len(body_rows) else ""
         print(
-            color("| ", ANSI.FG_BLUE)
+            color("|", ANSI.FG_BLUE)
             + line
-            + color(" |", ANSI.FG_BLUE)
+            + color("|", ANSI.FG_BLUE)
         )
 
     actions_label = "---Actions---"
@@ -686,9 +919,9 @@ def render_frame(frame: Frame):
     for i in range(len(frame.action_lines)):
         line = frame.action_lines[i] if i < len(frame.action_lines) else ""
         print(
-            color("| ", ANSI.FG_BLUE)
-            + pad_or_trim_ansi(line, SCREEN_WIDTH - 4)
-            + color(" |", ANSI.FG_BLUE)
+            color("|", ANSI.FG_BLUE)
+            + pad_or_trim_ansi(line, SCREEN_WIDTH - 2)
+            + color("|", ANSI.FG_BLUE)
         )
 
     stats_label = "---Player-Stats---"
@@ -706,11 +939,11 @@ def render_frame(frame: Frame):
         elif raw.startswith("Location:"):
             styled = color(raw, ANSI.FG_CYAN)
 
-        centered = center_ansi(styled, SCREEN_WIDTH - 4)
+        centered = center_ansi(styled, SCREEN_WIDTH - 2)
         print(
-            color("| ", ANSI.FG_BLUE)
+            color("|", ANSI.FG_BLUE)
             + centered
-            + color(" |", ANSI.FG_BLUE)
+            + color("|", ANSI.FG_BLUE)
         )
 
     print(border)

@@ -11,6 +11,7 @@ from app.data_access.colors_data import ColorsData
 from app.data_access.items_data import ItemsData
 from app.data_access.menus_data import MenusData
 from app.data_access.npcs_data import NpcsData
+from app.data_access.objects_data import ObjectsData
 from app.data_access.opponents_data import OpponentsData
 from app.data_access.save_data import SaveData
 from app.data_access.scenes_data import ScenesData
@@ -26,6 +27,7 @@ class AppContext:
     opponents: OpponentsData
     scenes: ScenesData
     npcs: NpcsData
+    objects: ObjectsData
     venues: VenuesData
     spells: SpellsData
     commands_data: CommandsData
@@ -58,6 +60,10 @@ def _load_scenes() -> ScenesData:
 
 def _load_npcs() -> NpcsData:
     return NpcsData(f"{DATA_DIR}/npcs.json")
+
+
+def _load_objects() -> ObjectsData:
+    return ObjectsData(f"{DATA_DIR}/objects.json")
 
 
 def _load_venues() -> VenuesData:
@@ -112,6 +118,7 @@ def create_app() -> AppContext:
     opponents = _load_opponents()
     scenes = _load_scenes()
     npcs = _load_npcs()
+    objects = _load_objects()
     venues = _load_venues()
     spells = _load_spells()
     commands_data = _load_commands()
@@ -142,6 +149,7 @@ def create_app() -> AppContext:
         opponents=opponents,
         scenes=scenes,
         npcs=npcs,
+        objects=objects,
         venues=venues,
         menus=menus,
         commands=commands_data,
@@ -155,6 +163,7 @@ def create_app() -> AppContext:
         opponents=opponents,
         scenes=scenes,
         npcs=npcs,
+        objects=objects,
         venues=venues,
         spells=spells,
         commands_data=commands_data,
