@@ -391,7 +391,15 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
             obj = objects_data.get(obj_id, {})
             art = obj.get("art", [])
             return max((len(line) for line in art), default=0)
-        options = ["tree_large", "bush_large"]
+        options = [
+            "tree_large",
+            "tree_large_2",
+            "tree_large_3",
+            "bush_large",
+            "bush_large_2",
+            "bush_large_3",
+        ]
+        options = [obj_id for obj_id in options if objects_data.get(obj_id, {}).get("art")]
         def build_strip() -> list[dict]:
             strip = []
             width = 0
@@ -422,8 +430,8 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         ctx.save_data.save_player(state.player)
         return True
     if scene_id == "forest":
-        _build_forest_objects()
         if state.player.location != "Forest":
+            _build_forest_objects()
             state.player.location = "Forest"
             state.opponents = ctx.opponents_data.spawn(state.player.level, ANSI.FG_WHITE)
             state.loot_bank = {"xp": 0, "gold": 0}

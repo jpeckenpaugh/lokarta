@@ -562,8 +562,8 @@ def render_scene_art(
                 content = (" " * inter_pad).join(segments)
                 visible_width = len(strip_ansi(content))
                 content_width = (gap_pad * 2) + visible_width
-                pad_left = 0
-                pad_right = max(0, gap_width - content_width)
+                pad_left = max(0, (gap_width - content_width) // 2)
+                pad_right = max(0, gap_width - content_width - pad_left)
                 gap_fill = (
                     (" " * pad_left)
                     + (" " * gap_pad)
@@ -597,8 +597,8 @@ def render_scene_art(
                 visible_width = len(strip_ansi(content))
                 content_width = (gap_pad * 2) + visible_width
                 gap_width = max(gap_width, content_width)
-                pad_left = 0
-                pad_right = max(0, gap_width - content_width)
+                pad_left = max(0, (gap_width - content_width) // 2)
+                pad_right = max(0, gap_width - content_width - pad_left)
                 gap_fill = (
                     (" " * pad_left)
                     + (" " * gap_pad)
