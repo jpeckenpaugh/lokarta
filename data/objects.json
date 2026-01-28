@@ -12,14 +12,15 @@
     ],
     "color_mask": [
       "  fif",
-      " fidif", 
+      " fidif",
       "  fif",
       "   gG",
       "  Gg",
       "  dgd",
       " zzzzz",
       "ZzzzzzZ"
-    ]
+    ],
+    "align": 0
   },
   "house_wall_left": {
     "art": [
@@ -45,7 +46,8 @@
       " d",
       " d",
       "gd"
-    ]
+    ],
+    "align": 0
   },
   "house_wall_right": {
     "art": [
@@ -60,7 +62,7 @@
       " |    |",
       " |====="
     ],
-    "color_mask": [        
+    "color_mask": [
       "d",
       " d",
       " Dd",
@@ -71,7 +73,8 @@
       " d    z",
       " d    z",
       " dKKKKKK"
-    ]
+    ],
+    "align": 0
   },
   "chair": {
     "art": [
@@ -87,13 +90,14 @@
     "color_mask": [
       "s",
       "d",
-      "d",                   
-      "d",                   
+      "d",
+      "d",
       "sttts",
       "d   d",
-      "d   d",     
+      "d   d",
       "s   s"
-    ]
+    ],
+    "align": 0
   },
   "sign": {
     "art": [
@@ -115,7 +119,8 @@
       " szS",
       " Szs",
       "dSzSd"
-    ]
+    ],
+    "align": 0
   },
   "lamp": {
     "art": [
@@ -133,11 +138,12 @@
       " yYYy",
       "yYYYYy",
       "  ss",
-      "  ss",    
+      "  ss",
       "  ss",
       "  ss",
       " xXXx"
-    ]
+    ],
+    "align": 0
   },
   "grass": {
     "art": [
@@ -147,6 +153,16 @@
     "color_mask": [
       "G",
       "g"
-    ]
+    ],
+    "align": 0
+  },
+  "roof": {
+    "art": [
+      "="
+    ],
+    "color_mask": [
+      "d"
+    ],
+    "align": 1
   }
 }
