@@ -66,13 +66,6 @@
         "id": "grass"
       },
       {
-        "id": "bush_small"
-      },
-      {
-        "id": "grass",
-        "repeat": 2
-      },
-      {
         "id": "house_wall_left"
       },
       {
@@ -116,11 +109,8 @@
         "repeat": 2
       },
       {
-        "id": "tree_large"
-      },
-      {
-        "id": "grass",
-        "repeat": 4
+        "id": "flower_box",
+        "repeat": 2
       },
       {
         "id": "house_wall_left"
