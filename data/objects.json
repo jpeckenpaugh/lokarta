@@ -192,6 +192,25 @@
     ],
     "align": 0
   },
+  "bush_large": {
+    "art": [
+      "   __----__   ",
+      "  /########\\  ",
+      " /##########\\ ",
+      " \\##########/ ",
+      "  \\########/  ",
+      "   |######|  "
+    ],
+    "color_mask": [
+      "   ggGGGGgg   ",
+      "  gGGGGGGGGg  ",
+      " gGGGGGGGGGGg ",
+      " gGGGGGGGGGGg ",
+      "  gGGGGGGGGg  ",
+      "   dDDDDDDd  "
+    ],
+    "align": 0
+  },
   "tree_small": {
     "art": [
       "   /\\  ",
@@ -206,6 +225,31 @@
       " gGGGGg",
       "   dd  ",
       "  dddd "
+    ],
+    "align": 0
+  },
+  "tree_large": {
+    "art": [
+      "      /\\",
+      "     /##\\",
+      "    /####\\",
+      "   /######\\",
+      "  /########\\",
+      " /##########\\",
+      "/############\\",
+      "     ||||",
+      "    _||||_"
+    ],
+    "color_mask": [
+      "      gg",
+      "     gGGg",
+      "    gGdGGg",
+      "   gGgGdGgg",
+      "  gGGdgGGgdg",
+      " ggGGGgdGggGg",
+      "ggGgGdGgGdGgGg",
+      "     dDDd",
+      "    dDddDd"
     ],
     "align": 0
   },
