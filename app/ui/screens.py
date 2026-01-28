@@ -65,6 +65,7 @@ def generate_frame(
     spark = ctx.spells.get("spark", {})
     heal_name = healing.get("name", "Healing")
     spark_name = spark.get("name", "Spark")
+    display_location = player.location
     art_anchor_x = None
     if leveling_mode:
         body = [
@@ -88,6 +89,7 @@ def generate_frame(
         art_color = ANSI.FG_WHITE
     elif player.location == "Town" and shop_mode:
         venue = ctx.venues.get("town_shop", {})
+        display_location = venue.get("name", display_location)
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
         npc = {}
@@ -115,6 +117,7 @@ def generate_frame(
         actions = format_command_lines(venue.get("commands", []))
     elif player.location == "Town" and hall_mode:
         venue = ctx.venues.get("town_hall", {})
+        display_location = venue.get("name", display_location)
         info_sections = venue.get("info_sections", [])
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
@@ -143,6 +146,7 @@ def generate_frame(
             art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
     elif player.location == "Town" and inn_mode:
         venue = ctx.venues.get("town_inn", {})
+        display_location = venue.get("name", display_location)
         npc_lines = []
         npc_ids = venue.get("npc_ids", [])
         npc = {}
@@ -265,7 +269,7 @@ def generate_frame(
             if leveling_mode
             else "Keys: use the action panel"
         ),
-        location=player.location,
+        location=display_location,
         art_lines=art_lines,
         art_color=art_color,
         status_lines=status_lines,

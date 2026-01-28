@@ -216,4 +216,5 @@ class Opponent:
     melted: bool
     art_lines: List[str]
     art_color: str
+    color_map: List[str]
     arrival: str

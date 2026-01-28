@@ -64,8 +64,6 @@ def read_boost_prompt_input(ctx, render_frame, state: GameState, generate_frame,
 
 
 def read_input(ctx, render_frame, state: GameState, generate_frame, read_keypress, read_keypress_timeout) -> str:
-    if state.boost_prompt:
-        return read_boost_prompt_input(ctx, render_frame, state, generate_frame, read_keypress_timeout)
     return read_keypress()
 
 
@@ -222,32 +220,7 @@ def _is_arrival_message(state: GameState, message: str) -> bool:
 
 
 def apply_boost_confirm(ctx, state: GameState, ch: str, action_cmd: Optional[str]) -> tuple[bool, Optional[str], bool]:
-    if not state.boost_prompt:
-        return False, action_cmd, False
-    if ch.lower() not in ("y", "n"):
-            state.last_message = "Choose Y or N to boost the spell."
-            return True, action_cmd, True
-    boosted = ch.lower() == "y"
-    spell_id = state.boost_prompt
-    cmd_state = CommandState(
-        player=state.player,
-        opponents=state.opponents,
-        loot_bank=state.loot_bank,
-        last_message=state.last_message,
-        shop_mode=state.shop_mode,
-        inventory_mode=state.inventory_mode,
-        inventory_items=state.inventory_items,
-        hall_mode=state.hall_mode,
-        hall_view=state.hall_view,
-        inn_mode=state.inn_mode,
-        spell_mode=state.spell_mode,
-        action_cmd=action_cmd,
-        target_index=state.target_index,
-    )
-    handle_boost_confirm(cmd_state, ctx.router_ctx, spell_id, boosted)
-    push_battle_message(state, cmd_state.last_message)
-    state.boost_prompt = None
-    return True, cmd_state.action_cmd, False
+    return False, action_cmd, False
 
 
 def apply_router_command(
@@ -257,9 +230,9 @@ def apply_router_command(
     ch: str,
     command_meta: Optional[dict],
     action_cmd: Optional[str],
-) -> tuple[bool, Optional[str], Optional[str], bool]:
+) -> tuple[bool, Optional[str], Optional[str], bool, Optional[int]]:
     if not cmd:
-        return False, action_cmd, cmd, False
+        return False, action_cmd, cmd, False, None
     cmd_state = CommandState(
         player=state.player,
         opponents=state.opponents,
@@ -276,7 +249,7 @@ def apply_router_command(
         target_index=state.target_index,
     )
     if not handle_command(cmd, cmd_state, ctx.router_ctx, key=ch):
-        return False, action_cmd, cmd, False
+        return False, action_cmd, cmd, False, None
     state.opponents = cmd_state.opponents
     state.loot_bank = cmd_state.loot_bank
     push_battle_message(state, cmd_state.last_message)
@@ -288,6 +261,7 @@ def apply_router_command(
     state.inn_mode = cmd_state.inn_mode
     state.spell_mode = cmd_state.spell_mode
     action_cmd = cmd_state.action_cmd
+    target_index = cmd_state.target_index
     if state.player.location == "Title" and cmd_state.player.location != "Title":
         state.title_mode = False
     state.player = cmd_state.player
@@ -305,10 +279,10 @@ def apply_router_command(
             color_map_override=ctx.colors.all()
         )
     if action_cmd not in ctx.combat_actions:
-        return True, action_cmd, cmd, True
+        return True, action_cmd, cmd, True, target_index
     if action_cmd in ctx.spell_commands:
-        return False, action_cmd, action_cmd, False
-    return True, action_cmd, cmd, False
+        return False, action_cmd, action_cmd, False, target_index
+    return False, action_cmd, cmd, False, target_index
 
 
 def resolve_player_action(
@@ -338,21 +312,19 @@ def resolve_player_action(
             state.last_message = f"Not enough MP to cast {name}."
             return None
         if state.player.mp >= boosted_mp_cost:
-            state.boost_prompt = spell_id
-            prompt = spell.get("boost_prompt_text", "Boost {name}? (Y/N)")
-            state.last_message = prompt.replace("{name}", name)
-            return None
-    message = cast_spell(
-        state.player,
-        state.opponents,
-        spell_id,
-        boosted=False,
-        loot=state.loot_bank,
-        spells_data=ctx.spells,
-        target_index=state.target_index,
-    )
-    push_battle_message(state, message)
-    return cmd
+            pass
+        message = cast_spell(
+            state.player,
+            state.opponents,
+            spell_id,
+            boosted=False,
+            loot=state.loot_bank,
+            spells_data=ctx.spells,
+            target_index=state.target_index,
+        )
+        push_battle_message(state, message)
+        return cmd
+
     message = dispatch_command(
         ctx.registry,
         cmd,
@@ -377,7 +349,9 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
     if action_cmd not in ctx.offensive_actions:
         return
     message = _status_message(state, None)
-    target_index = primary_opponent_index(state.opponents)
+    target_index = state.target_index
+    if target_index is None:
+        target_index = primary_opponent_index(state.opponents)
     flash_opponent(
         ctx.scenes,
         ctx.commands_data,

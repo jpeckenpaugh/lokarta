@@ -44,6 +44,7 @@ class OpponentsData:
         defense = int(data.get("defense", 5))
         action_chance = float(data.get("action_chance", 1.0))
         art_lines = data.get("art", [])
+        color_map = data.get("color_map", [])
         arrival = data.get("arrival", "appears")
         return Opponent(
             name=name,
@@ -57,6 +58,7 @@ class OpponentsData:
             melted=False,
             art_lines=art_lines,
             art_color=art_color,
+            color_map=color_map,
             arrival=arrival
         )
 

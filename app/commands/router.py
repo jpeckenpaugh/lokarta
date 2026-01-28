@@ -264,11 +264,13 @@ def handle_command(command_id: str, state: CommandState, ctx: RouterContext, key
         items_data=ctx.items,
         target_index=state.target_index,
     )
+    if command_id in ("ATTACK", "SPARK", "HEAL"):
+        state.action_cmd = command_id
+        return True
+
     message = dispatch_command(ctx.registry, command_id, ctx_data)
     if message != "Unknown action.":
         state.last_message = message
-        if command_id in ("ATTACK", "SPARK", "HEAL"):
-            state.action_cmd = command_id
         return True
 
     return False

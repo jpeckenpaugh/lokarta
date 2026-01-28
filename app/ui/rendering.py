@@ -449,6 +449,63 @@ def render_scene_art(
     """Compose scene art with optional opponent blocks in the gap."""
     art_color = COLOR_BY_NAME.get(scene_data.get("color", "white").lower(), ANSI.FG_WHITE)
     has_left_objects = bool(scene_data.get("objects_left"))
+    color_map = color_map_override or {}
+
+    def truecolor(code: str) -> str:
+        value = code.lstrip("#")
+        if len(value) != 6:
+            return ""
+        try:
+            r = int(value[0:2], 16)
+            g = int(value[2:4], 16)
+            b = int(value[4:6], 16)
+        except ValueError:
+            return ""
+        return f"\033[38;2;{r};{g};{b}m"
+
+    def build_color_by_key() -> dict:
+        color_by_key = {}
+        for key, entry in (color_map or {}).items():
+            if isinstance(entry, dict):
+                hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
+                name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
+            elif isinstance(entry, str):
+                hex_code = ""
+                name = entry
+            else:
+                continue
+            name = name.strip()
+            hex_code = hex_code.strip()
+            if not hex_code:
+                hex_start = name.find("#")
+                hex_code = name[hex_start:] if hex_start != -1 else ""
+            if hex_code:
+                code = truecolor(hex_code)
+                if code:
+                    color_by_key[key] = code
+                    continue
+            lowered = name.lower()
+            if lowered == "brown":
+                color_by_key[key] = ANSI.FG_YELLOW + ANSI.DIM
+            elif lowered in ("gray", "grey"):
+                color_by_key[key] = ANSI.FG_WHITE + ANSI.DIM
+            else:
+                color_by_key[key] = COLOR_BY_NAME.get(lowered, ANSI.FG_WHITE)
+        return color_by_key
+
+    color_by_key = build_color_by_key()
+
+    def apply_mask(line: str, mask: str, base: str) -> str:
+        if not color_by_key or not mask:
+            return line
+        out = []
+        for i, ch in enumerate(line):
+            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            if code:
+                out.append(code + ch + ANSI.RESET)
+            else:
+                out.append(ANSI.RESET + ch)
+        return "".join(out)
     gap_base = (
         int(scene_data.get("gap_min", 2))
         if scene_data.get("left") or has_left_objects
@@ -471,24 +528,42 @@ def render_scene_art(
             left_aligned = [line.ljust(max_len) for line in raw_lines]
             art_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_aligned]
             if include_bars:
-                art_lines.append(" " * OPPONENT_ART_WIDTH)
                 art_lines.append(pad_ansi(format_opponent_bar(opponent), OPPONENT_ART_WIDTH))
         elif is_visible:
             art_lines = [" " * OPPONENT_ART_WIDTH for _ in opponent.art_lines]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
-                art_lines.append(" " * OPPONENT_ART_WIDTH)
         else:
             art_lines = [" " * OPPONENT_ART_WIDTH for _ in opponent.art_lines]
             if include_bars:
                 art_lines.append(" " * OPPONENT_ART_WIDTH)
-                art_lines.append(" " * OPPONENT_ART_WIDTH)
         if manual_lines_indices and i in manual_lines_indices and include_bars:
-            art_lines.append(" " * OPPONENT_ART_WIDTH)
             art_lines.append(" " * OPPONENT_ART_WIDTH)
         color_to_use = opponent.art_color
         if flash_index == i and flash_color:
             color_to_use = flash_color
+        has_mask = bool(opponent.color_map) and bool(color_by_key)
+        mask_lines = []
+        if has_mask:
+            raw_masks = [line[:OPPONENT_ART_WIDTH] for line in opponent.color_map]
+            max_mask = max((len(line) for line in raw_masks), default=0)
+            left_masks = [line.ljust(max_mask) for line in raw_masks]
+            mask_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_masks]
+            if include_bars:
+                mask_lines = mask_lines + [""]
+            if manual_lines_indices and i in manual_lines_indices and include_bars:
+                mask_lines.append("")
+        if has_mask:
+            colored = []
+            if flash_index == i and flash_color:
+                for line in art_lines:
+                    colored.append(flash_color + line + ANSI.RESET)
+            else:
+                for idx, line in enumerate(art_lines):
+                    mask_line = mask_lines[idx] if idx < len(mask_lines) else ""
+                    colored.append(apply_mask(line, mask_line, ""))
+            art_lines = colored
+            color_to_use = ""
         opponent_blocks.append(
             {
                 "lines": art_lines,
@@ -539,9 +614,9 @@ def render_scene_art(
             )
             gap_width = max(gap_width, content_width)
         art_lines = []
-        max_rows = max(len(left), len(right))
         max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
-        start_row = (max_rows - max_opp_rows) // 2 if max_opp_rows else 0
+        max_rows = max(len(left), len(right), max_opp_rows)
+        start_row = (max_rows - max_opp_rows) if max_opp_rows else 0
         for i in range(max_rows):
             left_line = left[i] if i < len(left) else (" " * max_left)
             right_line = right[i] if i < len(right) else (" " * max_right)
@@ -554,7 +629,10 @@ def render_scene_art(
                     width = block["width"]
                     art_line = pad_ansi(art_line, width)
                     if art_line.strip():
-                        segments.append(block["color"] + art_line + art_color)
+                        if block["color"]:
+                            segments.append(block["color"] + art_line + art_color)
+                        else:
+                            segments.append(art_line)
                     else:
                         segments.append(" " * width)
                 inter_pad = 2
@@ -579,7 +657,7 @@ def render_scene_art(
         gap_fill = " " * gap_width
         if opponent_blocks:
             max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
-            start_row = (len(forest_template) - max_opp_rows) // 2
+            start_row = (len(forest_template) - max_opp_rows)
             if start_row <= i < start_row + max_opp_rows:
                 row_index = i - start_row
                 segments = []
@@ -588,7 +666,10 @@ def render_scene_art(
                     width = block["width"]
                     art_line = pad_ansi(art_line, width)
                     if art_line.strip():
-                        segments.append(block["color"] + art_line + art_color)
+                        if block["color"]:
+                            segments.append(block["color"] + art_line + art_color)
+                        else:
+                            segments.append(art_line)
                     else:
                         segments.append(" " * width)
                 inter_pad = 2

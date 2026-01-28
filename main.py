@@ -146,13 +146,7 @@ def main():
         if cmd == "X_KEY":
             continue
 
-        if maybe_begin_target_select(APP, state, cmd):
-            confirmed = run_target_select(APP, render_frame, state, generate_frame, read_keypress_timeout)
-            if not confirmed:
-                continue
-            cmd = confirmed
-
-        handled_by_router, action_cmd, cmd, should_continue = apply_router_command(
+        handled_by_router, action_cmd, cmd, should_continue, target_index = apply_router_command(
             APP,
             state,
             cmd,
@@ -162,6 +156,18 @@ def main():
         )
         if should_continue:
             continue
+        if target_index is not None:
+            state.target_index = target_index
+
+        target_cmd = cmd
+        if action_cmd in APP.targeted_spell_commands or action_cmd == "ATTACK":
+            target_cmd = action_cmd
+        if maybe_begin_target_select(APP, state, target_cmd):
+            confirmed = run_target_select(APP, render_frame, state, generate_frame, read_keypress_timeout)
+            if not confirmed:
+                continue
+            cmd = confirmed
+            action_cmd = confirmed
 
         action_cmd = resolve_player_action(
             APP,
@@ -174,14 +180,13 @@ def main():
         )
         if state.boost_prompt:
             continue
-        if action_cmd:
-            state.target_index = None
-            state.target_command = None
-
         if state.player.needs_level_up() and not any(opponent.hp > 0 for opponent in state.opponents):
             state.leveling_mode = True
 
         handle_offensive_action(APP, state, action_cmd)
+        if action_cmd:
+            state.target_index = None
+            state.target_command = None
 
         player_defeated = run_opponent_turns(APP, render_frame, state, generate_frame, action_cmd)
 
