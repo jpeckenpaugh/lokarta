@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from app.commands.scene_commands import scene_commands
 from app.data_access.commands_data import CommandsData
+from app.data_access.colors_data import ColorsData
 from app.data_access.items_data import ItemsData
 from app.data_access.menus_data import MenusData
 from app.data_access.npcs_data import NpcsData
@@ -38,6 +39,7 @@ class ScreenContext:
     commands: CommandsData
     spells: SpellsData
     text: TextData
+    colors: ColorsData
 
 
 def generate_frame(
@@ -101,7 +103,7 @@ def generate_frame(
             body.append(f"{label}  {price} GP")
         body.append("")
         body += venue.get("narrative", [])
-        art_lines, art_color = render_venue_art(venue, npc)
+        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
         actions = format_command_lines(venue.get("commands", []))
     elif player.location == "Town" and hall_mode:
         venue = ctx.venues.get("town_hall", {})
@@ -126,7 +128,7 @@ def generate_frame(
         body += info_lines
         body += venue.get("narrative", [])
         actions = format_command_lines(venue.get("commands", []))
-        art_lines, art_color = render_venue_art(venue, npc)
+        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
     elif player.location == "Town" and inn_mode:
         venue = ctx.venues.get("town_inn", {})
         npc_lines = []
@@ -140,7 +142,7 @@ def generate_frame(
             body += npc_lines + [""]
         body += venue.get("narrative", [])
         actions = format_command_lines(venue.get("commands", []))
-        art_lines, art_color = render_venue_art(venue, npc)
+        art_lines, art_color = render_venue_art(venue, npc, ctx.colors.all())
     elif inventory_mode:
         inventory_menu = ctx.menus.get("inventory", {})
         items = inventory_items or []

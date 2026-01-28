@@ -46,7 +46,7 @@ def mirror_line(line: str) -> str:
     return line[::-1].translate(swaps)
 
 
-def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
+def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] = None) -> tuple[List[str], str]:
     art_color = COLOR_BY_NAME.get(venue.get("color", "white").lower(), ANSI.FG_WHITE)
     npc_art = npc.get("art", [])
     npc_color = COLOR_BY_NAME.get(npc.get("color", "white").lower(), ANSI.FG_WHITE)
@@ -54,6 +54,63 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
     left = venue.get("left", [])
     right = venue.get("right", [])
     top = venue.get("top")
+    top_color = venue.get("top_color", "")
+    left_color = venue.get("left_color", [])
+    right_color = venue.get("right_color", [])
+    color_map = venue.get("color_map") or (color_map_override or {})
+
+    def truecolor(code: str) -> str:
+        value = code.lstrip("#")
+        if len(value) != 6:
+            return ""
+        try:
+            r = int(value[0:2], 16)
+            g = int(value[2:4], 16)
+            b = int(value[4:6], 16)
+        except ValueError:
+            return ""
+        return f"\033[38;2;{r};{g};{b}m"
+
+    color_by_key = {}
+    for key, entry in color_map.items():
+        if isinstance(entry, dict):
+            hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
+            name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
+        elif isinstance(entry, str):
+            hex_code = ""
+            name = entry
+        else:
+            continue
+        name = name.strip()
+        hex_code = hex_code.strip()
+        if not hex_code:
+            hex_start = name.find("#")
+            hex_code = name[hex_start:] if hex_start != -1 else ""
+        if hex_code:
+            code = truecolor(hex_code)
+            if code:
+                color_by_key[key] = code
+                continue
+        lowered = name.lower()
+        if lowered == "brown":
+            color_by_key[key] = ANSI.FG_YELLOW + ANSI.DIM
+        elif lowered in ("gray", "grey"):
+            color_by_key[key] = ANSI.FG_WHITE + ANSI.DIM
+        else:
+            color_by_key[key] = COLOR_BY_NAME.get(lowered, ANSI.FG_WHITE)
+
+    def apply_color_mask(line: str, mask: str) -> str:
+        if not color_by_key or not mask:
+            return line
+        base = art_color
+        out = []
+        for i, ch in enumerate(line):
+            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            if code:
+                out.append(code + ch + ANSI.RESET + base)
+            else:
+                out.append(ch)
+        return "".join(out)
 
     if left:
         if not right:
@@ -72,9 +129,16 @@ def render_venue_art(venue: dict, npc: dict) -> tuple[List[str], str]:
         for i in range(max_rows):
             left_line = left[i] if i < len(left) else (" " * max_left)
             right_line = right[i] if i < len(right) else (" " * max_right)
+            left_mask = left_color[i] if i < len(left_color) else ""
+            right_mask = right_color[i] if i < len(right_color) else ""
+            left_line = apply_color_mask(left_line, left_mask)
+            right_line = apply_color_mask(right_line, right_mask)
             gap_fill = " " * gap_width
             if top and i == 0:
-                gap_fill = "=" * gap_width
+                mask = ""
+                if isinstance(top_color, str) and top_color:
+                    mask = (top_color * gap_width)[:gap_width] if len(top_color) == 1 else top_color[:gap_width]
+                gap_fill = apply_color_mask("=" * gap_width, mask)
             elif centered and start_row <= i < start_row + len(centered):
                 npc_line = centered[i - start_row]
                 gap_fill = npc_color + npc_line + art_color
@@ -517,14 +581,44 @@ def clear_screen():
     sys.stdout.flush()
 
 
+
+def format_gradient_location_text(location: str) -> str:
+    """Applies a gradient color effect to the location text and its embellishments."""
+    left_embellishment = "*-----<{([  "
+    right_embellishment = "  ])}>-----*"
+
+    def _truecolor(r, g, b):
+        return f"\033[38;2;{r};{g};{b}m"
+
+    def _gradient(text, start_color, end_color):
+        colored_text = ""
+        n = len(text)
+        for i, char in enumerate(text):
+            r = int(start_color[0] + (end_color[0] - start_color[0]) * i / (n - 1))
+            g = int(start_color[1] + (end_color[1] - start_color[1]) * i / (n - 1))
+            b = int(start_color[2] + (end_color[2] - start_color[2]) * i / (n - 1))
+            colored_text += f"{_truecolor(r, g, b)}{char}"
+        return colored_text
+
+    start_color = (192, 192, 192)
+    end_color = (0, 0, 128)
+
+    left_colored = _gradient(left_embellishment, start_color, end_color)
+    right_colored = _gradient(right_embellishment, end_color, start_color)
+
+    return f"{left_colored}{ANSI.FG_WHITE}{location}{right_colored}{ANSI.RESET}"
+
+
 def render_frame(frame: Frame):
     clear_screen()
 
     border = color("+" + "-" * (SCREEN_WIDTH - 2) + "+", ANSI.FG_BLUE)
     print(border)
 
-    location_line = f" {frame.location} "
-    location_row = location_line.center(SCREEN_WIDTH - 2, " ")
+    gradient_location = format_gradient_location_text(frame.location)
+    location_row = center_ansi(gradient_location, SCREEN_WIDTH - 2)
+
+
 
     used_rows = (
         1 +  # top border

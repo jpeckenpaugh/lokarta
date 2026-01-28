@@ -1,5 +1,10 @@
 import shutil
+import os
+import sys
 from typing import Optional
+
+if os.name != 'nt':
+    import termios
 
 from app.bootstrap import create_app
 from app.loop import (
@@ -55,6 +60,9 @@ def main():
         title_mode=True,
     )
     state.player.location = "Title"
+
+    if os.name != 'nt':
+        termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
 
     while True:
         if state.title_mode:
