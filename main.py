@@ -71,18 +71,6 @@ def main():
             state.inventory_items = state.player.list_inventory_items(ITEMS)
         render_frame_state(APP, render_frame, state, generate_frame)
         ch = read_input(APP, render_frame, state, generate_frame, read_keypress, read_keypress_timeout)
-        if state.quit_confirm:
-            if ch.lower() == "y":
-                SAVE_DATA.save_player(state.player)
-                clear_screen()
-                print("Goodbye.")
-                return
-            if ch.lower() == "n":
-                state.quit_confirm = False
-                state.last_message = "Quit cancelled."
-                continue
-            state.last_message = "Quit? (Y/N)"
-            continue
         action_cmd = None
         command_meta = None
         handled_by_router = False
@@ -94,8 +82,30 @@ def main():
             cmd, command_meta = map_input_to_command(APP, state, ch)
 
         if cmd == "QUIT":
-            state.quit_confirm = True
-            state.last_message = "Quit? (Y/N)"
+            if state.title_mode or state.player.location == "Title":
+                SAVE_DATA.save_player(state.player)
+                clear_screen()
+                print("Goodbye.")
+                return
+            state.title_mode = True
+            state.player.location = "Title"
+            state.player.title_confirm = False
+            state.leveling_mode = False
+            state.boost_prompt = None
+            state.shop_mode = False
+            state.inventory_mode = False
+            state.inventory_items = []
+            state.hall_mode = False
+            state.hall_view = "menu"
+            state.inn_mode = False
+            state.spell_mode = False
+            state.target_select = False
+            state.target_index = None
+            state.target_command = None
+            state.opponents = []
+            state.loot_bank = {"xp": 0, "gold": 0}
+            state.battle_log = []
+            state.last_message = ""
             continue
 
         if cmd is None and not handled_boost:

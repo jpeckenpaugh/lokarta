@@ -838,8 +838,58 @@ def format_gradient_location_text(location: str) -> str:
 def render_frame(frame: Frame):
     clear_screen()
 
-    border = color("+" + "-" * (SCREEN_WIDTH - 2) + "+", ANSI.FG_BLUE)
-    print(border)
+    def _truecolor(r: int, g: int, b: int) -> str:
+        return f"\033[38;2;{r};{g};{b}m"
+
+    def _gradient_rgb(x: int, y: int, width: int, height: int) -> tuple[int, int, int]:
+        # Diagonal gradient: light silver -> bright blue -> dark silver
+        if width <= 1 and height <= 1:
+            return (192, 192, 192)
+        denom = max(1, (width - 1) + (height - 1))
+        t = (x + y) / denom
+        if t <= 0.5:
+            t2 = t / 0.5
+            start = (192, 192, 192)
+            end = (77, 77, 255)
+        else:
+            t2 = (t - 0.5) / 0.5
+            start = (77, 77, 255)
+            end = (96, 96, 96)
+        r = int(round(start[0] + (end[0] - start[0]) * t2))
+        g = int(round(start[1] + (end[1] - start[1]) * t2))
+        b = int(round(start[2] + (end[2] - start[2]) * t2))
+        return (r, g, b)
+
+    def _gradient_char(x: int, y: int, width: int, height: int, ch: str) -> str:
+        r, g, b = _gradient_rgb(x, y, width, height)
+        return _truecolor(r, g, b) + ch + ANSI.RESET
+
+    def _gradient_line(y: int, line: str) -> str:
+        width = len(line)
+        height = SCREEN_HEIGHT
+        out = []
+        for x, ch in enumerate(line):
+            out.append(_gradient_char(x, y, width, height, ch))
+        return "".join(out)
+
+    def _gradient_segment(y: int, start_x: int, text: str) -> str:
+        out = []
+        for i, ch in enumerate(text):
+            x = start_x + i
+            out.append(_gradient_char(x, y, SCREEN_WIDTH, SCREEN_HEIGHT, ch))
+        return "".join(out)
+
+    def _gradient_content_line(y: int, content: str) -> str:
+        out = []
+        for i, ch in enumerate(content):
+            x = i + 1  # content starts after left border
+            out.append(_gradient_char(x, y, SCREEN_WIDTH, SCREEN_HEIGHT, ch))
+        return "".join(out)
+
+    row_idx = 0
+    top_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
+    print(_gradient_line(row_idx, top_border))
+    row_idx += 1
 
     gradient_location = format_gradient_location_text(frame.location)
     location_row = center_ansi(gradient_location, SCREEN_WIDTH - 2)
@@ -858,8 +908,13 @@ def render_frame(frame: Frame):
     )
     body_height = SCREEN_HEIGHT - used_rows
 
-    print(color(f"|{location_row}|", ANSI.FG_CYAN))
-    print(border)
+    left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+    right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+    print(left_border + location_row + right_border)
+    row_idx += 1
+    sep_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
+    print(_gradient_line(row_idx, sep_border))
+    row_idx += 1
 
     status_lines = frame.status_lines[:]
     art_count = len(frame.art_lines)
@@ -885,9 +940,10 @@ def render_frame(frame: Frame):
             styled = center_ansi(styled, SCREEN_WIDTH - 2)
         body_rows.append(styled)
 
+    divider_row = None
     if art_count > 0:
         divider_row = "-" * (SCREEN_WIDTH - 2)
-        body_rows.append(color(divider_row, ANSI.FG_BLUE))
+        body_rows.append(divider_row)
 
     if frame.location == "Forest":
         visible_lines = frame.body_lines[-narrative_space:] if narrative_space > 0 else []
@@ -906,27 +962,59 @@ def render_frame(frame: Frame):
 
     for i in range(body_height):
         line = body_rows[i] if i < len(body_rows) else ""
-        print(
-            color("|", ANSI.FG_BLUE)
-            + line
-            + color("|", ANSI.FG_BLUE)
-        )
+        left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+        right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+        if divider_row is not None and i < len(body_rows) and body_rows[i] == divider_row:
+            line = _gradient_content_line(row_idx, divider_row)
+        print(left_border + line + right_border)
+        row_idx += 1
 
-    actions_label = "---Actions---"
+    actions_label = "Actions"
     actions_label_row = actions_label.center(SCREEN_WIDTH - 2, "-")
-    print(color(f"+{actions_label_row}+", ANSI.FG_BLUE))
+    label_start = actions_label_row.find(actions_label)
+    label_end = label_start + len(actions_label) if label_start != -1 else 0
+    left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "+")
+    right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "+")
+    left_content = actions_label_row[:label_start] if label_start != -1 else actions_label_row
+    mid_label = actions_label if label_start != -1 else ""
+    right_content = actions_label_row[label_end:] if label_start != -1 else ""
+    print(
+        left_border
+        + _gradient_segment(row_idx, 1, left_content)
+        + color(mid_label, ANSI.FG_WHITE, ANSI.BOLD)
+        + _gradient_segment(row_idx, 1 + len(left_content) + len(mid_label), right_content)
+        + right_border
+    )
+    row_idx += 1
 
     for i in range(len(frame.action_lines)):
         line = frame.action_lines[i] if i < len(frame.action_lines) else ""
+        left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+        right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
         print(
-            color("|", ANSI.FG_BLUE)
+            left_border
             + pad_or_trim_ansi(line, SCREEN_WIDTH - 2)
-            + color("|", ANSI.FG_BLUE)
+            + right_border
         )
+        row_idx += 1
 
-    stats_label = "---Player-Stats---"
+    stats_label = "Player-Stats"
     stats_label_row = stats_label.center(SCREEN_WIDTH - 2, "-")
-    print(color(f"+{stats_label_row}+", ANSI.FG_BLUE))
+    label_start = stats_label_row.find(stats_label)
+    label_end = label_start + len(stats_label) if label_start != -1 else 0
+    left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "+")
+    right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "+")
+    left_content = stats_label_row[:label_start] if label_start != -1 else stats_label_row
+    mid_label = stats_label if label_start != -1 else ""
+    right_content = stats_label_row[label_end:] if label_start != -1 else ""
+    print(
+        left_border
+        + _gradient_segment(row_idx, 1, left_content)
+        + color(mid_label, ANSI.FG_WHITE, ANSI.BOLD)
+        + _gradient_segment(row_idx, 1 + len(left_content) + len(mid_label), right_content)
+        + right_border
+    )
+    row_idx += 1
     for i in range(STAT_LINES):
         raw = frame.stat_lines[i] if i < len(frame.stat_lines) else ""
         styled = raw
@@ -940,13 +1028,13 @@ def render_frame(frame: Frame):
             styled = color(raw, ANSI.FG_CYAN)
 
         centered = center_ansi(styled, SCREEN_WIDTH - 2)
-        print(
-            color("|", ANSI.FG_BLUE)
-            + centered
-            + color("|", ANSI.FG_BLUE)
-        )
+        left_border = _gradient_char(0, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+        right_border = _gradient_char(SCREEN_WIDTH - 1, row_idx, SCREEN_WIDTH, SCREEN_HEIGHT, "|")
+        print(left_border + centered + right_border)
+        row_idx += 1
 
-    print(border)
+    bottom_border = "+" + "-" * (SCREEN_WIDTH - 2) + "+"
+    print(_gradient_line(row_idx, bottom_border))
 
 
 def format_opponent_bar(opponent: Opponent) -> str:
