@@ -1,31 +1,27 @@
 {
   "town_shop": {
-    "name": "Town Shop",
-    "scene_id": "shop",
+    "name": "Town Hall",
+    "scene_id": "hall",
     "npc_ids": [
-      "shopkeeper_1"
+      "mayor_1"
     ],
     "actions": [
-      "buy",
+      "info_opponents",
+      "info_items",
       "leave"
     ],
-    "welcome_message": "Welcome to the shop.",
-    "leave_message": "You leave the shop.",
+    "welcome_message": "Welcome to the hall.",
+    "leave_message": "You leave the hall.",
     "commands": [
       {
         "key": "1",
-        "label": "Buy Rations",
+        "label": "Opponents",
         "command": "NUM1"
       },
       {
         "key": "2",
-        "label": "Buy Herbal Tea",
+        "label": "Items",
         "command": "NUM2"
-      },
-      {
-        "key": "3",
-        "label": "Buy Elixir",
-        "command": "NUM3"
       },
       {
         "key": "B",
@@ -38,75 +34,148 @@
         "command": "QUIT"
       }
     ],
-    "narrative": [
-      "Choose an item to purchase."
-    ],
-    "inventory_items": [
+    "info_sections": [
       {
+        "key": "opponents",
+        "label": "Opponents",
+        "source": "opponents",
         "command": "NUM1",
-        "item_id": "rations",
-        "label": "Rations (+5 HP/MP)"
+        "message": "Viewing opponent info."
       },
       {
+        "key": "items",
+        "label": "Items",
+        "source": "items",
         "command": "NUM2",
-        "item_id": "herbal_tea",
-        "label": "Herbal Tea (+10 HP/MP)"
-      },
-      {
-        "command": "NUM3",
-        "item_id": "elixir",
-        "label": "Elixir (+20 HP/MP)"
+        "message": "Viewing item info."
       }
     ],
-    "inventory_source": "basic",
-    "gap_width": 15,
+    "narrative": [],
+    "objects": [
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "bush_large"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "bush_small"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "house_wall_left"
+      },
+      {
+        "id": "roof",
+        "mode": "span_until",
+        "target": "house_wall_right"
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "table",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "npc",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "lamp",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "tree_large"
+      },
+      {
+        "id": "grass",
+        "repeat": 4
+      },
+      {
+        "id": "house_wall_left"
+      }
+    ],
+    "gap_width": 7,
+    "top": "=",
+    "top_color": "2",
     "left": [
-      " ",
-      "      .--.",
-      "     _______",
-      "    /        ",
-      "   /   TOWN  ",
-      "  |   GOODS  ",
-      "  |_________",
-      "     |  |",
-      "     |__|",
-      " "
+      "                    /============",
+      "                   /             ",
+      "                  /_   o         ",
+      "                   |   |         ",
+      "                   |   |         ",
+      "    (O)  o   o     |   |         ",
+      "   (O*O)o*o o*o    |   =====     ",
+      "    (O)  o   o     |   |   |     ",
+      "    _|___|___|_    |   |   |     ",
+      "__=[           ]=__|   o   o     "
     ],
     "right": [
-      "               ",
-      "     .--.      ",
-      "_________     ",
-      "        \\    ",
-      "  SHOP   \\   ",
-      "         |",
-      "_________|",
-      "  |  |",
-      "  |__|",
-      "               "
+      "============\\",
+      "       __    \\",
+      "      /  \\   _\\         ___",
+      "     /____\\  |         /===\\",
+      "       ||    |         \\===/",
+      "       ||    |          |^|",
+      "       ||    |o         |^|",
+      "       ||    |          |^|",
+      "       ||    |          |^|",
+      "      /[]\\   |======___[|^|]___"
     ],
     "left_color": [
-      " ",
-      "      .--.",
-      "     _______",
-      "    /        ",
-      "   /   TOWN  ",
-      "  |   GOODS  ",
-      "  |_________",
-      "     |  |",
-      "     |__|",
-      " "
+      "                    2222222222222",
+      "                   2             ",
+      "                  2w   2         ",
+      "                   2   1         ",
+      "                   2   1         ",
+      "    prp  r   r     2   1         ",
+      "   pryrpryr ryr    2   11111     ",
+      "    prp  r   r     2   1   1     ",
+      "    1g111g111g1    2   1   1     ",
+      "ggw1           1wgg2   2   2     "
     ],
     "right_color": [
-      "               ",
-      "     .--.      ",
-      "_________     ",
-      "        \\    ",
-      "  SHOP   \\   ",
-      "         |",
-      "_________|",
-      "  |  |",
-      "  |__|",
-      "               "
+      "2222222222222",
+      "       yy    2",
+      "      y  y   w2         ___",
+      "     yyyyyy  2         /===\\",
+      "       ||    2         \\===/",
+      "       ||    2          |i|",
+      "       ||    2w         |i|",
+      "       ||    2          |i|",
+      "       ||    2          |i|",
+      "      2mm2   2wwwwwwggg[|i|]ggg"
     ]
   },
   "town_hall": {
@@ -162,26 +231,79 @@
     ],
     "narrative": [],
     "objects": [
-      { "id": "house_wall_right" },
-      { "id": "grass", "repeat": 2 },
-      { "id": "flower_box" },
-      { "id": "grass" },
-      { "id": "flower_box" },
-      { "id": "grass", "repeat": 2 },
-      { "id": "house_wall_left" },
-      { "id": "roof", "mode": "span_until", "target": "house_wall_right" },
-      { "id": "space", "width": 1 },
-      { "id": "chair", "align": 0 },
-      { "id": "space", "width": 5 },
-      { "id": "npc", "align": 0 },
-      { "id": "space", "width": 5 },
-      { "id": "lamp", "align": 0 },
-      { "id": "space", "width": 1 },
-      { "id": "house_wall_right" },
-      { "id": "grass", "repeat": 2 },
-      { "id": "sign" },
-      { "id": "grass", "repeat": 4 },
-      { "id": "house_wall_left" }
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "flower_box"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "flower_box"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "house_wall_left"
+      },
+      {
+        "id": "roof",
+        "mode": "span_until",
+        "target": "house_wall_right"
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "chair",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "npc",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 5
+      },
+      {
+        "id": "lamp",
+        "align": 0
+      },
+      {
+        "id": "space",
+        "width": 1
+      },
+      {
+        "id": "house_wall_right"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "sign"
+      },
+      {
+        "id": "grass",
+        "repeat": 4
+      },
+      {
+        "id": "house_wall_left"
+      }
     ],
     "gap_width": 7,
     "top": "=",

@@ -163,13 +163,11 @@
       "|           |",
       "|           |",
       "|           |",
-      "|           |",
       "o           o"
     ],
     "color_mask": [
       " xxxxxxxxxxx",
       "xXXXXXXXXXXXx",
-      "x           x",
       "x           x",
       "x           x",
       "x           x",
@@ -179,52 +177,51 @@
   },
   "bush_small": {
     "art": [
-      "  _--_ ",
-      " /####\\",
-      " \\####/",
-      "  |##|   "
+      " _--_",
+      "/####\\",
+      "\\####/",
+      "~|##|~"
     ],
     "color_mask": [
-      "  gGGg ",
-      " gGGGGg",
-      " gGGGGg",
-      "  dDDd   "
+      " gGGg",
+      "gGGGGg",
+      "gGGGGg",
+      "gdDDdg"
     ],
     "align": 0
   },
   "bush_large": {
     "art": [
-      "   __----__   ",
-      "  /########\\  ",
-      " /##########\\ ",
-      " \\##########/ ",
-      "  \\########/  ",
-      "   |######|  "
+      "  __----__",
+      " /########\\",
+      "/##########\\",
+      "\\##########/",
+      " \\########/",
+      "~~|######|~~"
     ],
     "color_mask": [
-      "   ggGGGGgg   ",
-      "  gGGGGGGGGg  ",
-      " gGGGGGGGGGGg ",
-      " gGGGGGGGGGGg ",
-      "  gGGGGGGGGg  ",
-      "   dDDDDDDd  "
+      "  ggGgGGgg",
+      " gGGGGGgGGg",
+      "gGGGgGGGgGGg",
+      "gGgGGGGGgGGg",
+      " gGGGgGGGGg",
+      "GgdDDDDDDdGg"
     ],
     "align": 0
   },
   "tree_small": {
     "art": [
-      "   /\\  ",
-      "  /##\\ ",
-      " /####\\",
-      "   ||  ",
-      "  _||_ "
+      "  /\\",
+      " /##\\",
+      "/####\\",
+      "~~||~~ "
     ],
     "color_mask": [
-      "   gg  ",
-      "  gGGg ",
-      " gGGGGg",
-      "   dd  ",
-      "  dddd "
+      "  gg",
+      " gGGg",
+      "gGGGGg",
+      "  dd",
+      "gGddgG"
     ],
     "align": 0
   },
@@ -237,8 +234,7 @@
       "  /########\\",
       " /##########\\",
       "/############\\",
-      "     ||||",
-      "    _||||_"
+      "~~~~~/||\\~~~~~"
     ],
     "color_mask": [
       "      gg",
@@ -248,8 +244,7 @@
       "  gGGdgGGgdg",
       " ggGGGgdGggGg",
       "ggGgGdGgGdGgGg",
-      "     dDDd",
-      "    dDddDd"
+      "gGgGgDddDGgGgG"
     ],
     "align": 0
   },
