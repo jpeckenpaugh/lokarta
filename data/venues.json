@@ -78,7 +78,7 @@
         "width": 1
       },
       {
-        "id": "table",
+        "id": "table_shop",
         "align": 0
       },
       {
@@ -94,7 +94,7 @@
         "width": 5
       },
       {
-        "id": "lamp",
+        "id": "bookshelf",
         "align": 0
       },
       {
@@ -110,8 +110,13 @@
       },
       {
         "id": "flower_box",
-        "repeat": 2
+        "repeat": 1
       },
+      {
+        "id": "grass",
+        "repeat": 1
+      },
+
       {
         "id": "house_wall_left"
       }
@@ -303,20 +308,10 @@
       },
       {
         "id": "grass",
-        "repeat": 2
+        "repeat": 1
       },
       {
-        "id": "bush_large"
-      },
-      {
-        "id": "grass"
-      },
-      {
-        "id": "bush_small"
-      },
-      {
-        "id": "grass",
-        "repeat": 2
+        "id": "tree_large"
       },
       {
         "id": "house_wall_left"
@@ -331,7 +326,7 @@
         "width": 1
       },
       {
-        "id": "table",
+        "id": "bed",
         "align": 0
       },
       {
@@ -344,29 +339,28 @@
       },
       {
         "id": "space",
-        "width": 5
+        "width": 3
       },
       {
-        "id": "lamp",
+        "id": "table",
         "align": 0
       },
       {
         "id": "space",
-        "width": 1
+        "width": 3
       },
       {
         "id": "house_wall_right"
       },
       {
+        "id": "grass"
+      },
+      {
+        "id": "bush_small"
+      },
+      {
         "id": "grass",
         "repeat": 2
-      },
-      {
-        "id": "tree_large"
-      },
-      {
-        "id": "grass",
-        "repeat": 4
       },
       {
         "id": "house_wall_left"

@@ -175,6 +175,44 @@
     ],
     "align": 0
   },
+  "bed": {
+    "art": [
+      "o",
+      "|_____________",
+      "|#############|",
+      "|             |",
+      "o             o"
+    ],
+    "color_mask": [
+      "w",
+      "XbBbBbBbBbBbBb",
+      "xBbBbBbBbBbBbBx",
+      "x             x",
+      "w             w"
+    ],
+    "align": 0
+  },
+  "table_shop": {
+    "art": [
+      "  ^  []  o",
+      " _O__[]_(O)_",
+      "|___________|",
+      "|           |",
+      "|           |",
+      "|           |",
+      "o           o"
+    ],
+    "color_mask": [
+      "  a  mm  i",
+      " xaxxMMxIIIx",
+      "xXXXXXXXXXXXx",
+      "x           x",
+      "x           x",
+      "x           x",
+      "w           w"
+    ],
+    "align": 0
+  },
   "bush_small": {
     "art": [
       " _--_",
@@ -245,6 +283,31 @@
       " ggGGGgdGggGg",
       "ggGgGdGgGdGgGg",
       "gGgGgDddDGgGgG"
+    ],
+    "align": 0
+  },
+  "bookshelf": {
+    "art": [
+      " __________ ",
+      "|==========|",
+      "||[] [] []||",
+      "||[] [] []||",
+      "||[] [] []||",
+      "||[] [] []||",
+      "||[] [] []||",
+      "||________||",
+      "|__________|"
+    ],
+    "color_mask": [
+      " dddddddddd ",
+      "dDDDDDDDDDDd",
+      "ddrr xx bbdd",
+      "ddtt yy ffdd",
+      "ddqq yy bbdd",
+      "ddee ii ccdd",
+      "ddmm oo bbdd",
+      "dDDDDDDDDDDd",
+      "DddddddddddD"
     ],
     "align": 0
   },
