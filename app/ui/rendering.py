@@ -442,13 +442,16 @@ def render_scene_art(
     flash_color: Optional[str] = None,
     visible_indices: Optional[set] = None,
     include_bars: bool = True,
-    manual_lines_indices: Optional[set] = None
+    manual_lines_indices: Optional[set] = None,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ) -> tuple[List[str], str]:
     """Compose scene art with optional opponent blocks in the gap."""
     art_color = COLOR_BY_NAME.get(scene_data.get("color", "white").lower(), ANSI.FG_WHITE)
+    has_left_objects = bool(scene_data.get("objects_left"))
     gap_base = (
         int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
+        if scene_data.get("left") or has_left_objects
         else int(scene_data.get("gap_width", 20))
     )
     gap_width = gap_override if gap_override is not None else gap_base
@@ -493,7 +496,28 @@ def render_scene_art(
                 "color": color_to_use,
             }
         )
-    if scene_data.get("left"):
+    if has_left_objects:
+        def _render_object_strip(objects_list: list) -> list[str]:
+            if not objects_list or objects_data is None:
+                return []
+            venue_stub = {
+                "objects": objects_list,
+                "color": scene_data.get("color", "white"),
+            }
+            if isinstance(scene_data.get("color_map"), dict):
+                venue_stub["color_map"] = scene_data.get("color_map")
+            lines, _, _ = render_venue_objects(venue_stub, {}, objects_data, color_map_override)
+            return lines
+
+        left = _render_object_strip(scene_data.get("objects_left", []))
+        right = _render_object_strip(scene_data.get("objects_right", []))
+        if not right and left:
+            right = [mirror_line(strip_ansi(line)) for line in left]
+        max_left = max((len(strip_ansi(line)) for line in left), default=0)
+        max_right = max((len(strip_ansi(line)) for line in right), default=0)
+        left = [pad_ansi(line, max_left) for line in left]
+        right = [pad_ansi(line, max_right) for line in right]
+    if scene_data.get("left") and not has_left_objects:
         left = scene_data.get("left", [])
         right = scene_data.get("right", [])
         if not right:
@@ -502,6 +526,9 @@ def render_scene_art(
         max_right = max((len(line) for line in right), default=0)
         left = [line.ljust(max_left) for line in left]
         right = [line.ljust(max_right) for line in right]
+    if has_left_objects or scene_data.get("left"):
+        max_left = max((len(strip_ansi(line)) for line in left), default=0)
+        max_right = max((len(strip_ansi(line)) for line in right), default=0)
         if opponent_blocks:
             gap_pad = 2
             inter_pad = 2
@@ -588,7 +615,7 @@ def compute_scene_gap_target(scene_data: dict, opponents: List[Opponent]) -> int
         return 0
     gap_base = (
         int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
+        if scene_data.get("left") or scene_data.get("objects_left")
         else int(scene_data.get("gap_width", 20))
     )
     opponent_blocks = [m for m in opponents if m.art_lines]
@@ -610,6 +637,8 @@ def render_scene_frame(
     opponents: List[Opponent],
     message: str,
     gap_override: int,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None,
     art_opponents: Optional[List[Opponent]] = None,
     flash_index: Optional[int] = None,
     flash_color: Optional[str] = None,
@@ -628,7 +657,9 @@ def render_scene_frame(
         flash_color=flash_color,
         visible_indices=visible_indices,
         include_bars=include_bars,
-        manual_lines_indices=manual_lines_indices
+        manual_lines_indices=manual_lines_indices,
+        objects_data=objects_data,
+        color_map_override=color_map_override,
     )
     alive = [o for o in opponents if o.hp > 0]
     if alive:
@@ -672,7 +703,9 @@ def animate_scene_gap(
     end_gap: int,
     steps: int = 6,
     delay: float = 0.06,
-    art_opponents: Optional[List[Opponent]] = None
+    art_opponents: Optional[List[Opponent]] = None,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ):
     if start_gap == end_gap or steps <= 0:
         return
@@ -687,7 +720,9 @@ def animate_scene_gap(
             opponents,
             message,
             gap,
-            art_opponents,
+            objects_data=objects_data,
+            color_map_override=color_map_override,
+            art_opponents=art_opponents,
             suppress_actions=True
         )
         time.sleep(delay)
@@ -699,14 +734,16 @@ def animate_battle_start(
     scene_id: str,
     player: Player,
     opponents: List[Opponent],
-    message: str
+    message: str,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ):
     if not opponents:
         return
     scene_data = scenes_data.get(scene_id, {})
     gap_base = (
         int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
+        if scene_data.get("left") or scene_data.get("objects_left")
         else int(scene_data.get("gap_width", 20))
     )
     gap_target = compute_scene_gap_target(scene_data, opponents)
@@ -719,7 +756,9 @@ def animate_battle_start(
         message,
         gap_base,
         gap_target,
-        art_opponents=[]
+        art_opponents=[],
+        objects_data=objects_data,
+        color_map_override=color_map_override
     )
 
 
@@ -729,14 +768,16 @@ def animate_battle_end(
     scene_id: str,
     player: Player,
     opponents: List[Opponent],
-    message: str
+    message: str,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ):
     if not opponents:
         return
     scene_data = scenes_data.get(scene_id, {})
     gap_base = (
         int(scene_data.get("gap_min", 2))
-        if scene_data.get("left")
+        if scene_data.get("left") or scene_data.get("objects_left")
         else int(scene_data.get("gap_width", 20))
     )
     gap_target = compute_scene_gap_target(scene_data, opponents)
@@ -749,7 +790,9 @@ def animate_battle_end(
         message,
         gap_target,
         gap_base,
-        art_opponents=[]
+        art_opponents=[],
+        objects_data=objects_data,
+        color_map_override=color_map_override
     )
 
 
@@ -761,7 +804,9 @@ def flash_opponent(
     opponents: List[Opponent],
     message: str,
     index: Optional[int],
-    flash_color: str
+    flash_color: str,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ):
     if index is None:
         return
@@ -775,6 +820,8 @@ def flash_opponent(
         opponents,
         message,
         gap_target,
+        objects_data=objects_data,
+        color_map_override=color_map_override,
         flash_index=index,
         flash_color=flash_color,
         suppress_actions=True
@@ -789,7 +836,9 @@ def melt_opponent(
     player: Player,
     opponents: List[Opponent],
     message: str,
-    index: Optional[int]
+    index: Optional[int],
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
 ):
     if index is None:
         return
@@ -824,6 +873,8 @@ def melt_opponent(
             opponents,
             message,
             gap_target,
+            objects_data=objects_data,
+            color_map_override=color_map_override,
             art_opponents=art_overrides,
             manual_lines_indices={index},
             suppress_actions=True

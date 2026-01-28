@@ -1,6 +1,7 @@
 """Command router for stateful, data-driven actions."""
 
 from dataclasses import dataclass
+import random
 from typing import List, Optional
 
 from app.combat import cast_spell, primary_opponent
@@ -10,6 +11,7 @@ from app.data_access.opponents_data import OpponentsData
 from app.data_access.scenes_data import ScenesData
 from app.data_access.venues_data import VenuesData
 from app.data_access.menus_data import MenusData
+from app.data_access.objects_data import ObjectsData
 from app.data_access.save_data import SaveData
 from app.models import Player, Opponent
 from app.commands.registry import CommandContext, CommandRegistry, dispatch_command
@@ -17,6 +19,7 @@ from app.data_access.spells_data import SpellsData
 from app.shop import purchase_item
 from app.ui.ansi import ANSI
 from app.ui.rendering import animate_battle_start
+from app.ui.constants import SCREEN_WIDTH
 
 
 @dataclass
@@ -46,6 +49,7 @@ class RouterContext:
     save_data: SaveData
     spells: SpellsData
     menus: MenusData
+    objects: ObjectsData
     registry: CommandRegistry
 
 
@@ -376,6 +380,32 @@ def _command_target(
 
 
 def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool:
+    def _build_forest_objects() -> None:
+        scene = ctx.scenes.get("forest", {})
+        objects_data = ctx.objects
+        if not objects_data:
+            return
+        gap_min = int(scene.get("gap_min", 0) or 0)
+        target_width = max(0, (SCREEN_WIDTH - 2 - gap_min) // 2)
+        def obj_width(obj_id: str) -> int:
+            obj = objects_data.get(obj_id, {})
+            art = obj.get("art", [])
+            return max((len(line) for line in art), default=0)
+        options = ["tree_large", "bush_large"]
+        def build_strip() -> list[dict]:
+            strip = []
+            width = 0
+            while width < target_width:
+                obj_id = random.choice(options)
+                strip.append({"id": obj_id})
+                width += obj_width(obj_id)
+                if obj_width(obj_id) == 0:
+                    break
+            return strip
+        scene["objects_left"] = build_strip()
+        scene["objects_right"] = build_strip()
+        scene["gap_min"] = 0
+
     if scene_id == "town":
         if state.player.location == "Town":
             state.last_message = "You are already in town."
@@ -392,6 +422,7 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         ctx.save_data.save_player(state.player)
         return True
     if scene_id == "forest":
+        _build_forest_objects()
         if state.player.location != "Forest":
             state.player.location = "Forest"
             state.opponents = ctx.opponents_data.spawn(state.player.level, ANSI.FG_WHITE)

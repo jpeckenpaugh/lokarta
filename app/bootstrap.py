@@ -142,6 +142,7 @@ def create_app() -> AppContext:
         save_data=save_data,
         spells=spells,
         menus=menus,
+        objects=objects,
         registry=registry,
     )
     screen_ctx = ScreenContext(

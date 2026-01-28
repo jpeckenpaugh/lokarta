@@ -110,6 +110,8 @@ def run_target_select(ctx, render_frame, state: GameState, generate_frame, read_
             state.opponents,
             message,
             gap_override=gap_target,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all(),
             flash_index=flash_index,
             flash_color=ANSI.FG_YELLOW,
             suppress_actions=True,
@@ -298,7 +300,9 @@ def apply_router_command(
             "forest",
             state.player,
             state.opponents,
-            state.last_message
+            state.last_message,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all()
         )
     if action_cmd not in ctx.combat_actions:
         return True, action_cmd, cmd, True
@@ -382,7 +386,9 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
         state.opponents,
         message,
         target_index,
-        ANSI.FG_YELLOW
+        ANSI.FG_YELLOW,
+        objects_data=ctx.objects,
+        color_map_override=ctx.colors.all()
     )
     defeated_indices = [
         i for i, m in enumerate(state.opponents)
@@ -396,7 +402,9 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
             state.player,
             state.opponents,
             message,
-            index
+            index,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all()
         )
         state.opponents[index].melted = True
 
@@ -436,7 +444,9 @@ def run_opponent_turns(ctx, render_frame, state: GameState, generate_frame, acti
                 state.opponents,
                 _status_message(state, None),
                 opp_index,
-                ANSI.FG_RED
+                ANSI.FG_RED,
+                objects_data=ctx.objects,
+                color_map_override=ctx.colors.all()
             )
             if state.player.hp == 0:
                 lost_gp = state.player.gold // 2
@@ -468,7 +478,9 @@ def handle_battle_end(ctx, state: GameState, action_cmd: Optional[str]) -> None:
             "forest",
             state.player,
             state.opponents,
-            state.last_message
+            state.last_message,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all()
         )
     state.opponents = []
     if state.loot_bank["xp"] or state.loot_bank["gold"]:

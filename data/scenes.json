@@ -21,13 +21,13 @@
       "If you are lost, check the town hall for instructions."
     ],
     "commands": [
-    {
-      "key": "F",
-      "label": "Set out for the Forest",
-      "command": "ENTER_SCENE",
-      "target": "forest",
-      "anim": "battle_start"
-    },
+      {
+        "key": "F",
+        "label": "Set out for the Forest",
+        "command": "ENTER_SCENE",
+        "target": "forest",
+        "anim": "battle_start"
+      },
       {
         "key": "S",
         "label": "Shop",
@@ -40,49 +40,37 @@
         "command": "ENTER_VENUE",
         "target": "town_hall"
       },
-    {
-      "key": "I",
-      "label": "Inn",
-      "command": "ENTER_VENUE",
-      "target": "town_inn"
-    }
+      {
+        "key": "I",
+        "label": "Inn",
+        "command": "ENTER_VENUE",
+        "target": "town_inn"
+      }
     ]
   },
   "forest": {
     "color": "green",
-    "gap_min": 8,
-    "left": [
-      "       _  _     _",
-      "      / \\/ \\   / \\",
-      "     /______\\ /___\\",
-      "       |  |    | |",
-      "       |  |    | |",
-      "   ^   ^  |^   | |",
-      "  / \\ / \\ / \\  | |",
-      " /___\\___\\___\\/___\\",
-      "~~~  ~~~  ~~~  ~~~",
-      " ~~~  ~~~  ~~~  ~~~"
-    ],
+    "gap_min": 0,
     "narrative": [
       "All is quiet. No enemies in sight."
     ],
     "commands": [
-    {
-      "key": "A",
-      "label": "Attack",
-      "command": "ATTACK",
-      "type": "combat",
-      "anim": "flash_melt",
-      "when": "has_opponents"
-    },
-    {
-      "key": "F",
-      "label": "Find an opponent to fight",
-      "command": "ENTER_SCENE",
-      "target": "forest",
-      "anim": "battle_start",
-      "when": "no_opponents"
-    },
+      {
+        "key": "A",
+        "label": "Attack",
+        "command": "ATTACK",
+        "type": "combat",
+        "anim": "flash_melt",
+        "when": "has_opponents"
+      },
+      {
+        "key": "F",
+        "label": "Find an opponent to fight",
+        "command": "ENTER_SCENE",
+        "target": "forest",
+        "anim": "battle_start",
+        "when": "no_opponents"
+      },
       {
         "key": "T",
         "label": "Return to Town",

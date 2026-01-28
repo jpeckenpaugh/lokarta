@@ -213,7 +213,12 @@ def generate_frame(
             )
     else:
         scene_data = ctx.scenes.get("forest", {})
-        forest_art, art_color = render_scene_art(scene_data, opponents)
+        forest_art, art_color = render_scene_art(
+            scene_data,
+            opponents,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all(),
+        )
         alive = [o for o in opponents if o.hp > 0]
         default_text = ctx.text.get("battle", "quiet", "All is quiet. No enemies in sight.")
         default_narrative = scene_data.get("narrative", [default_text])

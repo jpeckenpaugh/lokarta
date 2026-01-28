@@ -1,27 +1,31 @@
 {
   "town_shop": {
-    "name": "Town Hall",
-    "scene_id": "hall",
+    "name": "Town Shop",
+    "scene_id": "shop",
     "npc_ids": [
       "shopkeeper_1"
     ],
     "actions": [
-      "info_opponents",
-      "info_items",
+      "buy",
       "leave"
     ],
-    "welcome_message": "Welcome to the hall.",
-    "leave_message": "You leave the hall.",
+    "welcome_message": "Welcome to the shop.",
+    "leave_message": "You leave the shop.",
     "commands": [
       {
         "key": "1",
-        "label": "Opponents",
+        "label": "Buy Rations",
         "command": "NUM1"
       },
       {
         "key": "2",
-        "label": "Items",
+        "label": "Buy Herbal Tea",
         "command": "NUM2"
+      },
+      {
+        "key": "3",
+        "label": "Buy Elixir",
+        "command": "NUM3"
       },
       {
         "key": "B",
@@ -50,7 +54,9 @@
         "message": "Viewing item info."
       }
     ],
-    "narrative": [],
+    "narrative": [
+      "Choose an item to purchase."
+    ],
     "objects": [
       {
         "id": "house_wall_right"
@@ -116,11 +122,28 @@
         "id": "grass",
         "repeat": 1
       },
-
       {
         "id": "house_wall_left"
       }
-    ]
+    ],
+    "inventory_items": [
+      {
+        "command": "NUM1",
+        "item_id": "rations",
+        "label": "Rations (+5 HP/MP)"
+      },
+      {
+        "command": "NUM2",
+        "item_id": "herbal_tea",
+        "label": "Herbal Tea (+10 HP/MP)"
+      },
+      {
+        "command": "NUM3",
+        "item_id": "elixir",
+        "label": "Elixir (+20 HP/MP)"
+      }
+    ],
+    "inventory_source": "basic"
   },
   "town_hall": {
     "name": "Town Hall",
@@ -251,28 +274,31 @@
     ]
   },
   "town_inn": {
-    "name": "Town Hall",
-    "scene_id": "hall",
+    "name": "Town Inn",
+    "scene_id": "inn",
     "npc_ids": [
       "innkeeper_1"
     ],
     "actions": [
-      "info_opponents",
-      "info_items",
+      "rest",
       "leave"
     ],
-    "welcome_message": "Welcome to the hall.",
-    "leave_message": "You leave the hall.",
+    "welcome_message": "Warm lights and quiet rooms await.",
+    "leave_message": "You step back into the street.",
     "commands": [
       {
-        "key": "1",
-        "label": "Opponents",
-        "command": "NUM1"
+        "key": "R",
+        "label": "Rest (10 GP)",
+        "command": "USE_SERVICE",
+        "target": "town_inn",
+        "service_id": "rest"
       },
       {
-        "key": "2",
-        "label": "Items",
-        "command": "NUM2"
+        "key": "M",
+        "label": "Hot meal (3 GP)",
+        "command": "USE_SERVICE",
+        "target": "town_inn",
+        "service_id": "meal"
       },
       {
         "key": "B",
@@ -301,7 +327,10 @@
         "message": "Viewing item info."
       }
     ],
-    "narrative": [],
+    "narrative": [
+      "Rest by the hearth for the night.",
+      "A bed costs 10 GP. A hot meal is 3 GP."
+    ],
     "objects": [
       {
         "id": "house_wall_right"
@@ -365,6 +394,26 @@
       {
         "id": "house_wall_left"
       }
-    ]
+    ],
+    "services": {
+      "rest": {
+        "type": "rest",
+        "cost": 10,
+        "heal_full": true,
+        "full_message": "You're already fully rested.",
+        "message": "You rest at the inn and feel fully restored.",
+        "insufficient_message": "Not enough GP to rest at the inn.",
+        "location_message": "The inn is only in town."
+      },
+      "meal": {
+        "type": "meal",
+        "item_id": "hot_meal",
+        "cost": 3,
+        "full_message": "You're already fully rested.",
+        "message": "You enjoy a hot meal and feel refreshed.",
+        "insufficient_message": "Not enough GP for a hot meal.",
+        "location_message": "The inn is only in town."
+      }
+    }
   }
 }
