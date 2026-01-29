@@ -827,6 +827,30 @@ def render_scene_art(
                 mask_lines = mask_lines + [""]
             if manual_lines_indices and i in manual_lines_indices and include_bars:
                 mask_lines.append("")
+        opponent_bounds = None
+        if opponent.art_lines:
+            raw_lines = [line[:OPPONENT_ART_WIDTH].rstrip() for line in opponent.art_lines]
+            max_len = max((len(line) for line in raw_lines), default=0)
+            left_aligned = [line.ljust(max_len) for line in raw_lines]
+            centered_lines = [line.center(OPPONENT_ART_WIDTH) for line in left_aligned]
+            top = None
+            bottom = None
+            left = None
+            right = None
+            for r_idx, row in enumerate(centered_lines):
+                for c_idx, ch in enumerate(row):
+                    if ch == " ":
+                        continue
+                    if top is None or r_idx < top:
+                        top = r_idx
+                    if bottom is None or r_idx > bottom:
+                        bottom = r_idx
+                    if left is None or c_idx < left:
+                        left = c_idx
+                    if right is None or c_idx > right:
+                        right = c_idx
+            if top is not None:
+                opponent_bounds = (top, bottom, left, right)
         overlay_rows = None
         overlay_color_key = "y"
         overlay_variation = 0.0
@@ -834,6 +858,14 @@ def render_scene_art(
         if overlay_effect and overlay_target_index == i:
             frames = overlay_effect.get("frames", [])
             if isinstance(frames, list) and frames:
+                max_frame_width = 0
+                max_frame_height = 0
+                for frame in frames:
+                    if not isinstance(frame, list):
+                        continue
+                    max_frame_height = max(max_frame_height, len(frame))
+                    frame_width = max((len(line) for line in frame), default=0)
+                    max_frame_width = max(max_frame_width, frame_width)
                 frame_index = overlay_frame_index % len(frames)
                 overlay_frame = frames[frame_index]
                 if isinstance(overlay_frame, list) and overlay_frame:
@@ -842,21 +874,29 @@ def render_scene_art(
                     overlay_jitter_stability = bool(overlay_effect.get("jitter_stability", True))
                     overlay_height = len(overlay_frame)
                     overlay_width = max((len(line) for line in overlay_frame), default=0)
+                    pad_top = (max_frame_height - overlay_height) // 2
+                    pad_left = (max_frame_width - overlay_width) // 2
                     bar_lines = 1 if include_bars else 0
                     if manual_lines_indices and i in manual_lines_indices and include_bars:
                         bar_lines += 1
                     art_height = max(0, len(art_lines) - bar_lines)
-                    row_start = max(0, (art_height - overlay_height) // 2)
-                    col_start = max(0, (OPPONENT_ART_WIDTH - overlay_width) // 2)
+                    row_start = (art_height - max_frame_height) // 2
+                    col_start = (OPPONENT_ART_WIDTH - max_frame_width) // 2
+                    if opponent_bounds:
+                        opp_top, opp_bottom, opp_left, opp_right = opponent_bounds
+                        opp_width = opp_right - opp_left + 1
+                        opp_height = opp_bottom - opp_top + 1
+                        col_start = opp_left + ((opp_width - max_frame_width) // 2)
+                        row_start = opp_top + ((opp_height - max_frame_height) // 2)
                     overlay_rows = {}
                     for r_idx, row in enumerate(overlay_frame):
-                        target_row = row_start + r_idx
+                        target_row = row_start + pad_top + r_idx
                         if target_row < 0 or target_row >= art_height:
                             continue
                         for c_idx, ch in enumerate(row):
                             if ch == " ":
                                 continue
-                            target_col = col_start + c_idx
+                            target_col = col_start + pad_left + c_idx
                             if 0 <= target_col < OPPONENT_ART_WIDTH:
                                 overlay_rows.setdefault(target_row, {})[target_col] = ch
         if has_mask:

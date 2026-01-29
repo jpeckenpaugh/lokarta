@@ -235,20 +235,110 @@ def render_scene(scene_name):
     except Exception as exc:
         print(f"Error rendering scene: {exc}")
 
+def render_spell(spell_name, opponent_name=None):
+    base = os.path.dirname(__file__)
+    spells = load_json(os.path.join(base, 'data', 'spells.json'))
+    opponents = load_json(os.path.join(base, 'data', 'opponents.json'))
+    scenes = load_json(os.path.join(base, 'data', 'scenes.json'))
+    colors = load_json(os.path.join(base, 'data', 'colors.json'))
+    if spells is None or scenes is None or colors is None:
+        return
+    spell = spells.get(spell_name)
+    if not spell:
+        print(f"Error: Spell '{spell_name}' not found in spells.json")
+        print("\nAvailable spells:")
+        for key in spells.keys():
+            print(f"- {key}")
+        return
+    effect = spell.get("effect") if isinstance(spell, dict) else None
+    if not isinstance(effect, dict) or effect.get("type") != "overlay":
+        print(f"Error: Spell '{spell_name}' has no overlay effect.")
+        return
+    try:
+        sys.path.insert(0, base)
+        from app.data_access.objects_data import ObjectsData
+        from app.data_access.opponents_data import OpponentsData
+        from app.ui.ansi import ANSI
+        from app.ui.rendering import render_scene_art
+        objects = ObjectsData(os.path.join(base, 'data', 'objects.json'))
+        opp_data = OpponentsData(os.path.join(base, 'data', 'opponents.json'))
+        opponent = None
+        if opponent_name:
+            opp = opponents.get(opponent_name)
+            if not opp:
+                print(f"Error: Opponent '{opponent_name}' not found in opponents.json")
+                print("\nAvailable opponents:")
+                for key in opponents.keys():
+                    print(f"- {key}")
+                return
+            opponent = opp_data.create(opp, ANSI.FG_WHITE)
+        scene = {
+            "left": [" "],
+            "right": [" "],
+            "gap_min": 0,
+            "color": "white"
+        }
+        frames = effect.get("frames", [])
+        if not isinstance(frames, list) or not frames:
+            print(f"Error: Spell '{spell_name}' has no frames.")
+            return
+        for idx in range(len(frames)):
+            if not opponent:
+                from app.models import Opponent
+                from app.ui.constants import OPPONENT_ART_WIDTH
+                max_frame_height = max((len(frame) for frame in frames), default=1)
+                blank_line = " " * OPPONENT_ART_WIDTH
+                blank_mask = " " * OPPONENT_ART_WIDTH
+                opponent = Opponent(
+                    name="Dummy",
+                    level=1,
+                    hp=1,
+                    max_hp=1,
+                    atk=0,
+                    defense=0,
+                    stunned_turns=0,
+                    action_chance=0.0,
+                    melted=False,
+                    art_lines=[blank_line for _ in range(max_frame_height)],
+                    art_color=ANSI.FG_WHITE,
+                    color_map=[blank_mask for _ in range(max_frame_height)],
+                    arrival=""
+                )
+            art_lines, art_color = render_scene_art(
+                scene,
+                [opponent],
+                overlay_target_index=0,
+                overlay_effect=effect,
+                overlay_frame_index=idx,
+                objects_data=objects,
+                color_map_override=colors
+            )
+            if opponent_name:
+                header = f"Spell '{spell_name}' frame {idx + 1} vs '{opponent_name}':"
+            else:
+                header = f"Spell '{spell_name}' frame {idx + 1} (no opponent):"
+            print(f"\n{header}\n")
+            for line in art_lines:
+                print(f"{art_color}{line}\033[0m")
+    except Exception as exc:
+        print(f"Error rendering spell: {exc}")
+
 def main():
     """Main function to handle command-line arguments."""
-    if len(sys.argv) not in (2, 3):
-        print("Usage: python3 render.py <type> [name]")
+    if len(sys.argv) not in (2, 3, 4):
+        print("Usage: python3 render.py <type> [name] [opponent]")
         print("\nExample:")
         print("  python3 render.py object flower_box")
         print("  python3 render.py npc mayor_1")
         print("  python3 render.py opponent slime")
         print("  python3 render.py venue town_hall")
         print("  python3 render.py scene forest")
+        print("  python3 render.py spell spark slime")
         return
         
     render_type = sys.argv[1].lower()
-    name = sys.argv[2] if len(sys.argv) == 3 else None
+    name = sys.argv[2] if len(sys.argv) >= 3 else None
+    opponent_name = sys.argv[3] if len(sys.argv) == 4 else None
     if name is None:
         base = os.path.dirname(__file__)
         file_map = {
@@ -257,6 +347,7 @@ def main():
             "opponent": "opponents.json",
             "venue": "venues.json",
             "scene": "scenes.json",
+            "spell": "spells.json",
         }
         filename = file_map.get(render_type)
         if not filename:
@@ -279,6 +370,8 @@ def main():
         render_venue(name)
     elif render_type == "scene":
         render_scene(name)
+    elif render_type == "spell":
+        render_spell(name, opponent_name)
     else:
         print(f"Unknown type '{render_type}'. Expected object|npc|opponent|venue|scene.")
 
