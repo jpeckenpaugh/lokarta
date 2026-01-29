@@ -318,6 +318,93 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                 else:
                     gap_fill = npc_color + npc_line + art_color
             art_lines.append(left_line + gap_fill + right_line)
+        gap_ground = scene_data.get("gap_ground", [])
+        if isinstance(gap_ground, list) and gap_ground and objects_data is not None and gap_width > 0:
+            scatter_id = scene_data.get("gap_ground_scatter")
+            scatter_obj = objects_data.get(scatter_id, {}) if scatter_id else {}
+            def _repeat_line(line: str, target_width: int) -> str:
+                if not line or target_width <= 0:
+                    return ""
+                repeats = (target_width // len(line)) + 1
+                return (line * repeats)[:target_width]
+
+            def _apply_scatter(
+                line: str,
+                mask: str,
+                base_width: int,
+                scatter_obj: dict,
+                row_index: int
+            ) -> tuple[str, str]:
+                if not scatter_obj or base_width <= 0:
+                    return line, mask
+                dynamic = scatter_obj.get("dynamic", {}) if isinstance(scatter_obj, dict) else {}
+                if not isinstance(dynamic, dict) or dynamic.get("mode") != "scatter":
+                    return line, mask
+                glyphs = dynamic.get("glyphs", [])
+                color_keys = dynamic.get("color_keys", [])
+                if not isinstance(glyphs, list) or not glyphs:
+                    return line, mask
+                if not isinstance(color_keys, list) or not color_keys:
+                    return line, mask
+                chance = float(dynamic.get("scatter_chance", 0.0) or 0.0)
+                if chance <= 0:
+                    return line, mask
+                art_chars = list(line)
+                mask_chars = list(mask)
+                tiles = max(1, (len(line) + base_width - 1) // base_width)
+                seed_base = _random_seed_base(f"gap_ground:{row_index}")
+                for tile_idx in range(tiles):
+                    seed = seed_base ^ (row_index * 0x9E3779B1) ^ (tile_idx * 0x85EBCA77)
+                    if _unit_from(seed) > chance:
+                        continue
+                    glyph = glyphs[int(_unit_from(seed + 1) * len(glyphs)) % len(glyphs)]
+                    color_key = color_keys[int(_unit_from(seed + 2) * len(color_keys)) % len(color_keys)]
+                    offset = int(_unit_from(seed + 3) * base_width)
+                    pos = tile_idx * base_width + offset
+                    if pos < 0 or pos >= len(art_chars):
+                        continue
+                    art_chars[pos] = str(glyph)[0]
+                    mask_chars[pos] = str(color_key)[0]
+                return "".join(art_chars), "".join(mask_chars)
+
+            ground_lines = []
+            for row_idx, obj_id in enumerate(gap_ground):
+                obj = objects_data.get(obj_id, {})
+                art = obj.get("art", [])
+                mask = obj.get("color_mask", [])
+                base_line = art[0] if isinstance(art, list) and art else ""
+                base_mask = mask[0] if isinstance(mask, list) and mask else (" " * len(base_line))
+                if not base_line:
+                    ground_lines.append(" " * gap_width)
+                    continue
+                base_width = len(base_line)
+                line = _repeat_line(base_line, gap_width)
+                mask_line = _repeat_line(base_mask, gap_width)
+                if scatter_obj:
+                    line, mask_line = _apply_scatter(line, mask_line, base_width, scatter_obj, row_idx)
+                seed_base = _random_seed_base(f"gap_ground:{row_idx}")
+                ground_lines.append(
+                    apply_mask(
+                        line,
+                        mask_line,
+                        row_idx,
+                        seed_base,
+                        0.0,
+                        True,
+                        tick,
+                        None,
+                        "y",
+                        0.0,
+                        True,
+                        len(gap_ground)
+                    )
+                )
+            if ground_lines:
+                for row_idx in range(1, min(len(ground_lines), len(art_lines)) + 1):
+                    line_index = -row_idx
+                    left_line = left[line_index] if abs(line_index) <= len(left) else (" " * max_left)
+                    right_line = right[line_index] if abs(line_index) <= len(right) else (" " * max_right)
+                    art_lines[line_index] = left_line + ground_lines[-row_idx] + right_line
         bottom_objects = scene_data.get("objects_bottom", [])
         if isinstance(bottom_objects, list) and bottom_objects and objects_data is not None:
             layout_seed = scene_data.get("layout_seed")
@@ -1253,7 +1340,150 @@ def render_scene_art(
         art_lines = []
         max_opp_rows = max((len(block["lines"]) for block in opponent_blocks), default=0)
         max_rows = max(len(left), len(right), max_opp_rows)
+        def _ansi_cells(text: str) -> list[tuple[str, str]]:
+            cells = []
+            i = 0
+            current = ""
+            while i < len(text):
+                ch = text[i]
+                if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+                    j = i + 2
+                    while j < len(text) and text[j] != "m":
+                        j += 1
+                    if j < len(text):
+                        current = text[i:j + 1]
+                        i = j + 1
+                        continue
+                cells.append((ch, current))
+                i += 1
+            return cells
+
+        def _merge_ansi(base: str, top: str) -> str:
+            base_cells = _ansi_cells(base)
+            top_cells = _ansi_cells(top)
+            width = min(len(base_cells), len(top_cells))
+            out = []
+            for idx in range(width):
+                ch, code = top_cells[idx]
+                if ch == " ":
+                    ch, code = base_cells[idx]
+                out.append(code + ch)
+            for idx in range(width, len(base_cells)):
+                ch, code = base_cells[idx]
+                out.append(code + ch)
+            return "".join(out) + ANSI.RESET
+
+        def _slice_ansi(text: str, start: int, width: int) -> str:
+            if width <= 0:
+                return ""
+            out = []
+            vis_idx = 0
+            i = 0
+            end = start + width
+            while i < len(text):
+                ch = text[i]
+                if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+                    j = i + 2
+                    while j < len(text) and text[j] != "m":
+                        j += 1
+                    if j < len(text):
+                        seq = text[i:j + 1]
+                        if start <= vis_idx < end:
+                            out.append(seq)
+                        i = j + 1
+                        continue
+                if start <= vis_idx < end:
+                    out.append(ch)
+                vis_idx += 1
+                i += 1
+            return "".join(out)
+
+        gap_ground = scene_data.get("gap_ground", [])
+        ground_lines = []
+        if isinstance(gap_ground, list) and gap_ground and objects_data is not None and gap_width > 0:
+            scatter_id = scene_data.get("gap_ground_scatter")
+            scatter_obj = objects_data.get(scatter_id, {}) if scatter_id else {}
+
+            def _repeat_line(line: str, target_width: int) -> str:
+                if not line or target_width <= 0:
+                    return ""
+                repeats = (target_width // len(line)) + 1
+                return (line * repeats)[:target_width]
+
+            def _apply_scatter(
+                line: str,
+                mask: str,
+                base_width: int,
+                scatter_obj: dict,
+                row_index: int
+            ) -> tuple[str, str]:
+                if not scatter_obj or base_width <= 0:
+                    return line, mask
+                dynamic = scatter_obj.get("dynamic", {}) if isinstance(scatter_obj, dict) else {}
+                if not isinstance(dynamic, dict) or dynamic.get("mode") != "scatter":
+                    return line, mask
+                glyphs = dynamic.get("glyphs", [])
+                color_keys = dynamic.get("color_keys", [])
+                if not isinstance(glyphs, list) or not glyphs:
+                    return line, mask
+                if not isinstance(color_keys, list) or not color_keys:
+                    return line, mask
+                chance = float(dynamic.get("scatter_chance", 0.0) or 0.0)
+                if chance <= 0:
+                    return line, mask
+                art_chars = list(line)
+                mask_chars = list(mask)
+                tiles = max(1, (len(line) + base_width - 1) // base_width)
+                seed_base = _random_seed_base(f"gap_ground:{row_index}")
+                for tile_idx in range(tiles):
+                    seed = seed_base ^ (row_index * 0x9E3779B1) ^ (tile_idx * 0x85EBCA77)
+                    if _unit_from(seed) > chance:
+                        continue
+                    glyph = glyphs[int(_unit_from(seed + 1) * len(glyphs)) % len(glyphs)]
+                    color_key = color_keys[int(_unit_from(seed + 2) * len(color_keys)) % len(color_keys)]
+                    offset = int(_unit_from(seed + 3) * base_width)
+                    pos = tile_idx * base_width + offset
+                    if pos < 0 or pos >= len(art_chars):
+                        continue
+                    art_chars[pos] = str(glyph)[0]
+                    mask_chars[pos] = str(color_key)[0]
+                return "".join(art_chars), "".join(mask_chars)
+
+            for row_idx, obj_id in enumerate(gap_ground):
+                obj = objects_data.get(obj_id, {})
+                art = obj.get("art", [])
+                mask = obj.get("color_mask", [])
+                base_line = art[0] if isinstance(art, list) and art else ""
+                base_mask = mask[0] if isinstance(mask, list) and mask else (" " * len(base_line))
+                if not base_line:
+                    ground_lines.append(" " * gap_width)
+                    continue
+                base_width = len(base_line)
+                line = _repeat_line(base_line, gap_width)
+                mask_line = _repeat_line(base_mask, gap_width)
+                if scatter_obj:
+                    line, mask_line = _apply_scatter(line, mask_line, base_width, scatter_obj, row_idx)
+                seed_base = _random_seed_base(f"gap_ground:{row_idx}")
+                ground_lines.append(
+                    apply_mask(
+                        line,
+                        mask_line,
+                        row_idx,
+                        seed_base,
+                        0.0,
+                        True,
+                        tick,
+                        None,
+                        "y",
+                        0.0,
+                        True,
+                        len(gap_ground)
+                    )
+                )
+        ground_rows = len(ground_lines)
         start_row = (max_rows - max_opp_rows) if max_opp_rows else 0
+        if start_row < 0:
+            start_row = 0
         for i in range(max_rows):
             left_line = left[i] if i < len(left) else (" " * max_left)
             right_line = right[i] if i < len(right) else (" " * max_right)
@@ -1380,6 +1610,15 @@ def render_scene_art(
                 left_line = _render_bottom_line(entry, max_left, row_index, 0x1A2B3C4D)
                 right_line = _render_bottom_line(entry, max_right, row_index, 0x5E6F7081)
                 art_lines.append(left_line + (" " * gap_width) + right_line)
+        if ground_rows:
+            for row_idx in range(1, min(ground_rows, len(art_lines)) + 1):
+                line_index = -row_idx
+                full_line = art_lines[line_index]
+                left_part = _slice_ansi(full_line, 0, max_left)
+                gap_part = _slice_ansi(full_line, max_left, gap_width)
+                right_part = _slice_ansi(full_line, max_left + gap_width, max_right)
+                merged_gap = _merge_ansi(ground_lines[-row_idx], gap_part)
+                art_lines[line_index] = left_part + merged_gap + right_part
         return art_lines, art_color
     forest_template = scene_data.get("art", [])
     forest_art = []

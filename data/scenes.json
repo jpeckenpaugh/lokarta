@@ -116,6 +116,12 @@
   "forest": {
     "color": "green",
     "gap_min": 0,
+    "gap_ground": [
+      "grass",
+      "grass",
+      "grass"
+    ],
+    "gap_ground_scatter": "battle_ground",
     "objects_bottom": [
       {
         "id": "grass",

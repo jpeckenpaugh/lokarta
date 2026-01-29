@@ -590,5 +590,23 @@
       "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
     ],
     "align": 0
+  },
+  "battle_ground": {
+    "dynamic": {
+      "mode": "scatter",
+      "glyphs": [
+        "o",
+        "O"
+      ],
+      "color_keys": [
+        "Z",
+        "z",
+        "X",
+        "x",
+        "L",
+        "l"
+      ],
+      "scatter_chance": 0.25
+    }
   }
 }
