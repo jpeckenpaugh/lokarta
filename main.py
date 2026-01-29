@@ -1,3 +1,4 @@
+import copy
 import shutil
 import os
 import sys
@@ -27,7 +28,7 @@ from app.input import read_keypress, read_keypress_timeout
 from app.models import Player
 from app.state import GameState
 from app.ui.constants import SCREEN_HEIGHT, SCREEN_WIDTH
-from app.ui.rendering import clear_screen, render_frame
+from app.ui.rendering import animate_art_transition, clear_screen, render_frame
 from app.ui.screens import generate_frame
 
 def warn_on_invalid_json(data_dir: str) -> None:
@@ -146,6 +147,26 @@ def main():
         if cmd == "X_KEY":
             continue
 
+        pre_snapshot = None
+        if cmd in ("ENTER_VENUE", "ENTER_SCENE") or (
+            cmd == "B_KEY" and (state.shop_mode or state.hall_mode or state.inn_mode)
+        ):
+            pre_snapshot = {
+                "player": copy.deepcopy(state.player),
+                "opponents": copy.deepcopy(state.opponents),
+                "message": state.last_message,
+                "leveling_mode": state.leveling_mode,
+                "shop_mode": state.shop_mode,
+                "inventory_mode": state.inventory_mode,
+                "inventory_items": list(state.inventory_items),
+                "hall_mode": state.hall_mode,
+                "hall_view": state.hall_view,
+                "inn_mode": state.inn_mode,
+                "spell_mode": state.spell_mode,
+            }
+            pre_in_venue = state.shop_mode or state.hall_mode or state.inn_mode
+            pre_location = state.player.location
+
         handled_by_router, action_cmd, cmd, should_continue, target_index = apply_router_command(
             APP,
             state,
@@ -154,6 +175,39 @@ def main():
             command_meta,
             action_cmd,
         )
+        if pre_snapshot is not None:
+            post_in_venue = state.shop_mode or state.hall_mode or state.inn_mode
+            post_location = state.player.location
+            if pre_in_venue != post_in_venue or pre_location != post_location:
+                pre_frame = generate_frame(
+                    APP.screen_ctx,
+                    pre_snapshot["player"],
+                    pre_snapshot["opponents"],
+                    pre_snapshot["message"],
+                    pre_snapshot["leveling_mode"],
+                    pre_snapshot["shop_mode"],
+                    pre_snapshot["inventory_mode"],
+                    pre_snapshot["inventory_items"],
+                    pre_snapshot["hall_mode"],
+                    pre_snapshot["hall_view"],
+                    pre_snapshot["inn_mode"],
+                    pre_snapshot["spell_mode"],
+                )
+                post_frame = generate_frame(
+                    APP.screen_ctx,
+                    state.player,
+                    state.opponents,
+                    state.last_message,
+                    state.leveling_mode,
+                    state.shop_mode,
+                    state.inventory_mode,
+                    state.inventory_items,
+                    state.hall_mode,
+                    state.hall_view,
+                    state.inn_mode,
+                    state.spell_mode,
+                )
+                animate_art_transition(pre_frame, post_frame, state.player, pause_ticks=2)
         if should_continue:
             continue
         if target_index is not None:

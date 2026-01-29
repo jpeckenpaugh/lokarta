@@ -1504,6 +1504,59 @@ def melt_opponent(
         time.sleep(max(0.05, battle_action_delay(player) / 3))
 
 
+def animate_art_transition(
+    frame_from: Frame,
+    frame_to: Frame,
+    player: Player,
+    pause_ticks: int = 2,
+) -> None:
+    from_lines = frame_from.art_lines or []
+    to_lines = frame_to.art_lines or []
+    height = max(len(from_lines), len(to_lines))
+    if height <= 0:
+        return
+    from_padded = ([""] * (height - len(from_lines))) + list(from_lines)
+    to_padded = ([""] * (height - len(to_lines))) + list(to_lines)
+    blank_lines = [""] * height
+    delay = max(0.05, battle_action_delay(player) / 3) / 4
+    blank_actions = format_action_lines([])
+
+    for removed in range(1, height + 1):
+        lines = ([""] * removed) + from_padded[removed:]
+        frame = replace(
+            frame_from,
+            art_lines=lines,
+            body_lines=[],
+            status_lines=[],
+            action_lines=blank_actions,
+        )
+        render_frame(frame)
+        time.sleep(delay)
+
+    pause_frame = replace(
+        frame_to,
+        art_lines=blank_lines,
+        body_lines=[],
+        status_lines=[],
+        action_lines=blank_actions,
+    )
+    for _ in range(max(0, pause_ticks)):
+        render_frame(pause_frame)
+        time.sleep(delay)
+
+    for visible in range(1, height + 1):
+        lines = ([""] * (height - visible)) + to_padded[height - visible:]
+        frame = replace(
+            frame_to,
+            art_lines=lines,
+            body_lines=[],
+            status_lines=[],
+            action_lines=blank_actions,
+        )
+        render_frame(frame)
+        time.sleep(delay)
+
+
 def format_player_stats(player: Player) -> List[str]:
     hp_text = color(f"HP: {player.hp} / {player.max_hp}", ANSI.FG_GREEN)
     mp_text = color(f"MP: {player.mp} / {player.max_mp}", ANSI.FG_MAGENTA)
