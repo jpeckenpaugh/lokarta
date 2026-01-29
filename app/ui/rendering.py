@@ -451,6 +451,18 @@ def render_scene_art(
     has_left_objects = bool(scene_data.get("objects_left"))
     color_map = color_map_override or {}
 
+    scene_objects = scene_data.get("objects")
+    if isinstance(scene_objects, list) and scene_objects and objects_data is not None:
+        venue_stub = {
+            "objects": scene_objects,
+            "color": scene_data.get("color", "white"),
+        }
+        if isinstance(scene_data.get("color_map"), dict):
+            venue_stub["color_map"] = scene_data.get("color_map")
+        lines, art_color, _ = render_venue_objects(venue_stub, {}, objects_data, color_map_override)
+        if lines:
+            return lines, art_color
+
     def truecolor(code: str) -> str:
         value = code.lstrip("#")
         if len(value) != 6:

@@ -197,8 +197,15 @@ def generate_frame(
         art_color = ANSI.FG_WHITE
     elif player.location == "Town":
         scene_data = ctx.scenes.get("town", {})
-        art_lines = scene_data.get("art", [])
-        art_color = COLOR_BY_NAME.get(scene_data.get("color", "yellow").lower(), ANSI.FG_WHITE)
+        art_lines, art_color = render_scene_art(
+            scene_data,
+            opponents,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all(),
+        )
+        if not art_lines:
+            art_lines = scene_data.get("art", [])
+            art_color = COLOR_BY_NAME.get(scene_data.get("color", "yellow").lower(), ANSI.FG_WHITE)
         body = scene_data.get("narrative", [])
         actions = format_command_lines(
             scene_commands(ctx.scenes, ctx.commands, "town", player, opponents)

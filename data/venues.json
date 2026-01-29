@@ -351,16 +351,19 @@
         "target": "house_wall_right"
       },
       {
-        "id": "space",
-        "width": 1
-      },
-      {
         "id": "bed",
         "align": 0
       },
       {
         "id": "space",
-        "width": 5
+        "width": 3
+      },
+      {
+        "id": "house_wall_interior"
+      },
+      {
+        "id": "space",
+        "width": 2
       },
       {
         "id": "npc",

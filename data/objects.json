@@ -76,6 +76,31 @@
     ],
     "align": 0
   },
+  "house_wall_interior": {
+    "art": [
+      "=",
+      "|",
+      "|",
+      "|",
+      "|o",
+      "|",
+      "|",
+      "|",
+      "|"
+    ],
+    "color_mask": [
+      "D",
+      "d",
+      "d",
+      "d",
+      "dw",
+      "d",
+      "d",
+      "d",
+      "d"
+    ],
+    "align": 0
+  },
   "chair": {
     "art": [
       "o",
@@ -167,7 +192,8 @@
   }, 
   "table": {
     "art": [
-      " ___________",
+      "      o",
+      " ____(O)____",
       "|___________|",
       "|           |",
       "|           |",
@@ -175,7 +201,8 @@
       "o           o"
     ],
     "color_mask": [
-      " xxxxxxxxxxx",
+      "      r",
+      " xXxXRPRXxXx",
       "xXXXXXXXXXXXx",
       "x           x",
       "x           x",
@@ -187,6 +214,7 @@
   "bed": {
     "art": [
       "o",
+      "|",
       "|_____________",
       "|#############|",
       "|             |",
@@ -194,6 +222,7 @@
     ],
     "color_mask": [
       "w",
+      "x",
       "XbBbBbBbBbBbBb",
       "xBbBbBbBbBbBbBx",
       "x             x",
@@ -397,6 +426,31 @@
       "gGgGGGgGGgrgGg",
       " gGRGGggGGGGg",
       "GgGdDDDDDDdGgG"
+    ],
+    "align": 0
+  },
+  "house": {
+    "art": [
+      "  /===================\\",
+      " / # # # # # # # # # # \\",
+      "/_#_#_#_#_#_#_#_#_#_#_#_\\",
+      "|   __    _____    __   |",
+      "|  [  ]  |     |  [  ]  |",
+      "|  [__]  |     |  [__]  |",
+      "|        |o    |        |",
+      "|        |     |        |",
+      "=~~~~~~~~|_____|~~~~~~~~="
+    ],
+    "color_mask": [
+      "  ddddddddddddddddddddd",
+      " d D d D d D d D d D d d",
+      "ddDdddddddddddddddddddddd",
+      "d   ZZ    ddddd    zz   d",
+      "d  z  z  d     d  z  z  d",
+      "d  zZZz  d     d  zZZz  d",
+      "d        dy    d        d",
+      "d        d     d        d",
+      "dggggggggdddddddggggggggd"
     ],
     "align": 0
   }

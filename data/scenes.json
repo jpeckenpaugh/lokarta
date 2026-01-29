@@ -1,17 +1,52 @@
 {
   "town": {
     "color": "yellow",
-    "art": [
-      "      |===|       |===|       |===|      ",
-      "      |   |       |   |       |   |      ",
-      "  ____|___|_______|___|_______|___|____  ",
-      " /|   _   _   _   _   _   _   _   _   |\\ ",
-      "/_|__|_|_|_|_|_|_|_|_|_|_|_|_|_|_|__|_|_\\",
-      "  |   _   _   _   _   _   _   _   _   |  ",
-      "  |__|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|__|  ",
-      "   | INN |      | SHOP |      | HALL |   ",
-      "   |_____|      |______|      |______|   ",
-      " _/       \\_   _/      \\_    _/      \\_  "
+    "objects": [
+      {
+        "id": "grass"
+      },
+      {
+        "id": "bush_small"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "house"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "flower_box"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "house"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "sign"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "house"
+      },
+      {
+        "id": "grass"
+      },
+      {
+        "id": "tree_small"
+      },
+      {
+        "id": "grass"
+      }
     ],
     "narrative": [
       "You arrive in town, safe behind sturdy wooden walls.",
