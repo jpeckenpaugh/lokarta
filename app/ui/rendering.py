@@ -433,7 +433,9 @@ def render_venue_objects(
         rand_row: Optional[list],
         jitter_row: Optional[list],
         row_index: int,
-        tick: int
+        tick: int,
+        label_variation: float,
+        label_jitter_stability: bool
     ) -> str:
         if not mask:
             return line
@@ -462,6 +464,11 @@ def render_venue_objects(
                     if not jitter_stability:
                         seed ^= (tick * 0x9E3779B1)
                     code = _jitter_color_code(color_rgb_by_key[mask_char], jitter_amount, seed)
+                elif label_variation > 0 and mask_char in color_rgb_by_key:
+                    seed = (row_index * 0x9E3779B1) ^ (i * 0x85EBCA77) ^ (ord(mask_char) << 4)
+                    if not label_jitter_stability:
+                        seed ^= (tick * 0x9E3779B1)
+                    code = _jitter_color_code(color_rgb_by_key[mask_char], label_variation, seed)
             if code:
                 out.append(code + ch + ANSI.RESET + base)
             else:
@@ -484,6 +491,51 @@ def render_venue_objects(
         if obj_id == "npc":
             return npc_mask_lines
         return _obj_def(obj_id).get("color_mask", [])
+
+    def _apply_label(art: List[str], mask: List[str], entry: dict) -> tuple[List[str], List[str]]:
+        label = entry.get("label")
+        if not isinstance(label, str) or not label.strip():
+            return art, mask
+        label_row = entry.get("label_row", 1)
+        try:
+            label_row = int(label_row)
+        except (TypeError, ValueError):
+            label_row = 1
+        if label_row < 0 or label_row >= len(art):
+            return art, mask
+        line = art[label_row]
+        if not isinstance(line, str):
+            return art, mask
+        width = len(line)
+        label_text = f"[ {label.strip()} ]"
+        if len(label_text) > width:
+            label_text = label_text[:width]
+        start = max(0, (width - len(label_text)) // 2)
+        line_chars = list(line)
+        for i, ch in enumerate(label_text):
+            if start + i < width:
+                line_chars[start + i] = ch
+        art = list(art)
+        art[label_row] = "".join(line_chars)
+        label_key = entry.get("label_key", "y")
+        if not isinstance(label_key, str) or not label_key:
+            label_key = "y"
+        label_key = label_key[0]
+        label_variation = entry.get("label_variation", 0.0)
+        label_jitter_stability = entry.get("label_jitter_stability", True)
+        if isinstance(mask, list) and label_key.strip():
+            mask_line = mask[label_row] if label_row < len(mask) else ""
+            mask_chars = list(mask_line.ljust(width))
+            for i in range(len(label_text)):
+                if start + i < width:
+                    mask_chars[start + i] = label_key
+            mask = list(mask)
+            while len(mask) < len(art):
+                mask.append("")
+            mask[label_row] = "".join(mask_chars)
+        entry["_label_variation"] = label_variation
+        entry["_label_jitter_stability"] = label_jitter_stability
+        return art, mask
 
     def _obj_align(entry: dict, obj_id: str) -> float:
         align = entry.get("align", None)
@@ -524,6 +576,10 @@ def render_venue_objects(
         positions.append({"entry": entry, "id": obj_id, "x": cursor})
         cursor += width
         max_height = max(max_height, height)
+
+    min_height = int(venue.get("min_height", 0) or 0)
+    if min_height > 0:
+        max_height = max(max_height, min_height)
 
     if max_height <= 0 or cursor <= 0:
         return [], art_color, None
@@ -602,6 +658,12 @@ def render_venue_objects(
             jitter_amount = 0.0
         jitter_stability = entry.get("jitter_stability", jitter_source.get("jitter_stability", True))
         jitter_stability = bool(jitter_stability)
+        label_variation = entry.get("_label_variation", 0.0)
+        try:
+            label_variation = float(label_variation)
+        except (TypeError, ValueError):
+            label_variation = 0.0
+        label_jitter_stability = bool(entry.get("_label_jitter_stability", True))
         align = _obj_align(entry, obj_id)
 
         if mode == "span_until":
@@ -639,6 +701,8 @@ def render_venue_objects(
         if not art:
             continue
         mask = _obj_mask(obj_id)
+        if obj_id != "npc":
+            art, mask = _apply_label(art, mask, entry)
         obj_height = len(art)
         y = int((1 - align) * max(0, max_height - obj_height))
 
@@ -671,7 +735,7 @@ def render_venue_objects(
         mask_line = "".join(mask_canvas[row_idx])
         rand_row = rand_canvas[row_idx] if row_idx < len(rand_canvas) else None
         jitter_row = jitter_canvas[row_idx] if row_idx < len(jitter_canvas) else None
-        art_lines.append(apply_color_mask(line, mask_line, rand_row, jitter_row, row_idx, tick))
+        art_lines.append(apply_color_mask(line, mask_line, rand_row, jitter_row, row_idx, tick, label_variation, label_jitter_stability))
     return art_lines, art_color, npc_anchor
 
 

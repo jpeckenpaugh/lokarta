@@ -1,18 +1,16 @@
 {
   "town": {
     "color": "yellow",
+    "min_height": 10,
     "objects": [
       {
         "id": "grass"
       },
       {
-        "id": "bush_small"
-      },
-      {
-        "id": "grass"
-      },
-      {
-        "id": "house"
+        "id": "house",
+        "label": "Shop",
+        "label_row": 1,
+        "label_key": "X"
       },
       {
         "id": "grass"
@@ -24,7 +22,10 @@
         "id": "grass"
       },
       {
-        "id": "house"
+        "id": "house",
+        "label": "Hall",
+        "label_row": 1,
+        "label_key": "B"
       },
       {
         "id": "grass"
@@ -36,13 +37,12 @@
         "id": "grass"
       },
       {
-        "id": "house"
-      },
-      {
-        "id": "grass"
-      },
-      {
-        "id": "tree_small"
+        "id": "house",
+        "label": "Inn",
+        "label_row": 1,
+        "label_key": "f",
+        "label_variation": 0.05,
+        "label_jitter_stability": true
       },
       {
         "id": "grass"
@@ -51,9 +51,9 @@
     "narrative": [
       "You arrive in town, safe behind sturdy wooden walls.",
       "",
-      "The inn's lantern glows warmly in the evening light.",
       "A local shop can provide you with basic items.",
-      "If you are lost, check the town hall for instructions."
+      "If you are lost, check the town hall for instructions.",
+      "The inn's lantern glows warmly in the evening light."
     ],
     "commands": [
       {

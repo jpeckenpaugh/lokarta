@@ -34,19 +34,19 @@
     "color": "cyan",
     "parts": [
       {
-        "id": "hat_innkeeper"
+        "id": "hat_mayor"
       },
       {
-        "id": "face_innkeeper"
+        "id": "face_mayor"
       },
       {
-        "id": "torso_innkeeper"
+        "id": "torso_mayor"
       },
       {
-        "id": "legs_dress"
+        "id": "legs_mayor"
       },
       {
-        "id": "shoes_innkeeper"
+        "id": "shoes_basic"
       }
     ]
   },
