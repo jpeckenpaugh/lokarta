@@ -47,7 +47,9 @@
       " d",
       "gd"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.08,
+    "jitter_stability": true
   },
   "house_wall_right": {
     "art": [
@@ -69,12 +71,14 @@
       " d",
       " d",
       " dL",
-      " dzzzzZ",
-      " d    z",
-      " d    z",
-      " dKKKKKK"
+      " dqqqqQ",
+      " d    q",
+      " d    q",
+      " dQQQQQQ"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.08,
+    "jitter_stability": true
   },
   "house_wall_interior": {
     "art": [
@@ -99,7 +103,9 @@
       "d",
       "d"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.08,
+    "jitter_stability": true
   },
   "chair": {
     "art": [
@@ -264,7 +270,9 @@
       "gGGGGg",
       "gdDDdg"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "bush_large": {
     "art": [
@@ -285,7 +293,9 @@
       " gGGGgGeGGg",
       "GgdDDDDDDdGg"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "tree_small": {
     "art": [
@@ -301,7 +311,9 @@
       "  dd",
       "gGddgG"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "tree_large": {
     "art": [
@@ -324,7 +336,9 @@
       "ggGgGdGgGdGgGg",
       "gGgGgDddDGgGgG"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "bookshelf": {
     "art": [
@@ -381,7 +395,9 @@
       "   gGdGgGdG",
       "gGgGgDddDGgGgG"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "tree_large_3": {
     "art": [
@@ -397,14 +413,16 @@
     "color_mask": [
       "      gg",
       "     gGGg",
-      "    gidGGg",
-      "   gGgGdVgg",
-      "  gGGrgGGgdg",
-      " ggGGGgdfggGg",
-      " gGgVdGgGuGgG",
+      "    g8dGGg",
+      "   gGgGd8gg",
+      "  gGG8gGGgdg",
+      " ggGGGgd8ggGg",
+      " gGg8dGgG8GgG",
       "gGgGgDddDGgGgG"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "bush_large_2": {
     "art": [
@@ -427,7 +445,9 @@
       " gGRGGggGGGGg",
       "GgGdDDDDDDdGgG"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.05,
+    "jitter_stability": true
   },
   "house": {
     "art": [
@@ -452,6 +472,8 @@
       "d        d     d        d",
       "dggggggggdddddddggggggggd"
     ],
-    "align": 0
+    "align": 0,
+    "variation": 0.08,
+    "jitter_stability": true
   }
 }

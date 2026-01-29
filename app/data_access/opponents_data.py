@@ -46,6 +46,8 @@ class OpponentsData:
         art_lines = data.get("art", [])
         color_map = data.get("color_map", [])
         arrival = data.get("arrival", "appears")
+        variation = data.get("variation", 0.0)
+        jitter_stability = data.get("jitter_stability", True)
         return Opponent(
             name=name,
             level=level,
@@ -59,7 +61,9 @@ class OpponentsData:
             art_lines=art_lines,
             art_color=art_color,
             color_map=color_map,
-            arrival=arrival
+            arrival=arrival,
+            variation=variation,
+            jitter_stability=bool(jitter_stability)
         )
 
     def spawn(

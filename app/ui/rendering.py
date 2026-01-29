@@ -34,6 +34,7 @@ COLOR_BY_NAME = {
 
 _SESSION_RANDOM_SEED = random.SystemRandom().randint(0, 2**31 - 1)
 _MASK_DIGITS = set("0123456789")
+_JITTER_TICK_SECONDS = 0.6
 
 
 def _mix64(value: int) -> int:
@@ -95,6 +96,35 @@ def _random_color_code(mask_char: str, x: int, y: int, seed_base: int, random_co
     return f"\033[38;2;{int(r * 255)};{int(g * 255)};{int(b * 255)}m"
 
 
+def _hex_to_rgb(hex_code: str) -> Optional[tuple[int, int, int]]:
+    value = hex_code.lstrip("#")
+    if len(value) != 6:
+        return None
+    try:
+        r = int(value[0:2], 16)
+        g = int(value[2:4], 16)
+        b = int(value[4:6], 16)
+    except ValueError:
+        return None
+    return r, g, b
+
+
+def _jitter_color_code(
+    base_rgb: tuple[int, int, int],
+    jitter: float,
+    seed: int
+) -> str:
+    if jitter <= 0:
+        r, g, b = base_rgb
+        return f"\033[38;2;{r};{g};{b}m"
+    r, g, b = base_rgb
+    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    delta = (_unit_from(seed) * 2.0 - 1.0) * jitter
+    l = max(0.0, min(1.0, l + delta))
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return f"\033[38;2;{int(r * 255)};{int(g * 255)};{int(b * 255)}m"
+
+
 def mirror_line(line: str) -> str:
     swaps = str.maketrans({
         "/": "\\",
@@ -144,6 +174,7 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
         return f"\033[38;2;{r};{g};{b}m"
 
     color_by_key = {}
+    color_rgb_by_key = {}
     for key, entry in color_map.items():
         if key == "random" or key in _MASK_DIGITS:
             continue
@@ -164,6 +195,9 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             code = truecolor(hex_code)
             if code:
                 color_by_key[key] = code
+                rgb = _hex_to_rgb(hex_code)
+                if rgb:
+                    color_rgb_by_key[key] = rgb
                 continue
         lowered = name.lower()
         if lowered == "brown":
@@ -309,6 +343,7 @@ def render_venue_objects(
         return f"\033[38;2;{r};{g};{b}m"
 
     color_by_key = {}
+    color_rgb_by_key = {}
     for key, entry in color_map.items():
         if key == "random" or key in _MASK_DIGITS:
             continue
@@ -329,6 +364,9 @@ def render_venue_objects(
             code = truecolor(hex_code)
             if code:
                 color_by_key[key] = code
+                rgb = _hex_to_rgb(hex_code)
+                if rgb:
+                    color_rgb_by_key[key] = rgb
                 continue
         lowered = name.lower()
         if lowered == "brown":
@@ -346,7 +384,14 @@ def render_venue_objects(
     random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
     venue_seed_base = _random_seed_base(f"venue:{venue.get('name', '')}")
 
-    def apply_color_mask(line: str, mask: str, rand_row: Optional[list], row_index: int) -> str:
+    def apply_color_mask(
+        line: str,
+        mask: str,
+        rand_row: Optional[list],
+        jitter_row: Optional[list],
+        row_index: int,
+        tick: int
+    ) -> str:
         if not mask:
             return line
         if not color_by_key and not random_config:
@@ -358,9 +403,22 @@ def render_venue_objects(
             code = ""
             if mask_char in _MASK_DIGITS:
                 seed_base = rand_row[i] if rand_row and i < len(rand_row) else venue_seed_base
-                code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
+                local_x, local_y = i, row_index
+                if isinstance(seed_base, tuple):
+                    seed_base, local_x, local_y = seed_base
+                code = _random_color_code(mask_char, local_x, local_y, seed_base, random_config)
             if not code:
                 code = color_by_key.get(mask_char) if mask_char else None
+            if not code and mask_char and mask_char.isalpha():
+                code = color_by_key.get(mask_char)
+            if mask_char.isalpha():
+                jitter_info = jitter_row[i] if jitter_row and i < len(jitter_row) else None
+                if jitter_info and mask_char in color_rgb_by_key:
+                    seed_base, jitter_amount, jitter_stability, local_x, local_y = jitter_info
+                    seed = seed_base ^ (ord(mask_char) << 4) ^ (local_x * 0x85EBCA77) ^ (local_y * 0xC2B2AE3D)
+                    if not jitter_stability:
+                        seed ^= (tick * 0x9E3779B1)
+                    code = _jitter_color_code(color_rgb_by_key[mask_char], jitter_amount, seed)
             if code:
                 out.append(code + ch + ANSI.RESET + base)
             else:
@@ -429,16 +487,27 @@ def render_venue_objects(
 
     canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
     mask_canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
-    rand_canvas: list[list[Optional[int]]] = [
+    rand_canvas: list[list[Optional[tuple[int, int, int]]]] = [
+        [None for _ in range(cursor)] for _ in range(max_height)
+    ]
+    jitter_canvas: list[list[Optional[tuple[int, float, bool, int, int]]]] = [
         [None for _ in range(cursor)] for _ in range(max_height)
     ]
     npc_anchor = None
 
-    def _place_mask(mask_char: str, x: int, y: int, seed_info: Optional[int] = None):
+    def _place_mask(
+        mask_char: str,
+        x: int,
+        y: int,
+        seed_info: Optional[tuple[int, int, int]] = None,
+        jitter_info: Optional[tuple[int, float, bool, int, int]] = None
+    ):
         if 0 <= y < max_height and 0 <= x < cursor and mask_char:
             mask_canvas[y][x] = mask_char
             if seed_info and mask_char in _MASK_DIGITS:
                 rand_canvas[y][x] = seed_info
+            if jitter_info and mask_char.isalpha():
+                jitter_canvas[y][x] = jitter_info
 
     def _blit(
         art: List[str],
@@ -446,6 +515,8 @@ def render_venue_objects(
         x: int,
         y: int,
         seed_base: int,
+        jitter_amount: float,
+        jitter_stability: bool,
         mask_override: Optional[str] = None
     ):
         for row_idx, line in enumerate(art):
@@ -465,7 +536,11 @@ def render_venue_objects(
                 else:
                     mask_char = mask_line[col_idx] if col_idx < len(mask_line) else ""
                     if mask_char and ch != " ":
-                        _place_mask(mask_char, target_x, target_y, seed_base)
+                        rand_info = (seed_base, col_idx, row_idx)
+                        jitter_info = None
+                        if jitter_amount > 0 and mask_char.isalpha():
+                            jitter_info = (seed_base, jitter_amount, jitter_stability, col_idx, row_idx)
+                        _place_mask(mask_char, target_x, target_y, rand_info, jitter_info)
 
     for idx, item in enumerate(positions):
         entry = item["entry"]
@@ -473,6 +548,17 @@ def render_venue_objects(
         mode = entry.get("mode", "")
         x = item["x"]
         seed_base = _random_seed_base(f"{obj_id}:{idx}")
+        obj_def = _obj_def(obj_id)
+        jitter_source = obj_def
+        if obj_id == "npc":
+            jitter_source = npc if isinstance(npc, dict) else {}
+        jitter_amount = entry.get("variation", jitter_source.get("variation", 0.0))
+        try:
+            jitter_amount = float(jitter_amount)
+        except (TypeError, ValueError):
+            jitter_amount = 0.0
+        jitter_stability = entry.get("jitter_stability", jitter_source.get("jitter_stability", True))
+        jitter_stability = bool(jitter_stability)
         align = _obj_align(entry, obj_id)
 
         if mode == "span_until":
@@ -529,18 +615,20 @@ def render_venue_objects(
                     max_x = max((len(line) for line in art), default=1) - 1
                 npc_anchor = x + min_x + max(0, (max_x - min_x) // 2)
             if npc_has_mask:
-                _blit(art, mask, x, y, seed_base)
+                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability)
             else:
-                _blit(art, mask, x, y, seed_base, mask_override=npc_key)
+                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability, mask_override=npc_key)
         else:
-            _blit(art, mask, x, y, seed_base)
+            _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability)
 
     art_lines = []
+    tick = int(time.time() / _JITTER_TICK_SECONDS) if _JITTER_TICK_SECONDS > 0 else 0
     for row_idx in range(max_height):
         line = "".join(canvas[row_idx])
         mask_line = "".join(mask_canvas[row_idx])
         rand_row = rand_canvas[row_idx] if row_idx < len(rand_canvas) else None
-        art_lines.append(apply_color_mask(line, mask_line, rand_row, row_idx))
+        jitter_row = jitter_canvas[row_idx] if row_idx < len(jitter_canvas) else None
+        art_lines.append(apply_color_mask(line, mask_line, rand_row, jitter_row, row_idx, tick))
     return art_lines, art_color, npc_anchor
 
 
@@ -620,8 +708,37 @@ def render_scene_art(
         return color_by_key
 
     color_by_key = build_color_by_key()
+    color_rgb_by_key = {}
+    for key, entry in (color_map or {}).items():
+        if key == "random" or key in _MASK_DIGITS:
+            continue
+        if isinstance(entry, dict):
+            hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
+            name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
+        elif isinstance(entry, str):
+            hex_code = ""
+            name = entry
+        else:
+            continue
+        name = name.strip()
+        hex_code = hex_code.strip()
+        if not hex_code:
+            hex_start = name.find("#")
+            hex_code = name[hex_start:] if hex_start != -1 else ""
+        if hex_code:
+            rgb = _hex_to_rgb(hex_code)
+            if rgb:
+                color_rgb_by_key[key] = rgb
 
-    def apply_mask(line: str, mask: str, row_index: int, seed_base: int) -> str:
+    def apply_mask(
+        line: str,
+        mask: str,
+        row_index: int,
+        seed_base: int,
+        jitter_amount: float,
+        jitter_stability: bool,
+        tick: int
+    ) -> str:
         if not mask:
             return line
         if not color_by_key and not random_config:
@@ -634,6 +751,11 @@ def render_scene_art(
                 code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
             if not code:
                 code = color_by_key.get(mask_char) if mask_char else None
+            if mask_char.isalpha() and mask_char in color_rgb_by_key and jitter_amount > 0:
+                jitter_seed = seed_base ^ (ord(mask_char) << 4) ^ (i * 0x85EBCA77) ^ (row_index * 0xC2B2AE3D)
+                if not jitter_stability:
+                    jitter_seed ^= (tick * 0x9E3779B1)
+                code = _jitter_color_code(color_rgb_by_key[mask_char], jitter_amount, jitter_seed)
             if code:
                 out.append(code + ch + ANSI.RESET)
             else:
@@ -645,6 +767,7 @@ def render_scene_art(
         else int(scene_data.get("gap_width", 20))
     )
     gap_width = gap_override if gap_override is not None else gap_base
+    tick = int(time.time() / _JITTER_TICK_SECONDS) if _JITTER_TICK_SECONDS > 0 else 0
     opponent_blocks = []
     for i, opponent in enumerate(opponents):
         if not opponent.art_lines:
@@ -693,9 +816,11 @@ def render_scene_art(
                     colored.append(flash_color + line + ANSI.RESET)
             else:
                 seed_base = _random_seed_base(f"opponent:{i}:{opponent.name}")
+                jitter_amount = float(getattr(opponent, "variation", 0.0) or 0.0)
+                jitter_stability = bool(getattr(opponent, "jitter_stability", True))
                 for idx, line in enumerate(art_lines):
                     mask_line = mask_lines[idx] if idx < len(mask_lines) else ""
-                    colored.append(apply_mask(line, mask_line, idx, seed_base))
+                    colored.append(apply_mask(line, mask_line, idx, seed_base, jitter_amount, jitter_stability, tick))
             art_lines = colored
             color_to_use = ""
         opponent_blocks.append(

@@ -23,7 +23,9 @@
       "g      g",
       " gGGGGg",
       " gxggxg"
-    ]
+    ],
+    "variation": 0.06,
+    "jitter_stability": false
   },
   "rat": {
     "name": "Rat",
@@ -51,7 +53,9 @@
       " d    d",
       " dDddDd",
       " hD  Dh "
-    ]
+    ],
+    "variation": 0.06,
+    "jitter_stability": false
   },
   "ant": {
     "name": "Ant",
@@ -79,6 +83,8 @@
       "xxxxxx",
       "Xx  xX",
       "xxxxxx"
-    ]
+    ],
+    "variation": 0.06,
+    "jitter_stability": false
   }
 }

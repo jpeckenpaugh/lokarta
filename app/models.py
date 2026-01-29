@@ -218,3 +218,5 @@ class Opponent:
     art_color: str
     color_map: List[str]
     arrival: str
+    variation: float = 0.0
+    jitter_stability: bool = True
