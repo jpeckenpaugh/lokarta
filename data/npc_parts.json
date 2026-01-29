@@ -86,14 +86,61 @@
     "color_mask": [
       "Zzz zzZ"
     ]
-  }
-  ,
+  },
   "shoes_innkeeper": {
     "art": [
       "\\__/__/"
     ],
     "color_mask": [
       "ZzzzzzZ"
+    ]
+  },
+  "hat_shopkeeper": {
+    "art": [
+      "  ___",
+      " /~~~\\"
+    ],
+    "color_mask": [
+      "  oOo",
+      " OoooO"
+    ]
+  },
+  "face_shopkeeper": {
+    "art": [
+      " /o_o\\",
+      " \\_~_/"
+    ],
+    "color_mask": [
+      " do_od",
+      " ddhdd"
+    ]
+  },
+  "torso_shopkeeper": {
+    "art": [
+      "/|###|\\",
+      "||   ||"
+    ],
+    "color_mask": [
+      "ooOOOoo",
+      "do   od"
+    ]
+  },
+  "shoes_shopkeeper": {
+    "art": [
+      "\\__/__/"
+    ],
+    "color_mask": [
+      "ZzzzzzZ"
+    ]
+  },
+  "legs_dress_shopkeeper": {
+    "art": [
+      " /###\\",
+      " |___|"
+    ],
+    "color_mask": [
+      " oOoOo",
+      " ooooo"
     ]
   }
 }

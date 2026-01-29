@@ -10,7 +10,7 @@
         "id": "house",
         "label": "Shop",
         "label_row": 1,
-        "label_key": "X"
+        "label_key": "o"
       },
       {
         "id": "grass"

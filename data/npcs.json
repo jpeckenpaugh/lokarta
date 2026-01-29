@@ -4,27 +4,22 @@
     "role": "Shopkeeper",
     "greeting": "Welcome in. Take your time.",
     "color": "cyan",
-    "art": [
-      "  /=\\",
-      " =====",
-      " /o_o\\",
-      " \\_^_/",
-      "/|===|\\",
-      "||   ||",
-      " |+|+|",
-      " |_|_|",
-      "*== ==*"
-    ],
-    "color_map": [
-      "  rRr",
-      " rrrrr",
-      " do_od",
-      " ddhdd",
-      "dBbbbBd",
-      "dB   Bd",
-      " tTttt",
-      " tKtKt",
-      "Zzz zzZ"
+    "parts": [
+      {
+        "id": "hat_shopkeeper"
+      },
+      {
+        "id": "face_shopkeeper"
+      },
+      {
+        "id": "torso_shopkeeper"
+      },
+      {
+        "id": "legs_dress_shopkeeper"
+      },
+      {
+        "id": "shoes_shopkeeper"
+      }
     ]
   },
   "mayor_1": {

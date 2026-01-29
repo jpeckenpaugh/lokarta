@@ -59,17 +59,22 @@
     ],
     "objects": [
       {
-        "id": "house_wall_right"
+        "id": "water",
+        "repeat": 2
+      },
+      {
+        "id": "town_wall"
       },
       {
         "id": "grass",
         "repeat": 2
       },
       {
-        "id": "bush_large"
+        "id": "bush_small"
       },
       {
-        "id": "grass"
+        "id": "grass",
+        "repeat": 1
       },
       {
         "id": "house_wall_left"
@@ -105,7 +110,7 @@
       },
       {
         "id": "space",
-        "width": 1
+        "width": 4
       },
       {
         "id": "house_wall_right"

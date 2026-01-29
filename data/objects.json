@@ -475,5 +475,44 @@
     "align": 0,
     "variation": 0.08,
     "jitter_stability": true
+  },
+  "town_wall": {
+    "art": [
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "|#|",
+      "==="
+    ],
+    "color_mask": [
+      "bBb",
+      "BbB",
+      "bBb",
+      "BbB",
+      "bBb",
+      "BbB",
+      "bBb",
+      "BbB",
+      "bBb",
+      "XXX"
+    ],
+    "align": 0,
+    "variation": 0.08,
+    "jitter_stability": true
+  },
+  "water": {
+    "art": [
+      "~~"
+    ],
+    "color_mask": [
+      "bB"
+    ],
+    "align": 0,
+    "variation": 0.10
   }
 }
