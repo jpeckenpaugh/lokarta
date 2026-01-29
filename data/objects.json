@@ -556,5 +556,23 @@
     ],
     "align": 0,
     "variation": 0.10
+  },
+  "pebble": {
+    "dynamic": {
+      "mode": "scatter",
+      "glyphs": [
+        "o",
+        "O"
+      ],
+      "color_keys": [
+        "Z",
+        "z",
+        "X",
+        "x",
+        "L",
+        "l"
+      ],
+      "scatter_chance": 0.2
+    }
   }
 }

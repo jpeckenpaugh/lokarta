@@ -387,6 +387,7 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         objects_data = ctx.objects
         if not objects_data:
             return
+        scene["layout_seed"] = random.randint(0, 2**31 - 1)
         gap_min = int(scene.get("gap_min", 0) or 0)
         target_width = max(0, (SCREEN_WIDTH - 2 - gap_min) // 2)
         def obj_width(obj_id: str) -> int:

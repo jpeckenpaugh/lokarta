@@ -288,6 +288,98 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                 else:
                     gap_fill = npc_color + npc_line + art_color
             art_lines.append(left_line + gap_fill + right_line)
+        bottom_objects = scene_data.get("objects_bottom", [])
+        if isinstance(bottom_objects, list) and bottom_objects and objects_data is not None:
+            layout_seed = scene_data.get("layout_seed")
+            if not isinstance(layout_seed, int):
+                layout_seed = _random_seed_base(f"scene:{scene_data.get('name', 'forest')}")
+
+            def _repeat_line(line: str, target_width: int) -> str:
+                if not line or target_width <= 0:
+                    return ""
+                repeats = (target_width // len(line)) + 1
+                return (line * repeats)[:target_width]
+
+            def _apply_scatter(
+                line: str,
+                mask: str,
+                base_width: int,
+                scatter_obj: dict,
+                row_index: int,
+                side_tag: int
+            ) -> tuple[str, str]:
+                if not scatter_obj or base_width <= 0:
+                    return line, mask
+                dynamic = scatter_obj.get("dynamic", {}) if isinstance(scatter_obj, dict) else {}
+                if not isinstance(dynamic, dict):
+                    return line, mask
+                if dynamic.get("mode") != "scatter":
+                    return line, mask
+                glyphs = dynamic.get("glyphs", [])
+                color_keys = dynamic.get("color_keys", [])
+                if not isinstance(glyphs, list) or not glyphs:
+                    return line, mask
+                if not isinstance(color_keys, list) or not color_keys:
+                    return line, mask
+                chance = float(dynamic.get("scatter_chance", 0.0) or 0.0)
+                if chance <= 0:
+                    return line, mask
+                art_chars = list(line)
+                mask_chars = list(mask)
+                tiles = max(1, (len(line) + base_width - 1) // base_width)
+                for tile_idx in range(tiles):
+                    seed = layout_seed ^ (row_index * 0x9E3779B1) ^ (tile_idx * 0x85EBCA77) ^ side_tag
+                    if _unit_from(seed) > chance:
+                        continue
+                    glyph = glyphs[int(_unit_from(seed + 1) * len(glyphs)) % len(glyphs)]
+                    color_key = color_keys[int(_unit_from(seed + 2) * len(color_keys)) % len(color_keys)]
+                    offset = int(_unit_from(seed + 3) * base_width)
+                    pos = tile_idx * base_width + offset
+                    if pos < 0 or pos >= len(art_chars):
+                        continue
+                    art_chars[pos] = str(glyph)[0]
+                    mask_chars[pos] = str(color_key)[0]
+                return "".join(art_chars), "".join(mask_chars)
+
+            def _render_bottom_line(entry: dict, target_width: int, row_index: int, side_tag: int) -> str:
+                if target_width <= 0:
+                    return ""
+                obj_id = entry.get("id") if isinstance(entry, dict) else entry
+                if not isinstance(obj_id, str) or not obj_id:
+                    return " " * target_width
+                obj = objects_data.get(obj_id, {})
+                art = obj.get("art", [])
+                mask = obj.get("color_mask", [])
+                base_line = art[0] if isinstance(art, list) and art else ""
+                base_mask = mask[0] if isinstance(mask, list) and mask else (" " * len(base_line))
+                if not base_line:
+                    return " " * target_width
+                base_width = len(base_line)
+                line = _repeat_line(base_line, target_width)
+                mask_line = _repeat_line(base_mask, target_width)
+                scatter_id = entry.get("scatter") if isinstance(entry, dict) else None
+                scatter_obj = objects_data.get(scatter_id, {}) if scatter_id else None
+                if scatter_obj:
+                    line, mask_line = _apply_scatter(line, mask_line, base_width, scatter_obj, row_index, side_tag)
+                seed_base = layout_seed ^ (row_index * 0xC2B2AE3D) ^ side_tag
+                return apply_mask(
+                    line,
+                    mask_line,
+                    row_index,
+                    seed_base,
+                    0.0,
+                    True,
+                    tick,
+                    None,
+                    "y",
+                    0.0,
+                    True
+                )
+
+            for row_index, entry in enumerate(bottom_objects):
+                left_line = _render_bottom_line(entry, max_left, row_index, 0x1A2B3C4D)
+                right_line = _render_bottom_line(entry, max_right, row_index, 0x5E6F7081)
+                art_lines.append(left_line + (" " * gap_width) + right_line)
         return art_lines, art_color
 
     art_template = venue.get("art", [])
@@ -1137,6 +1229,98 @@ def render_scene_art(
                     + (" " * pad_right)
                 )
             art_lines.append(left_line + gap_fill + right_line)
+        bottom_objects = scene_data.get("objects_bottom", [])
+        if isinstance(bottom_objects, list) and bottom_objects and objects_data is not None:
+            layout_seed = scene_data.get("layout_seed")
+            if not isinstance(layout_seed, int):
+                layout_seed = _random_seed_base(f"scene:{scene_data.get('name', 'forest')}")
+
+            def _repeat_line(line: str, target_width: int) -> str:
+                if not line or target_width <= 0:
+                    return ""
+                repeats = (target_width // len(line)) + 1
+                return (line * repeats)[:target_width]
+
+            def _apply_scatter(
+                line: str,
+                mask: str,
+                base_width: int,
+                scatter_obj: dict,
+                row_index: int,
+                side_tag: int
+            ) -> tuple[str, str]:
+                if not scatter_obj or base_width <= 0:
+                    return line, mask
+                dynamic = scatter_obj.get("dynamic", {}) if isinstance(scatter_obj, dict) else {}
+                if not isinstance(dynamic, dict):
+                    return line, mask
+                if dynamic.get("mode") != "scatter":
+                    return line, mask
+                glyphs = dynamic.get("glyphs", [])
+                color_keys = dynamic.get("color_keys", [])
+                if not isinstance(glyphs, list) or not glyphs:
+                    return line, mask
+                if not isinstance(color_keys, list) or not color_keys:
+                    return line, mask
+                chance = float(dynamic.get("scatter_chance", 0.0) or 0.0)
+                if chance <= 0:
+                    return line, mask
+                art_chars = list(line)
+                mask_chars = list(mask)
+                tiles = max(1, (len(line) + base_width - 1) // base_width)
+                for tile_idx in range(tiles):
+                    seed = layout_seed ^ (row_index * 0x9E3779B1) ^ (tile_idx * 0x85EBCA77) ^ side_tag
+                    if _unit_from(seed) > chance:
+                        continue
+                    glyph = glyphs[int(_unit_from(seed + 1) * len(glyphs)) % len(glyphs)]
+                    color_key = color_keys[int(_unit_from(seed + 2) * len(color_keys)) % len(color_keys)]
+                    offset = int(_unit_from(seed + 3) * base_width)
+                    pos = tile_idx * base_width + offset
+                    if pos < 0 or pos >= len(art_chars):
+                        continue
+                    art_chars[pos] = str(glyph)[0]
+                    mask_chars[pos] = str(color_key)[0]
+                return "".join(art_chars), "".join(mask_chars)
+
+            def _render_bottom_line(entry: object, target_width: int, row_index: int, side_tag: int) -> str:
+                if target_width <= 0:
+                    return ""
+                obj_id = entry.get("id") if isinstance(entry, dict) else entry
+                if not isinstance(obj_id, str) or not obj_id:
+                    return " " * target_width
+                obj = objects_data.get(obj_id, {})
+                art = obj.get("art", [])
+                mask = obj.get("color_mask", [])
+                base_line = art[0] if isinstance(art, list) and art else ""
+                base_mask = mask[0] if isinstance(mask, list) and mask else (" " * len(base_line))
+                if not base_line:
+                    return " " * target_width
+                base_width = len(base_line)
+                line = _repeat_line(base_line, target_width)
+                mask_line = _repeat_line(base_mask, target_width)
+                scatter_id = entry.get("scatter") if isinstance(entry, dict) else None
+                scatter_obj = objects_data.get(scatter_id, {}) if scatter_id else None
+                if scatter_obj:
+                    line, mask_line = _apply_scatter(line, mask_line, base_width, scatter_obj, row_index, side_tag)
+                seed_base = layout_seed ^ (row_index * 0xC2B2AE3D) ^ side_tag
+                return apply_mask(
+                    line,
+                    mask_line,
+                    row_index,
+                    seed_base,
+                    0.0,
+                    True,
+                    tick,
+                    None,
+                    "y",
+                    0.0,
+                    True
+                )
+
+            for row_index, entry in enumerate(bottom_objects):
+                left_line = _render_bottom_line(entry, max_left, row_index, 0x1A2B3C4D)
+                right_line = _render_bottom_line(entry, max_right, row_index, 0x5E6F7081)
+                art_lines.append(left_line + (" " * gap_width) + right_line)
         return art_lines, art_color
     forest_template = scene_data.get("art", [])
     forest_art = []
@@ -1235,7 +1419,8 @@ def render_scene_frame(
         objects_data=objects_data,
         color_map_override=color_map_override,
     )
-    alive = [o for o in opponents if o.hp > 0]
+    alive_source = art_opponents if art_opponents is not None else opponents
+    alive = [o for o in alive_source if o.hp > 0]
     if alive:
         if len(alive) > 1:
             body = ["Opponents emerge from the forest."]
@@ -1484,7 +1669,7 @@ def melt_opponent(
         art_overrides = []
         for i, current in enumerate(opponents):
             if i == index:
-                art_overrides.append(replace(current, art_lines=trimmed, hp=0))
+                art_overrides.append(replace(current, art_lines=trimmed, hp=1))
             else:
                 art_overrides.append(current)
         render_scene_frame(

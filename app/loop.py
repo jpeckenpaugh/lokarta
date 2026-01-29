@@ -211,6 +211,8 @@ def push_battle_message(state: GameState, message: str, max_lines: int = 6) -> N
     if state.player.location != "Forest":
         return
     if message:
+        if state.battle_log and state.battle_log[-1] == message:
+            return
         if not state.battle_log and _is_arrival_message(state, message):
             return
         state.battle_log.append(message)
@@ -240,6 +242,8 @@ def apply_router_command(
 ) -> tuple[bool, Optional[str], Optional[str], bool, Optional[int]]:
     if not cmd:
         return False, action_cmd, cmd, False, None
+    pre_in_forest = state.player.location == "Forest"
+    pre_alive = any(m.hp > 0 for m in state.opponents)
     cmd_state = CommandState(
         player=state.player,
         opponents=state.opponents,
@@ -259,6 +263,14 @@ def apply_router_command(
         return False, action_cmd, cmd, False, None
     state.opponents = cmd_state.opponents
     state.loot_bank = cmd_state.loot_bank
+    post_in_forest = state.player.location == "Forest"
+    post_alive = any(m.hp > 0 for m in state.opponents)
+    if not pre_in_forest and post_in_forest:
+        state.battle_log = []
+    if pre_in_forest and not post_in_forest:
+        state.battle_log = []
+    if post_in_forest and post_alive and not pre_alive:
+        state.battle_log = []
     push_battle_message(state, cmd_state.last_message)
     state.shop_mode = cmd_state.shop_mode
     state.inventory_mode = cmd_state.inventory_mode

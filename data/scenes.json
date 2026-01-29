@@ -86,6 +86,16 @@
   "forest": {
     "color": "green",
     "gap_min": 0,
+    "objects_bottom": [
+      {
+        "id": "grass",
+        "scatter": "pebble"
+      },
+      {
+        "id": "grass",
+        "scatter": "pebble"
+      }
+    ],
     "narrative": [
       "All is quiet. No enemies in sight."
     ],
