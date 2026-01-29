@@ -96,12 +96,12 @@
     "hex": "#F5F5FF"
   },
   "m": {
-    "name": "magenta",
-    "hex": "#FF38FF"
+    "name": "lime",
+    "hex": "#7AC943"
   },
   "M": {
-    "name": "bright magenta",
-    "hex": "#FF74FF"
+    "name": "bright lime",
+    "hex": "#9BE15D"
   },
   "n": {
     "name": "navy",
@@ -123,17 +123,13 @@
     "name": "pink",
     "hex": "#FFCED6"
   },
-  "P": {
-    "name": "bright pink",
-    "hex": "#FFDBE1"
-  },
   "q": {
-    "name": "quartz",
-    "hex": "#D9D9F3"
+    "name": "brown",
+    "hex": "#8B5A2B"
   },
   "Q": {
-    "name": "bright quartz",
-    "hex": "#E6E6FA"
+    "name": "bright brown",
+    "hex": "#A06B33"
   },
   "r": {
     "name": "red",
@@ -160,16 +156,12 @@
     "hex": "#38B7B7"
   },
   "u": {
-    "name": "ultramarine",
-    "hex": "#4640A8"
+    "name": "azure",
+    "hex": "#3A8CD5"
   },
   "U": {
-    "name": "bright ultramarine",
-    "hex": "#5046E9"
-  },
-  "v": {
-    "name": "violet",
-    "hex": "#F29EF2"
+    "name": "bright azure",
+    "hex": "#63A8F2"
   },
   "V": {
     "name": "bright violet",
@@ -178,10 +170,6 @@
   "w": {
     "name": "white",
     "hex": "#FFFFFF"
-  },
-  "W": {
-    "name": "bright white",
-    "hex": "#F5F5F5"
   },
   "x": {
     "name": "xanadu",
@@ -206,5 +194,14 @@
   "Z": {
     "name": "bright zucchini",
     "hex": "#616644"
+  },
+  "random": {
+    "mode": "hsl",
+    "s_min": 0.4,
+    "s_max": 0.9,
+    "l_bright_min": 0.75,
+    "l_bright_max": 0.95,
+    "l_dark_min": 0.18,
+    "l_dark_max": 0.45
   }
 }

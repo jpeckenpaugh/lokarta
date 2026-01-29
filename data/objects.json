@@ -68,7 +68,7 @@
       " Dd",
       " d",
       " d",
-      " dW",
+      " dL",
       " dzzzzZ",
       " d    z",
       " d    z",
@@ -189,7 +189,7 @@
       "g"
     ],
     "align": 0
-  }, 
+  },
   "table": {
     "art": [
       "      o",
@@ -202,7 +202,7 @@
     ],
     "color_mask": [
       "      r",
-      " xXxXRPRXxXx",
+      " xXxXRpRXxXx",
       "xXXXXXXXXXXXx",
       "x           x",
       "x           x",
@@ -341,11 +341,11 @@
     "color_mask": [
       " dddddddddd ",
       "dDDDDDDDDDDd",
-      "ddrr xx bbdd",
-      "ddtt yy ffdd",
-      "ddqq yy bbdd",
-      "ddee ii ccdd",
-      "ddmm oo bbdd",
+      "dd11 44 66dd",
+      "dd99 55 33dd",
+      "dd22 66 77dd",
+      "dd88 44 22dd",
+      "dd33 77 88dd",
       "dDDDDDDDDDDd",
       "DddddddddddD"
     ],
@@ -401,7 +401,7 @@
       "   gGgGdVgg",
       "  gGGrgGGgdg",
       " ggGGGgdfggGg",
-      " gGgvdGgGuGgG",
+      " gGgVdGgGuGgG",
       "gGgGgDddDGgGgG"
     ],
     "align": 0
@@ -448,7 +448,7 @@
       "d   ZZ    ddddd    zz   d",
       "d  z  z  d     d  z  z  d",
       "d  zZZz  d     d  zZZz  d",
-      "d        dW    d        d",
+      "d        dL    d        d",
       "d        d     d        d",
       "dggggggggdddddddggggggggd"
     ],

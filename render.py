@@ -34,6 +34,8 @@ def load_json(path: str):
 def build_color_lookup(colors: dict) -> dict:
     color_by_key = {}
     for key, color_data in colors.items():
+        if key == "random" or key.isdigit():
+            continue
         rgb = hex_to_rgb(color_data['hex'])
         color_by_key[key] = truecolor_fg(*rgb)
     return color_by_key

@@ -1,8 +1,11 @@
 """Rendering and animation helpers for ASCII UI frames."""
 
+import colorsys
+import random
 import sys
 import time
 import textwrap
+import zlib
 from dataclasses import replace
 from typing import List, Optional
 
@@ -28,6 +31,68 @@ COLOR_BY_NAME = {
     "red": ANSI.FG_RED,
     "blue": ANSI.FG_BLUE,
 }
+
+_SESSION_RANDOM_SEED = random.SystemRandom().randint(0, 2**31 - 1)
+_MASK_DIGITS = set("0123456789")
+
+
+def _mix64(value: int) -> int:
+    mask = 0xFFFFFFFFFFFFFFFF
+    value = (value + 0x9E3779B97F4A7C15) & mask
+    value = ((value ^ (value >> 30)) * 0xBF58476D1CE4E5B9) & mask
+    value = ((value ^ (value >> 27)) * 0x94D049BB133111EB) & mask
+    return value ^ (value >> 31)
+
+
+def _unit_from(value: int) -> float:
+    return (_mix64(value) >> 11) / float(1 << 53)
+
+
+def _random_seed_base(label: str) -> int:
+    payload = f"{_SESSION_RANDOM_SEED}:{label}".encode("utf-8")
+    return zlib.crc32(payload) & 0xFFFFFFFF
+
+
+def _random_band_ranges(band: int, random_config: dict) -> tuple[float, float, float, float]:
+    bands = random_config.get("bands", {}) if isinstance(random_config, dict) else {}
+    band_entry = bands.get(str(band), {}) if isinstance(bands, dict) else {}
+    s_min = float(random_config.get("s_min", 0.4))
+    s_max = float(random_config.get("s_max", 0.9))
+    if isinstance(band_entry, dict):
+        l_min = float(band_entry.get("l_min", 0.2))
+        l_max = float(band_entry.get("l_max", 0.8))
+        s_min = float(band_entry.get("s_min", s_min))
+        s_max = float(band_entry.get("s_max", s_max))
+    else:
+        bright_min = float(random_config.get("l_bright_min", 0.75))
+        bright_max = float(random_config.get("l_bright_max", 0.95))
+        dark_min = float(random_config.get("l_dark_min", 0.18))
+        dark_max = float(random_config.get("l_dark_max", 0.45))
+        rank = band % 5
+        t = rank / 4.0 if rank else 0.0
+        l_min = bright_min + (dark_min - bright_min) * t
+        l_max = bright_max + (dark_max - bright_max) * t
+    l_min = max(0.0, min(1.0, l_min))
+    l_max = max(l_min, min(1.0, l_max))
+    s_min = max(0.0, min(1.0, s_min))
+    s_max = max(s_min, min(1.0, s_max))
+    return l_min, l_max, s_min, s_max
+
+
+def _random_color_code(mask_char: str, x: int, y: int, seed_base: int, random_config: dict) -> str:
+    if mask_char not in _MASK_DIGITS or not isinstance(random_config, dict) or not random_config:
+        return ""
+    band = int(mask_char)
+    l_min, l_max, s_min, s_max = _random_band_ranges(band, random_config)
+    if band < 5:
+        seed = (seed_base << 1) ^ (band * 0x9E3779B1) ^ (x * 0x85EBCA77) ^ (y * 0xC2B2AE3D)
+    else:
+        seed = (_SESSION_RANDOM_SEED << 1) ^ (band * 0x9E3779B1)
+    h = _unit_from(seed)
+    s = s_min + (_unit_from(seed + 1) * (s_max - s_min))
+    l = l_min + (_unit_from(seed + 2) * (l_max - l_min))
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return f"\033[38;2;{int(r * 255)};{int(g * 255)};{int(b * 255)}m"
 
 
 def mirror_line(line: str) -> str:
@@ -63,6 +128,8 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
     venue_color_map = venue.get("color_map")
     if isinstance(venue_color_map, dict):
         color_map.update(venue_color_map)
+    random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
+    venue_seed_base = _random_seed_base(f"venue:{venue.get('name', '')}")
 
     def truecolor(code: str) -> str:
         value = code.lstrip("#")
@@ -78,6 +145,8 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
 
     color_by_key = {}
     for key, entry in color_map.items():
+        if key == "random" or key in _MASK_DIGITS:
+            continue
         if isinstance(entry, dict):
             hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
             name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
@@ -104,26 +173,40 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
         else:
             color_by_key[key] = COLOR_BY_NAME.get(lowered, ANSI.FG_WHITE)
 
-    def apply_color_mask(line: str, mask: str) -> str:
-        if not color_by_key or not mask:
+    def apply_color_mask(line: str, mask: str, row_index: int) -> str:
+        if not mask:
+            return line
+        if not color_by_key and not random_config:
             return line
         base = art_color
         out = []
         for i, ch in enumerate(line):
-            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            mask_char = mask[i] if i < len(mask) else ""
+            code = ""
+            if mask_char in _MASK_DIGITS:
+                code = _random_color_code(mask_char, i, row_index, venue_seed_base, random_config)
+            if not code:
+                code = color_by_key.get(mask_char) if mask_char else None
             if code:
                 out.append(code + ch + ANSI.RESET + base)
             else:
                 out.append(ch)
         return "".join(out)
 
-    def apply_npc_mask(line: str, mask: str) -> str:
-        if not color_by_key or not mask:
+    def apply_npc_mask(line: str, mask: str, row_index: int) -> str:
+        if not mask:
+            return npc_color + line + art_color
+        if not color_by_key and not random_config:
             return npc_color + line + art_color
         base = npc_color
         out = [base]
         for i, ch in enumerate(line):
-            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            mask_char = mask[i] if i < len(mask) else ""
+            code = ""
+            if mask_char in _MASK_DIGITS:
+                code = _random_color_code(mask_char, i, row_index, venue_seed_base, random_config)
+            if not code:
+                code = color_by_key.get(mask_char) if mask_char else None
             if code:
                 out.append(code + ch + ANSI.RESET + base)
             else:
@@ -150,14 +233,14 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             right_line = right[i] if i < len(right) else (" " * max_right)
             left_mask = left_color[i] if i < len(left_color) else ""
             right_mask = right_color[i] if i < len(right_color) else ""
-            left_line = apply_color_mask(left_line, left_mask)
-            right_line = apply_color_mask(right_line, right_mask)
+            left_line = apply_color_mask(left_line, left_mask, i)
+            right_line = apply_color_mask(right_line, right_mask, i)
             gap_fill = " " * gap_width
             if top and i == 0:
                 mask = ""
                 if isinstance(top_color, str) and top_color:
                     mask = (top_color * gap_width)[:gap_width] if len(top_color) == 1 else top_color[:gap_width]
-                gap_fill = apply_color_mask("=" * gap_width, mask)
+                gap_fill = apply_color_mask("=" * gap_width, mask, i)
             elif centered and start_row <= i < start_row + len(centered):
                 npc_line = centered[i - start_row]
                 npc_mask_line = ""
@@ -165,7 +248,7 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                 if isinstance(npc_mask, list):
                     npc_mask_line = npc_mask[i - start_row] if i - start_row < len(npc_mask) else ""
                 if npc_mask_line:
-                    gap_fill = apply_npc_mask(npc_line, npc_mask_line)
+                    gap_fill = apply_npc_mask(npc_line, npc_mask_line, i)
                 else:
                     gap_fill = npc_color + npc_line + art_color
             art_lines.append(left_line + gap_fill + right_line)
@@ -182,16 +265,16 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             start_row = max(0, len(art_template) - len(centered))
             for i, line in enumerate(art_template):
                 gap_fill = " " * gap_width
-            if centered and start_row <= i < start_row + len(centered):
-                npc_line = centered[i - start_row]
-                npc_mask_line = ""
-                npc_mask = npc.get("color_map")
-                if isinstance(npc_mask, list):
-                    npc_mask_line = npc_mask[i - start_row] if i - start_row < len(npc_mask) else ""
-                if npc_mask_line:
-                    gap_fill = apply_npc_mask(npc_line, npc_mask_line)
-                else:
-                    gap_fill = npc_color + npc_line + art_color
+                if centered and start_row <= i < start_row + len(centered):
+                    npc_line = centered[i - start_row]
+                    npc_mask_line = ""
+                    npc_mask = npc.get("color_map")
+                    if isinstance(npc_mask, list):
+                        npc_mask_line = npc_mask[i - start_row] if i - start_row < len(npc_mask) else ""
+                    if npc_mask_line:
+                        gap_fill = apply_npc_mask(npc_line, npc_mask_line, i)
+                    else:
+                        gap_fill = npc_color + npc_line + art_color
                 art_lines.append(line.replace("{GAP}", gap_fill))
             return art_lines, art_color
         return art_template, art_color
@@ -227,6 +310,8 @@ def render_venue_objects(
 
     color_by_key = {}
     for key, entry in color_map.items():
+        if key == "random" or key in _MASK_DIGITS:
+            continue
         if isinstance(entry, dict):
             hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
             name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
@@ -258,13 +343,24 @@ def render_venue_objects(
     npc_mask_lines = npc.get("color_map", []) if isinstance(npc.get("color_map"), list) else []
     npc_has_mask = len(npc_mask_lines) > 0
 
-    def apply_color_mask(line: str, mask: str) -> str:
-        if not color_by_key or not mask:
+    random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
+    venue_seed_base = _random_seed_base(f"venue:{venue.get('name', '')}")
+
+    def apply_color_mask(line: str, mask: str, rand_row: Optional[list], row_index: int) -> str:
+        if not mask:
+            return line
+        if not color_by_key and not random_config:
             return line
         base = art_color
         out = []
         for i, ch in enumerate(line):
-            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            mask_char = mask[i] if i < len(mask) else ""
+            code = ""
+            if mask_char in _MASK_DIGITS:
+                seed_base = rand_row[i] if rand_row and i < len(rand_row) else venue_seed_base
+                code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
+            if not code:
+                code = color_by_key.get(mask_char) if mask_char else None
             if code:
                 out.append(code + ch + ANSI.RESET + base)
             else:
@@ -333,13 +429,25 @@ def render_venue_objects(
 
     canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
     mask_canvas = [[" " for _ in range(cursor)] for _ in range(max_height)]
+    rand_canvas: list[list[Optional[int]]] = [
+        [None for _ in range(cursor)] for _ in range(max_height)
+    ]
     npc_anchor = None
 
-    def _place_mask(mask_char: str, x: int, y: int):
+    def _place_mask(mask_char: str, x: int, y: int, seed_info: Optional[int] = None):
         if 0 <= y < max_height and 0 <= x < cursor and mask_char:
             mask_canvas[y][x] = mask_char
+            if seed_info and mask_char in _MASK_DIGITS:
+                rand_canvas[y][x] = seed_info
 
-    def _blit(art: List[str], mask: List[str], x: int, y: int, mask_override: Optional[str] = None):
+    def _blit(
+        art: List[str],
+        mask: List[str],
+        x: int,
+        y: int,
+        seed_base: int,
+        mask_override: Optional[str] = None
+    ):
         for row_idx, line in enumerate(art):
             target_y = y + row_idx
             if target_y < 0 or target_y >= max_height:
@@ -357,13 +465,14 @@ def render_venue_objects(
                 else:
                     mask_char = mask_line[col_idx] if col_idx < len(mask_line) else ""
                     if mask_char and ch != " ":
-                        _place_mask(mask_char, target_x, target_y)
+                        _place_mask(mask_char, target_x, target_y, seed_base)
 
     for idx, item in enumerate(positions):
         entry = item["entry"]
         obj_id = item["id"]
         mode = entry.get("mode", "")
         x = item["x"]
+        seed_base = _random_seed_base(f"{obj_id}:{idx}")
         align = _obj_align(entry, obj_id)
 
         if mode == "span_until":
@@ -420,17 +529,18 @@ def render_venue_objects(
                     max_x = max((len(line) for line in art), default=1) - 1
                 npc_anchor = x + min_x + max(0, (max_x - min_x) // 2)
             if npc_has_mask:
-                _blit(art, mask, x, y)
+                _blit(art, mask, x, y, seed_base)
             else:
-                _blit(art, mask, x, y, mask_override=npc_key)
+                _blit(art, mask, x, y, seed_base, mask_override=npc_key)
         else:
-            _blit(art, mask, x, y)
+            _blit(art, mask, x, y, seed_base)
 
     art_lines = []
     for row_idx in range(max_height):
         line = "".join(canvas[row_idx])
         mask_line = "".join(mask_canvas[row_idx])
-        art_lines.append(apply_color_mask(line, mask_line))
+        rand_row = rand_canvas[row_idx] if row_idx < len(rand_canvas) else None
+        art_lines.append(apply_color_mask(line, mask_line, rand_row, row_idx))
     return art_lines, art_color, npc_anchor
 
 
@@ -475,9 +585,13 @@ def render_scene_art(
             return ""
         return f"\033[38;2;{r};{g};{b}m"
 
+    random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
+
     def build_color_by_key() -> dict:
         color_by_key = {}
         for key, entry in (color_map or {}).items():
+            if key == "random" or key in _MASK_DIGITS:
+                continue
             if isinstance(entry, dict):
                 hex_code = entry.get("hex", "") if isinstance(entry.get("hex"), str) else ""
                 name = entry.get("name", "") if isinstance(entry.get("name"), str) else ""
@@ -507,12 +621,19 @@ def render_scene_art(
 
     color_by_key = build_color_by_key()
 
-    def apply_mask(line: str, mask: str, base: str) -> str:
-        if not color_by_key or not mask:
+    def apply_mask(line: str, mask: str, row_index: int, seed_base: int) -> str:
+        if not mask:
+            return line
+        if not color_by_key and not random_config:
             return line
         out = []
         for i, ch in enumerate(line):
-            code = color_by_key.get(mask[i]) if i < len(mask) else None
+            mask_char = mask[i] if i < len(mask) else ""
+            code = ""
+            if mask_char in _MASK_DIGITS:
+                code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
+            if not code:
+                code = color_by_key.get(mask_char) if mask_char else None
             if code:
                 out.append(code + ch + ANSI.RESET)
             else:
@@ -571,9 +692,10 @@ def render_scene_art(
                 for line in art_lines:
                     colored.append(flash_color + line + ANSI.RESET)
             else:
+                seed_base = _random_seed_base(f"opponent:{i}:{opponent.name}")
                 for idx, line in enumerate(art_lines):
                     mask_line = mask_lines[idx] if idx < len(mask_lines) else ""
-                    colored.append(apply_mask(line, mask_line, ""))
+                    colored.append(apply_mask(line, mask_line, idx, seed_base))
             art_lines = colored
             color_to_use = ""
         opponent_blocks.append(
