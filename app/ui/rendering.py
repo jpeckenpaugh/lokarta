@@ -1401,6 +1401,7 @@ def render_scene_frame(
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None,
     suppress_actions: bool = False,
+    suppress_narrative: bool = False,
     show_target_prompt: bool = False,
 ):
     scene_data = scenes_data.get(scene_id, {})
@@ -1433,6 +1434,8 @@ def render_scene_frame(
         lines = [line for line in message.splitlines() if line.strip() != ""]
         if lines:
             body += lines
+    if suppress_narrative:
+        body = []
     commands = scene_commands(scenes_data, commands_data, scene_id, player, opponents)
     actions = format_action_lines(format_commands(commands))
     if suppress_actions:
@@ -1482,7 +1485,8 @@ def animate_scene_gap(
             objects_data=objects_data,
             color_map_override=color_map_override,
             art_opponents=art_opponents,
-            suppress_actions=True
+            suppress_actions=True,
+            suppress_narrative=True
         )
         time.sleep(delay)
 

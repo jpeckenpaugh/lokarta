@@ -206,7 +206,7 @@ def maybe_begin_target_select(ctx, state: GameState, cmd: Optional[str]) -> bool
     return True
 
 
-def push_battle_message(state: GameState, message: str, max_lines: int = 6) -> None:
+def push_battle_message(state: GameState, message: str, max_lines: int = 7) -> None:
     state.last_message = message
     if state.player.location != "Forest":
         return
@@ -495,6 +495,7 @@ def handle_battle_end(ctx, state: GameState, action_cmd: Optional[str]) -> None:
             color_map_override=ctx.colors.all()
         )
     state.opponents = []
+    state.battle_log = []
     if state.loot_bank["xp"] or state.loot_bank["gold"]:
         state.player.gain_xp(state.loot_bank["xp"])
         state.player.gold += state.loot_bank["gold"]
@@ -504,7 +505,8 @@ def handle_battle_end(ctx, state: GameState, action_cmd: Optional[str]) -> None:
         ))
         if state.player.needs_level_up():
             state.leveling_mode = True
+        push_battle_message(state, "All is quiet. No enemies in sight.")
     else:
         state.last_message = ""
-    state.battle_log = []
+        push_battle_message(state, "All is quiet. No enemies in sight.")
     state.loot_bank = {"xp": 0, "gold": 0}

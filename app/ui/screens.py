@@ -244,34 +244,7 @@ def generate_frame(
         else:
             body = [*default_narrative]
         if message:
-            lines = [line for line in message.splitlines() if line.strip() != ""]
-            if lines:
-                if body and lines and lines[0].startswith("A ") and lines[0].endswith("."):
-                    lines = []
-                if body and lines and lines[0] == body[-1]:
-                    lines = lines[1:]
-                if alive:
-                    lines = [line for line in lines if line.strip() != default_text]
-                    arrival_suffixes = (
-                        " appears.",
-                        " scurries in.",
-                        " oozes into view.",
-                        " lumbers in.",
-                        " slithers in.",
-                        " emerges.",
-                    )
-                    lines = [
-                        line for line in lines
-                        if not (
-                            line.strip().startswith("A ")
-                            and line.strip().endswith(arrival_suffixes)
-                        )
-                    ]
-                    if body and body[0].startswith("A "):
-                        lines = [line for line in lines if not (line.strip().startswith("A ") and line.strip().endswith("."))]
-                    if body and body[0].startswith("Opponents"):
-                        lines = [line for line in lines if not line.strip().startswith("Opponents")]
-                body += lines
+            body = [line for line in message.splitlines() if line.strip()]
         actions = format_command_lines(
             scene_commands(ctx.scenes, ctx.commands, "forest", player, opponents)
         )
