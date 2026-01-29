@@ -1,6 +1,8 @@
 """Rendering and animation helpers for ASCII UI frames."""
 
 import colorsys
+import json
+import os
 import random
 import sys
 import time
@@ -378,7 +380,48 @@ def render_venue_objects(
 
     npc_key = "@"
     color_by_key[npc_key] = npc_color
+    def _build_npc_parts(npc_data: dict) -> tuple[list, list]:
+        parts = npc_data.get("parts")
+        if not isinstance(parts, list) or not parts:
+            return [], []
+        parts_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "npc_parts.json")
+        try:
+            with open(parts_path, "r", encoding="utf-8") as f:
+                parts_data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return [], []
+        collected = []
+        max_width = 0
+        for entry in parts:
+            if not isinstance(entry, dict):
+                continue
+            part_id = entry.get("id")
+            if not part_id:
+                continue
+            part = parts_data.get(part_id, {})
+            part_art = part.get("art", [])
+            part_mask = part.get("color_mask", [])
+            if not isinstance(part_art, list) or not isinstance(part_mask, list):
+                continue
+            part_width = max((len(line) for line in part_art), default=0)
+            max_width = max(max_width, part_width)
+            collected.append((part_art, part_mask, part_width))
+        art_lines = []
+        mask_lines = []
+        for part_art, part_mask, part_width in collected:
+            pad_left = max(0, (max_width - part_width) // 2)
+            for idx, line in enumerate(part_art):
+                padded = (" " * pad_left) + line
+                art_lines.append(padded.ljust(max_width))
+                mask_line = part_mask[idx] if idx < len(part_mask) else ""
+                mask_padded = (" " * pad_left) + mask_line
+                mask_lines.append(mask_padded.ljust(max_width))
+        return art_lines, mask_lines
+
+    npc_art_lines = npc.get("art", []) if isinstance(npc.get("art"), list) else []
     npc_mask_lines = npc.get("color_map", []) if isinstance(npc.get("color_map"), list) else []
+    if not npc_art_lines:
+        npc_art_lines, npc_mask_lines = _build_npc_parts(npc)
     npc_has_mask = len(npc_mask_lines) > 0
 
     random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
@@ -434,7 +477,7 @@ def render_venue_objects(
 
     def _obj_art(obj_id: str) -> List[str]:
         if obj_id == "npc":
-            return npc.get("art", [])
+            return npc_art_lines
         return _obj_def(obj_id).get("art", [])
 
     def _obj_mask(obj_id: str) -> List[str]:

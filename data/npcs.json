@@ -32,27 +32,22 @@
     "role": "Town Hall",
     "greeting": "Stay informed. The board is up to date.",
     "color": "cyan",
-    "art": [
-      "  /=\\",
-      " =====",
-      " /o_o\\",
-      " \\_^_/",
-      "/|===|\\",
-      "||   ||",
-      " |+|+|",
-      " |_|_|",
-      "*== ==*"
-    ],
-    "color_map": [
-      "  rRr",
-      " rrrrr",
-      " do_od",
-      " ddhdd",
-      "dBbbbBd",
-      "dB   Bd",
-      " tTttt",
-      " tKtKt",
-      "Zzz zzZ"
+    "parts": [
+      {
+        "id": "hat_innkeeper"
+      },
+      {
+        "id": "face_innkeeper"
+      },
+      {
+        "id": "torso_innkeeper"
+      },
+      {
+        "id": "legs_dress"
+      },
+      {
+        "id": "shoes_innkeeper"
+      }
     ]
   },
   "innkeeper_1": {
@@ -60,27 +55,22 @@
     "role": "Innkeeper",
     "greeting": "Rooms are warm and quiet.",
     "color": "cyan",
-    "art": [
-      "  /=\\",
-      " =====",
-      " /o_o\\",
-      " \\_^_/",
-      "/|===|\\",
-      "||   ||",
-      " |+|+|",
-      " |_|_|",
-      "*== ==*"
-    ],
-    "color_map": [
-      "  rRr",
-      " rrrrr",
-      " do_od",
-      " ddhdd",
-      "dBbbbBd",
-      "dB   Bd",
-      " tTttt",
-      " tKtKt",
-      "Zzz zzZ"
+    "parts": [
+      {
+        "id": "hat_innkeeper"
+      },
+      {
+        "id": "face_innkeeper"
+      },
+      {
+        "id": "torso_innkeeper"
+      },
+      {
+        "id": "legs_dress"
+      },
+      {
+        "id": "shoes_innkeeper"
+      }
     ]
   }
 }

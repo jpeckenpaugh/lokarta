@@ -1,0 +1,99 @@
+{
+  "hat_topper": {
+    "art": [
+      "  /=\\",
+      " ====="
+    ],
+    "color_mask": [
+      "  rRr",
+      " rrrrr"
+    ]
+  },
+  "hat_innkeeper": {
+    "art": [
+      "  ___",
+      " /~~~\\"
+    ],
+    "color_mask": [
+      "  fFf",
+      " FfffF"
+    ]
+  },
+  "face_mayor": {
+    "art": [
+      " /o_o\\",
+      " \\_^_/"
+    ],
+    "color_mask": [
+      " do_od",
+      " ddhdd"
+    ]
+  },
+  "face_innkeeper": {
+    "art": [
+      " /o_o\\",
+      " \\_~_/"
+    ],
+    "color_mask": [
+      " do_od",
+      " ddhdd"
+    ]
+  },
+  "torso_mayor": {
+    "art": [
+      "/|===|\\",
+      "||   ||"
+    ],
+    "color_mask": [
+      "dBbbbBd",
+      "dB   Bd"
+    ]
+  },
+  "torso_innkeeper": {
+    "art": [
+      "/|###|\\",
+      "||   ||"
+    ],
+    "color_mask": [
+      "ffFFFff",
+      "df   fd"
+    ]
+  },
+  "legs_mayor": {
+    "art": [
+      " |+|+|",
+      " |_|_|"
+    ],
+    "color_mask": [
+      " tTttt",
+      " tKtKt"
+    ]
+  },
+  "legs_dress": {
+    "art": [
+      " /###\\",
+      " |___|"
+    ],
+    "color_mask": [
+      " fFFFf",
+      " fffff"
+    ]
+  },
+  "shoes_basic": {
+    "art": [
+      "*== ==*"
+    ],
+    "color_mask": [
+      "Zzz zzZ"
+    ]
+  }
+  ,
+  "shoes_innkeeper": {
+    "art": [
+      "\\__/__/"
+    ],
+    "color_mask": [
+      "ZzzzzzZ"
+    ]
+  }
+}

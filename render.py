@@ -109,7 +109,39 @@ def render_npc(npc_name):
             print(f"- {key}")
         return
     print(f"\nRendering npc '{npc_name}':\n")
-    render_art(npc.get("art", []), npc.get("color_map", []), build_color_lookup(colors))
+    art_lines = npc.get("art", [])
+    color_map_lines = npc.get("color_map", [])
+    if not art_lines:
+        parts = npc.get("parts", [])
+        if isinstance(parts, list) and parts:
+            parts_data = load_json(os.path.join(base, 'data', 'npc_parts.json')) or {}
+            collected = []
+            max_width = 0
+            for entry in parts:
+                if not isinstance(entry, dict):
+                    continue
+                part_id = entry.get("id")
+                if not part_id:
+                    continue
+                part = parts_data.get(part_id, {})
+                part_art = part.get("art", [])
+                part_mask = part.get("color_mask", [])
+                if not isinstance(part_art, list) or not isinstance(part_mask, list):
+                    continue
+                part_width = max((len(line) for line in part_art), default=0)
+                max_width = max(max_width, part_width)
+                collected.append((part_art, part_mask, part_width))
+            art_lines = []
+            color_map_lines = []
+            for part_art, part_mask, part_width in collected:
+                pad_left = max(0, (max_width - part_width) // 2)
+                for idx, line in enumerate(part_art):
+                    padded = (" " * pad_left) + line
+                    art_lines.append(padded.ljust(max_width))
+                    mask_line = part_mask[idx] if idx < len(part_mask) else ""
+                    mask_padded = (" " * pad_left) + mask_line
+                    color_map_lines.append(mask_padded.ljust(max_width))
+    render_art(art_lines, color_map_lines, build_color_lookup(colors))
     print()
 
 
