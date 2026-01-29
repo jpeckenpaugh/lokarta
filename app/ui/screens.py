@@ -1,6 +1,8 @@
 """Screen composition helpers for game UI states."""
 
+import random
 import textwrap
+import time
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -18,7 +20,7 @@ from app.data_access.venues_data import VenuesData
 from app.data_access.text_data import TextData
 from app.models import Frame, Player, Opponent
 from app.ui.ansi import ANSI
-from app.ui.layout import format_action_lines, format_command_lines, format_menu_actions
+from app.ui.layout import format_action_lines, format_command_lines, format_menu_actions, strip_ansi
 from app.ui.constants import SCREEN_WIDTH
 from app.ui.rendering import (
     COLOR_BY_NAME,
@@ -43,6 +45,65 @@ class ScreenContext:
     spells: SpellsData
     text: TextData
     colors: ColorsData
+
+
+def _ansi_cells(text: str) -> list[tuple[str, str]]:
+    cells = []
+    i = 0
+    current = ""
+    while i < len(text):
+        ch = text[i]
+        if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+            j = i + 2
+            while j < len(text) and text[j] != "m":
+                j += 1
+            if j < len(text):
+                current = text[i:j + 1]
+                i = j + 1
+                continue
+        cells.append((ch, current))
+        i += 1
+    return cells
+
+
+def _slice_ansi_wrap(text: str, start: int, width: int) -> str:
+    visible = strip_ansi(text)
+    vis_len = len(visible)
+    if width <= 0:
+        return ""
+    if vis_len == 0:
+        return " " * width
+    start = start % vis_len
+    if start + width <= vis_len:
+        return _slice_ansi(text, start, width)
+    first = vis_len - start
+    return _slice_ansi(text, start, first) + _slice_ansi(text, 0, width - first)
+
+
+def _slice_ansi(text: str, start: int, width: int) -> str:
+    if width <= 0:
+        return ""
+    out = []
+    vis_idx = 0
+    i = 0
+    end = start + width
+    while i < len(text):
+        ch = text[i]
+        if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+            j = i + 2
+            while j < len(text) and text[j] != "m":
+                j += 1
+            if j < len(text):
+                seq = text[i:j + 1]
+                if start <= vis_idx < end:
+                    out.append(seq)
+                i = j + 1
+                continue
+        if start <= vis_idx < end:
+            out.append(ch)
+        vis_idx += 1
+        i += 1
+    return "".join(out)
 
 
 def generate_frame(
@@ -214,7 +275,111 @@ def generate_frame(
         scene_data = ctx.scenes.get("title", {})
         art_lines = scene_data.get("art", [])
         art_color = COLOR_BY_NAME.get(scene_data.get("color", "cyan").lower(), ANSI.FG_WHITE)
-        if scene_data.get("objects"):
+        scroll_cfg = scene_data.get("scroll") if isinstance(scene_data.get("scroll"), dict) else None
+        if scroll_cfg:
+            height = int(scroll_cfg.get("height", 10) or 10)
+            speed = float(scroll_cfg.get("speed", 1) or 1)
+            pano_lines = scene_data.get("_panorama_lines")
+            pano_width = scene_data.get("_panorama_width")
+            if not pano_lines or not pano_width:
+                forest_scene = ctx.scenes.get("forest", {})
+                gap_min = int(forest_scene.get("gap_min", 0) or 0)
+                target_width = max(0, (SCREEN_WIDTH - 2 - gap_min) // 2)
+                objects_data = ctx.objects
+                if objects_data:
+                    def obj_width(obj_id: str) -> int:
+                        obj = objects_data.get(obj_id, {})
+                        art = obj.get("art", [])
+                        return max((len(line) for line in art), default=0)
+                    options = [
+                        "tree_large",
+                        "tree_large_2",
+                        "tree_large_3",
+                        "bush_large",
+                        "bush_large_2",
+                        "bush_large_3",
+                    ]
+                    options = [obj_id for obj_id in options if objects_data.get(obj_id, {}).get("art")]
+                    rng = random.Random(4242)
+                    def build_strip() -> list[dict]:
+                        strip = []
+                        width = 0
+                        while width < target_width and options:
+                            obj_id = rng.choice(options)
+                            strip.append({"id": obj_id})
+                            width += obj_width(obj_id)
+                            if obj_width(obj_id) == 0:
+                                break
+                            if width < target_width and objects_data.get("grass_1", {}).get("art"):
+                                strip.append({"id": "grass_1"})
+                                width += obj_width("grass_1")
+                        return strip
+                    forest_scene["objects_left"] = build_strip()
+                    forest_scene["objects_right"] = build_strip()
+                    forest_scene["gap_min"] = 0
+                forest_lines, _ = render_scene_art(
+                    forest_scene,
+                    [],
+                    objects_data=ctx.objects,
+                    color_map_override=ctx.colors.all(),
+                )
+                town_scene = ctx.scenes.get("town", {})
+                town_lines, _ = render_scene_art(
+                    town_scene,
+                    [],
+                    objects_data=ctx.objects,
+                    color_map_override=ctx.colors.all(),
+                )
+                def pad_height(lines: list[str], height: int) -> list[str]:
+                    if len(lines) >= height:
+                        return lines[-height:]
+                    return ([" " * len(strip_ansi(lines[0]))] * (height - len(lines))) + lines
+                forest_lines = pad_height(forest_lines, height)
+                town_lines = pad_height(town_lines, height)
+                pano_lines = []
+                for row in range(height):
+                    pano_lines.append(forest_lines[row] + town_lines[row] + forest_lines[row])
+                pano_width = len(strip_ansi(pano_lines[0])) if pano_lines else 0
+                scene_data["_panorama_lines"] = pano_lines
+                scene_data["_panorama_width"] = pano_width
+            view_width = SCREEN_WIDTH - 2
+            offset = int(time.time() * speed) % max(pano_width, 1)
+            art_lines = [
+                _slice_ansi_wrap(line, offset, view_width)
+                for line in pano_lines
+            ]
+
+            logo_lines = []
+            if scene_data.get("objects"):
+                venue_stub = {
+                    "objects": scene_data.get("objects"),
+                    "color": scene_data.get("color", "white"),
+                }
+                logo_lines, _logo_color, _ = render_venue_objects(
+                    venue_stub,
+                    {},
+                    ctx.objects,
+                    ctx.colors.all(),
+                )
+            if logo_lines:
+                logo_height = len(logo_lines)
+                logo_width = max((len(strip_ansi(line)) for line in logo_lines), default=0)
+                start_y = max(0, (height - logo_height) // 2)
+                start_x = max(0, (view_width - logo_width) // 2)
+                for idx, logo_line in enumerate(logo_lines):
+                    target_row = start_y + idx
+                    if target_row < 0 or target_row >= len(art_lines):
+                        continue
+                    base_cells = _ansi_cells(art_lines[target_row])
+                    logo_cells = _ansi_cells(logo_line)
+                    for col, (ch, code) in enumerate(logo_cells):
+                        if ch == " ":
+                            continue
+                        pos = start_x + col
+                        if 0 <= pos < len(base_cells):
+                            base_cells[pos] = (ch, code)
+                    art_lines[target_row] = "".join(code + ch for ch, code in base_cells) + ANSI.RESET
+        elif scene_data.get("objects"):
             art_lines, art_color = render_scene_art(
                 scene_data,
                 opponents,

@@ -126,6 +126,10 @@
   },
   "title": {
     "color": "cyan",
+    "scroll": {
+      "height": 10,
+      "speed": 1
+    },
     "objects": [
       {
         "id": "lokarta_logo"

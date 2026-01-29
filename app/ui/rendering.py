@@ -1362,7 +1362,8 @@ def render_scene_art(
                     None,
                     "y",
                     0.0,
-                    True
+                    True,
+                    len(bottom_objects)
                 )
 
             for row_index, entry in enumerate(bottom_objects):

@@ -92,7 +92,12 @@ def main():
         if state.inventory_mode:
             state.inventory_items = state.player.list_inventory_items(ITEMS)
         render_frame_state(APP, render_frame, state, generate_frame)
-        ch = read_input(APP, render_frame, state, generate_frame, read_keypress, read_keypress_timeout)
+        if state.title_mode:
+            ch = read_keypress_timeout(1.0)
+            if ch is None:
+                continue
+        else:
+            ch = read_input(APP, render_frame, state, generate_frame, read_keypress, read_keypress_timeout)
         action_cmd = None
         command_meta = None
         handled_by_router = False
