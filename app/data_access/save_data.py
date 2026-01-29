@@ -1,6 +1,7 @@
 """Load and persist save data."""
 
 import json
+import os
 from typing import Any, Dict, Optional
 
 from app.models import Player
@@ -33,6 +34,13 @@ class SaveData:
         }
         with open(self._path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
+        if os.environ.get("LOKARTA_WEB") == "1":
+            try:
+                import js
+                if hasattr(js, "syncSaves"):
+                    js.syncSaves()
+            except Exception:
+                return
 
     def save_player(self, player: Player):
         self.save({"player": player.to_dict()})

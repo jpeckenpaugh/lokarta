@@ -6,11 +6,37 @@ import time
 from typing import Optional
 
 
+_BROWSER_ENABLED = False
+_BROWSER_QUEUE: list[str] = []
+
+
+def enable_browser_input() -> None:
+    global _BROWSER_ENABLED
+    _BROWSER_ENABLED = True
+
+
+def enqueue_key(key: str) -> None:
+    if key:
+        _BROWSER_QUEUE.append(key)
+
+
+def _read_from_browser(timeout_sec: Optional[float] = None) -> Optional[str]:
+    end = None if timeout_sec is None else time.monotonic() + timeout_sec
+    while True:
+        if _BROWSER_QUEUE:
+            return _BROWSER_QUEUE.pop(0)
+        if end is not None and time.monotonic() >= end:
+            return None
+        time.sleep(0.01)
+
+
 def read_keypress() -> str:
     """
     Read a single keypress without requiring Enter (POSIX terminals).
     Returns a single-character string.
     """
+    if _BROWSER_ENABLED:
+        return _read_from_browser() or ""
     if os.name == "nt":
         import msvcrt
         ch = msvcrt.getch()
@@ -59,6 +85,8 @@ def read_keypress() -> str:
 
 
 def read_keypress_timeout(timeout_sec: float) -> Optional[str]:
+    if _BROWSER_ENABLED:
+        return _read_from_browser(timeout_sec)
     if os.name == "nt":
         import msvcrt
         end = time.monotonic() + timeout_sec

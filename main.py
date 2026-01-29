@@ -6,7 +6,9 @@ import json
 from json import JSONDecodeError
 from typing import Optional
 
-if os.name != 'nt':
+WEB_MODE = os.environ.get("LOKARTA_WEB") == "1"
+
+if os.name != 'nt' and not WEB_MODE:
     import termios
 
 from app.bootstrap import create_app
@@ -55,14 +57,15 @@ SAVE_DATA = APP.save_data
 # -----------------------------
 
 def main():
-    if os.name != 'nt':
+    if os.name != 'nt' and not WEB_MODE:
         sys.stdout.write("\033[?1049h")
         sys.stdout.flush()
-    cols, rows = shutil.get_terminal_size(fallback=(0, 0))
-    if cols < SCREEN_WIDTH or rows < SCREEN_HEIGHT:
-        print(f"WARNING: Terminal size is {cols}x{rows}. Recommended is 100x30.")
-        print("Resize your terminal for best results.")
-        input("Press Enter to continue anyway...")
+    if not WEB_MODE:
+        cols, rows = shutil.get_terminal_size(fallback=(0, 0))
+        if cols < SCREEN_WIDTH or rows < SCREEN_HEIGHT:
+            print(f"WARNING: Terminal size is {cols}x{rows}. Recommended is 100x30.")
+            print("Resize your terminal for best results.")
+            input("Press Enter to continue anyway...")
 
     state = GameState(
         player=Player.from_dict({}),
@@ -83,7 +86,7 @@ def main():
     )
     state.player.location = "Title"
 
-    if os.name != 'nt':
+    if os.name != 'nt' and not WEB_MODE:
         termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
 
     while True:
@@ -113,7 +116,7 @@ def main():
                 SAVE_DATA.save_player(state.player)
                 clear_screen()
                 print("Goodbye.")
-                if os.name != 'nt':
+                if os.name != 'nt' and not WEB_MODE:
                     sys.stdout.write("\033[?1049l")
                     sys.stdout.flush()
                 return
@@ -294,6 +297,6 @@ if __name__ == "__main__":
     try:
         main()
     finally:
-        if os.name != 'nt':
+        if os.name != 'nt' and not WEB_MODE:
             sys.stdout.write("\033[?1049l")
             sys.stdout.flush()
