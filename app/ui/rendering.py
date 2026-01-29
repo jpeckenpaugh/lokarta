@@ -1587,7 +1587,8 @@ def flash_opponent(
         color_map_override=color_map_override,
         flash_index=index,
         flash_color=flash_color,
-        suppress_actions=True
+        suppress_actions=True,
+        suppress_narrative=True
     )
     time.sleep(max(0.08, battle_action_delay(player) / 2))
 
@@ -1635,7 +1636,8 @@ def animate_spell_overlay(
                 overlay_target_index=index,
                 overlay_effect=effect,
                 overlay_frame_index=frame_index,
-                suppress_actions=True
+                suppress_actions=True,
+                suppress_narrative=True
             )
             time.sleep(max(0.03, min(frame_delay, battle_action_delay(player))))
 
@@ -1688,7 +1690,8 @@ def melt_opponent(
             color_map_override=color_map_override,
             art_opponents=art_overrides,
             manual_lines_indices={index},
-            suppress_actions=True
+            suppress_actions=True,
+            suppress_narrative=True
         )
         time.sleep(max(0.05, battle_action_delay(player) / 3))
 
