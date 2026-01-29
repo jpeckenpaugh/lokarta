@@ -754,8 +754,9 @@ def render_scene_art(
         for i, ch in enumerate(line):
             mask_char = mask[i] if i < len(mask) else ""
             overlay_cell = overlay_row.get(i) if overlay_row else None
+            code = ""
             if overlay_cell:
-                overlay_char = overlay_cell
+                ch = overlay_cell
                 base_rgb = color_rgb_by_key.get(overlay_color_key)
                 if base_rgb:
                     overlay_seed = seed_base ^ (ord(overlay_color_key) << 4) ^ (i * 0x85EBCA77) ^ (row_index * 0xC2B2AE3D)
@@ -764,18 +765,15 @@ def render_scene_art(
                     code = _jitter_color_code(base_rgb, overlay_variation, overlay_seed)
                 else:
                     code = color_by_key.get(overlay_color_key, "")
-                out.append(code + overlay_char + ANSI.RESET)
-                continue
-            code = ""
-            if mask_char in _MASK_DIGITS:
+            elif mask_char in _MASK_DIGITS:
                 code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
-            if not code:
-                code = color_by_key.get(mask_char) if mask_char else None
-            if mask_char.isalpha() and mask_char in color_rgb_by_key and jitter_amount > 0:
+            elif mask_char.isalpha() and mask_char in color_rgb_by_key and jitter_amount > 0:
                 jitter_seed = seed_base ^ (ord(mask_char) << 4) ^ (i * 0x85EBCA77) ^ (row_index * 0xC2B2AE3D)
                 if not jitter_stability:
                     jitter_seed ^= (tick * 0x9E3779B1)
                 code = _jitter_color_code(color_rgb_by_key[mask_char], jitter_amount, jitter_seed)
+            if not code:
+                code = color_by_key.get(mask_char) if mask_char else None
             if code:
                 out.append(code + ch + ANSI.RESET)
             else:
@@ -1268,6 +1266,12 @@ def animate_spell_overlay(
     frame_delay = float(effect.get("frame_delay", 0.06) or 0.06)
     scene_data = scenes_data.get(scene_id, {})
     gap_target = compute_scene_gap_target(scene_data, opponents)
+    art_overrides = []
+    for i, current in enumerate(opponents):
+        if i == index and current.hp <= 0:
+            art_overrides.append(replace(current, hp=1))
+        else:
+            art_overrides.append(current)
     for _ in range(max(1, loops)):
         for frame_index in range(len(frames)):
             render_scene_frame(
@@ -1280,6 +1284,7 @@ def animate_spell_overlay(
                 gap_target,
                 objects_data=objects_data,
                 color_map_override=color_map_override,
+                art_opponents=art_overrides,
                 overlay_target_index=index,
                 overlay_effect=effect,
                 overlay_frame_index=frame_index,
