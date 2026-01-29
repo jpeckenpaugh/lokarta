@@ -238,7 +238,7 @@
       },
       {
         "id": "space",
-        "width": 2
+        "width": 4
       },
       {
         "id": "npc",
@@ -246,7 +246,7 @@
       },
       {
         "id": "space",
-        "width": 5
+        "width": 7
       },
       {
         "id": "lamp",
@@ -268,7 +268,7 @@
       },
       {
         "id": "grass",
-        "repeat": 4
+        "repeat": 2
       },
       {
         "id": "house_wall_left"
@@ -377,7 +377,7 @@
       },
       {
         "id": "space",
-        "width": 3
+        "width": 2
       },
       {
         "id": "table",
@@ -385,7 +385,7 @@
       },
       {
         "id": "space",
-        "width": 3
+        "width": 2
       },
       {
         "id": "house_wall_right"
@@ -401,7 +401,11 @@
         "repeat": 2
       },
       {
-        "id": "house_wall_left"
+        "id": "town_wall"
+      },
+      {
+        "id": "water",
+        "repeat": 2
       }
     ],
     "services": {

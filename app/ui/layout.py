@@ -15,9 +15,25 @@ def strip_ansi(s: str) -> str:
 def pad_or_trim_ansi(text: str, width: int) -> str:
     # Pad based on visible length, not raw length.
     visible = strip_ansi(text)
-    if len(visible) >= width:
-        # naive trim: trim visible; for demo purposes this is fine
-        return text[:width]
+    if len(visible) > width:
+        # Trim by visible characters while keeping ANSI sequences intact.
+        out = []
+        vis_idx = 0
+        i = 0
+        while i < len(text) and vis_idx < width:
+            ch = text[i]
+            if ch == "\x1b" and i + 1 < len(text) and text[i + 1] == "[":
+                j = i + 2
+                while j < len(text) and text[j] != "m":
+                    j += 1
+                if j < len(text):
+                    out.append(text[i:j + 1])
+                    i = j + 1
+                    continue
+            out.append(ch)
+            vis_idx += 1
+            i += 1
+        return "".join(out)
     return text + (" " * (width - len(visible)))
 
 
@@ -31,8 +47,10 @@ def pad_ansi(text: str, width: int) -> str:
 
 def center_ansi(text: str, width: int) -> str:
     visible_len = len(strip_ansi(text))
-    if visible_len >= width:
-        return text[:width]
+    if visible_len > width:
+        return pad_or_trim_ansi(text, width)
+    if visible_len == width:
+        return text
     left = (width - visible_len) // 2
     right = width - visible_len - left
     return (" " * left) + text + (" " * right)

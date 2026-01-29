@@ -451,6 +451,7 @@
   },
   "house": {
     "art": [
+      "     [==]",
       "  /===================\\",
       " / # # # # # # # # # # \\",
       "/_#_#_#_#_#_#_#_#_#_#_#_\\",
@@ -462,6 +463,7 @@
       "|________=======________|"
     ],
     "color_mask": [
+      "    DddD",
       "  ddddddddddddddddddddd",
       " d D d D d D d D d D d d",
       "ddDdddddddddddddddddddddd",
@@ -478,31 +480,31 @@
   },
   "town_wall": {
     "art": [
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "|#|",
-      "==="
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "|##|",
+      "===="
     ],
     "color_mask": [
-      "bBb",
-      "BbB",
-      "bBb",
-      "BbB",
-      "bBb",
-      "BbB",
-      "bBb",
-      "BbB",
-      "bBb",
-      "XXX"
+      "ZXxZ",
+      "ZxXZ",
+      "ZXxZ",
+      "zxXz",
+      "zXxz",
+      "zxXz",
+      "ZXxZ",
+      "ZxXZ",
+      "ZXxZ",
+      "XXXX"
     ],
     "align": 0,
-    "variation": 0.08,
+    "variation": 0.12,
     "jitter_stability": true
   },
   "water": {

@@ -507,10 +507,21 @@ def render_venue_objects(
         if not isinstance(line, str):
             return art, mask
         width = len(line)
+        left_bound = None
+        right_bound = None
+        for idx, ch in enumerate(line):
+            if ch != " ":
+                if left_bound is None:
+                    left_bound = idx
+                right_bound = idx
+        if left_bound is None:
+            left_bound = 0
+            right_bound = width - 1 if width else 0
+        content_width = max(1, right_bound - left_bound + 1)
         label_text = f"[ {label.strip()} ]"
-        if len(label_text) > width:
-            label_text = label_text[:width]
-        start = max(0, (width - len(label_text)) // 2)
+        if len(label_text) > content_width:
+            label_text = label_text[:content_width]
+        start = left_bound + max(0, (content_width - len(label_text)) // 2)
         line_chars = list(line)
         for i, ch in enumerate(label_text):
             if start + i < width:

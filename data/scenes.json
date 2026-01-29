@@ -9,7 +9,7 @@
       {
         "id": "house",
         "label": "Shop",
-        "label_row": 1,
+        "label_row": 2,
         "label_key": "o"
       },
       {
@@ -24,7 +24,7 @@
       {
         "id": "house",
         "label": "Hall",
-        "label_row": 1,
+        "label_row": 2,
         "label_key": "B"
       },
       {
@@ -39,7 +39,7 @@
       {
         "id": "house",
         "label": "Inn",
-        "label_row": 1,
+        "label_row": 2,
         "label_key": "f",
         "label_variation": 0.05,
         "label_jitter_stability": true

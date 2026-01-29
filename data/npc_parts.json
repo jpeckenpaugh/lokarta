@@ -25,8 +25,8 @@
       " \\_^_/"
     ],
     "color_mask": [
-      " do_od",
-      " ddhdd"
+      " dodod",
+      " ddDdd"
     ]
   },
   "face_innkeeper": {
@@ -35,8 +35,8 @@
       " \\_~_/"
     ],
     "color_mask": [
-      " do_od",
-      " ddhdd"
+      " djdjd",
+      " ddRdd"
     ]
   },
   "torso_mayor": {
@@ -111,18 +111,18 @@
       " \\_~_/"
     ],
     "color_mask": [
-      " do_od",
-      " ddhdd"
+      " lclcl",
+      " lLRLl"
     ]
   },
   "torso_shopkeeper": {
     "art": [
       "/|###|\\",
-      "||   ||"
+      "o|___|o"
     ],
     "color_mask": [
       "ooOOOoo",
-      "do   od"
+      "loRrRol"
     ]
   },
   "shoes_shopkeeper": {
@@ -130,7 +130,7 @@
       "\\__/__/"
     ],
     "color_mask": [
-      "ZzzzzzZ"
+      "XzxxzX"
     ]
   },
   "legs_dress_shopkeeper": {
