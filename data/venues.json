@@ -209,12 +209,6 @@
         "id": "flower_box"
       },
       {
-        "id": "grass"
-      },
-      {
-        "id": "flower_box"
-      },
-      {
         "id": "grass",
         "repeat": 2
       },
@@ -227,16 +221,19 @@
         "target": "house_wall_right"
       },
       {
-        "id": "space",
-        "width": 1
-      },
-      {
         "id": "chair",
         "align": 0
       },
       {
         "id": "space",
-        "width": 5
+        "width": 1
+      },
+      {
+        "id": "table"
+      },
+      {
+        "id": "space",
+        "width": 2
       },
       {
         "id": "npc",
@@ -337,10 +334,14 @@
       },
       {
         "id": "grass",
-        "repeat": 1
+        "repeat": 2
       },
       {
-        "id": "tree_large"
+        "id": "sign"
+      },
+      {
+        "id": "grass",
+        "repeat": 3
       },
       {
         "id": "house_wall_left"
