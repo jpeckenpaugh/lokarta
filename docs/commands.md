@@ -18,6 +18,22 @@ Commands are defined in JSON (global, scenes, venues, menus) and merged at runti
 - `requires_target`: boolean to indicate a target is required
 - `suppress_actions`: boolean to hide the action panel during a command
 
+## Scene Object Entries (scenes.json)
+
+When scenes use object composition (`objects`, `objects_left`, `objects_right`, `objects_bottom`), entries can be:
+
+```json
+{ "id": "house", "label": "Shop", "label_row": 2, "label_key": "o" }
+```
+
+Optional fields:
+- `label`: text injected into the object art (centered within the row content).
+- `label_row`: 0-based row index in the object art to place the label.
+- `label_key`: color key used for the label mask.
+- `label_variation`: jitter amount for label color.
+- `label_jitter_stability`: whether label jitter is stable per tick.
+- `scatter`: id of a dynamic object to scatter across a repeated base line (forest bottom).
+
 ## Examples
 
 ```json

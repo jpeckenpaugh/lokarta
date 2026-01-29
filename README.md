@@ -1,4 +1,4 @@
-# World Builder — Local Terminal POC
+# Lokarta - World Maker — Local Terminal POC
 
 ## Overview
 
@@ -49,7 +49,7 @@ Once validated locally, the same engine and assets can be migrated to:
 - Title screen with Continue/New/Quit and save overwrite confirmation
 - Persistent save file (`saves/slot1.json`)
 - ANSI color rendering and ASCII scene art
-- Town hub with Inn, Shop, Hall, and Inventory
+- Town hub with Inn, Shop, Hall, and Inventory (scene assembled from objects)
 - Spellbook (Healing / Spark) and boosted casting prompts
 - Items (Rations, Herbal Tea, Elixir) and purchasing via the shop
 - Inn services (Rest and Hot Meal)
@@ -58,6 +58,8 @@ Once validated locally, the same engine and assets can be migrated to:
 - Combat with variance, crits, misses, and Spark stun
 - Leveling: +10 stat points per level, allocation screen, auto-heal
 - Boosted spell prompts auto-time out after 3 seconds
+- Forest does not auto-spawn a battle on entry; use Find to spawn opponents
+- Scene/venue transitions use a melt-down/build-up animation
 
 ---
 
@@ -94,6 +96,7 @@ Town/Forest/Menus:
 - Command schema notes: `docs/commands.md`.
 - Boost prompts and timing are driven by `data/spells.json`.
 - Target selection (Attack/Spark) uses ←/→ to cycle and Enter to confirm.
+- Forest encounters are started via the Find action (no auto-spawn on entry).
 
 ---
 
@@ -102,13 +105,16 @@ Town/Forest/Menus:
 Game data is externalized into JSON:
 - `data/opponents.json` — opponent stats, art, descriptions
 - `data/items.json` — item effects, prices, descriptions
-- `data/scenes.json` — scene art and colors
+- `data/scenes.json` — scene configuration, object composition, commands
 - `data/npcs.json` — NPC names and dialog snippets
+- `data/npc_parts.json` — NPC part definitions (hat/face/torso/legs/shoes)
 - `data/venues.json` — venue metadata and NPC links
 - `data/spells.json` — spell definitions and costs
 - `data/commands.json` — global action commands
 - `data/menus.json` — inventory/spellbook UI text and actions
 - `data/text.json` — message templates for battle text
+- `data/objects.json` — object art, color masks, dynamic object defs
+- `data/colors.json` — color palette, random bands
 
 ---
 
@@ -120,6 +126,11 @@ Game data is externalized into JSON:
 ```bash
 python3 main.py
 ```
+
+## Utilities
+
+- `python3 color_map.py` — print the current color map (including random bands)
+- `python3 render.py` — render objects/NPCs/opponents/venues/spells from JSON
 
 ---
 

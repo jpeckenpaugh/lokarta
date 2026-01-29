@@ -20,3 +20,9 @@
 - Commands are defined in JSON and filtered at runtime (`app/commands/scene_commands.py`).
 - The router (`app/commands/router.py`) executes stateful transitions and menu actions.
 - Animation hints are stored in JSON and interpreted by the main loop.
+
+## Scene Composition
+
+- Town/Forest scenes can be assembled from object strips (left/right/bottom) rather than static art.
+- Object composition supports dynamic labels (e.g., house signs) and per-object overrides.
+- Forest layout is regenerated on entry and when spawning an encounter.

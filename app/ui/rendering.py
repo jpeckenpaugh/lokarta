@@ -1441,7 +1441,7 @@ def render_scene_frame(
     if suppress_actions:
         actions = format_action_lines([])
     frame = Frame(
-        title="World Builder — PROTOTYPE",
+        title="Lokarta - World Maker — PROTOTYPE",
         body_lines=body,
         action_lines=actions,
         stat_lines=format_player_stats(player),

@@ -222,6 +222,7 @@ def generate_frame(
             actions = format_command_lines(
                 scene_commands(ctx.scenes, ctx.commands, "title", player, opponents)
             )
+        display_location = "Lokarta - World Maker"
     else:
         scene_data = ctx.scenes.get("forest", {})
         forest_art, art_color = render_scene_art(
@@ -263,7 +264,7 @@ def generate_frame(
         )
 
     return Frame(
-        title="World Builder — PROTOTYPE",
+        title="Lokarta - World Maker — PROTOTYPE",
         body_lines=body,
         action_lines=(format_action_lines([]) if suppress_actions else actions),
         stat_lines=format_player_stats(player),
