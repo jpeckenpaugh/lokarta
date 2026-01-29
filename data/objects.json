@@ -22,6 +22,25 @@
     ],
     "align": 0
   },
+  "flower_box_small": {
+    "art": [
+      " (o)",
+      "(o*o)",
+      " (o)",
+      "  |)",
+      " (|",
+      "=[#]="
+    ],
+    "color_mask": [
+      " fif",
+      "fidif",
+      " fif",
+      "  gG",
+      " Gg",
+      "ZzzzZ"
+    ],
+    "align": 0
+  },
   "house_wall_left": {
     "art": [
       "  /",
@@ -150,6 +169,27 @@
       " szS",
       " Szs",
       "dSzSd"
+    ],
+    "align": 0
+  },
+  "sign_small": {
+    "art": [
+      " __",
+      "/==\\",
+      "\\==/",
+      " ||",
+      " ||",
+      " ||",
+      "[||]"
+    ],
+    "color_mask": [
+      " ss",
+      "sXxs",
+      "sxXs",
+      " sS",
+      " Ss",
+      " sS",
+      "dSSd"
     ],
     "align": 0
   },
