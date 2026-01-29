@@ -39,6 +39,26 @@ _MASK_DIGITS = set("0123456789")
 _JITTER_TICK_SECONDS = 0.6
 
 
+def gradient_rgb(x: int, y: int, width: int, height: int) -> tuple[int, int, int]:
+    # Diagonal gradient: light silver -> bright blue -> dark silver
+    if width <= 1 and height <= 1:
+        return (192, 192, 192)
+    denom = max(1, (width - 1) + (height - 1))
+    t = (x + y) / denom
+    if t <= 0.5:
+        t2 = t / 0.5
+        start = (192, 192, 192)
+        end = (77, 77, 255)
+    else:
+        t2 = (t - 0.5) / 0.5
+        start = (77, 77, 255)
+        end = (96, 96, 96)
+    r = int(round(start[0] + (end[0] - start[0]) * t2))
+    g = int(round(start[1] + (end[1] - start[1]) * t2))
+    b = int(round(start[2] + (end[2] - start[2]) * t2))
+    return (r, g, b)
+
+
 def _mix64(value: int) -> int:
     mask = 0xFFFFFFFFFFFFFFFF
     value = (value + 0x9E3779B97F4A7C15) & mask
@@ -176,6 +196,7 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
         return f"\033[38;2;{r};{g};{b}m"
 
     color_by_key = {}
+    gradient_keys = set()
     color_rgb_by_key = {}
     for key, entry in color_map.items():
         if key == "random" or key in _MASK_DIGITS:
@@ -190,6 +211,9 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
             continue
         name = name.strip()
         hex_code = hex_code.strip()
+        if name.lower() == "gradient":
+            gradient_keys.add(key)
+            continue
         if not hex_code:
             hex_start = name.find("#")
             hex_code = name[hex_start:] if hex_start != -1 else ""
@@ -219,6 +243,9 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
         for i, ch in enumerate(line):
             mask_char = mask[i] if i < len(mask) else ""
             code = ""
+            if mask_char in gradient_keys:
+                r, g, b = gradient_rgb(i, row_index, len(line), len(left) if left else len(art_template))
+                code = f"\033[38;2;{r};{g};{b}m"
             if mask_char in _MASK_DIGITS:
                 code = _random_color_code(mask_char, i, row_index, venue_seed_base, random_config)
             if not code:
@@ -239,6 +266,9 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
         for i, ch in enumerate(line):
             mask_char = mask[i] if i < len(mask) else ""
             code = ""
+            if mask_char in gradient_keys:
+                r, g, b = gradient_rgb(i, row_index, len(line), len(left) if left else len(art_template))
+                code = f"\033[38;2;{r};{g};{b}m"
             if mask_char in _MASK_DIGITS:
                 code = _random_color_code(mask_char, i, row_index, venue_seed_base, random_config)
             if not code:
@@ -373,7 +403,8 @@ def render_venue_art(venue: dict, npc: dict, color_map_override: Optional[dict] 
                     None,
                     "y",
                     0.0,
-                    True
+                    True,
+                    len(bottom_objects)
                 )
 
             for row_index, entry in enumerate(bottom_objects):
@@ -437,6 +468,7 @@ def render_venue_objects(
         return f"\033[38;2;{r};{g};{b}m"
 
     color_by_key = {}
+    gradient_keys = set()
     color_rgb_by_key = {}
     for key, entry in color_map.items():
         if key == "random" or key in _MASK_DIGITS:
@@ -451,6 +483,9 @@ def render_venue_objects(
             continue
         name = name.strip()
         hex_code = hex_code.strip()
+        if name.lower() == "gradient":
+            gradient_keys.add(key)
+            continue
         if not hex_code:
             hex_start = name.find("#")
             hex_code = name[hex_start:] if hex_start != -1 else ""
@@ -538,6 +573,9 @@ def render_venue_objects(
         for i, ch in enumerate(line):
             mask_char = mask[i] if i < len(mask) else ""
             code = ""
+            if mask_char in gradient_keys:
+                r, g, b = gradient_rgb(i, row_index, max_width, max_height)
+                code = f"\033[38;2;{r};{g};{b}m"
             if mask_char in _MASK_DIGITS:
                 seed_base = rand_row[i] if rand_row and i < len(rand_row) else venue_seed_base
                 local_x, local_y = i, row_index
@@ -831,6 +869,7 @@ def render_venue_objects(
         else:
             _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability)
 
+    max_width = max(len(row) for row in canvas) if canvas else 0
     art_lines = []
     tick = int(time.time() / _JITTER_TICK_SECONDS) if _JITTER_TICK_SECONDS > 0 else 0
     for row_idx in range(max_height):
@@ -888,8 +927,9 @@ def render_scene_art(
 
     random_config = color_map.get("random", {}) if isinstance(color_map.get("random"), dict) else {}
 
-    def build_color_by_key() -> dict:
+    def build_color_by_key() -> tuple[dict, set]:
         color_by_key = {}
+        gradient_keys = set()
         for key, entry in (color_map or {}).items():
             if key == "random" or key in _MASK_DIGITS:
                 continue
@@ -903,6 +943,9 @@ def render_scene_art(
                 continue
             name = name.strip()
             hex_code = hex_code.strip()
+            if name.lower() == "gradient":
+                gradient_keys.add(key)
+                continue
             if not hex_code:
                 hex_start = name.find("#")
                 hex_code = name[hex_start:] if hex_start != -1 else ""
@@ -918,9 +961,9 @@ def render_scene_art(
                 color_by_key[key] = ANSI.FG_WHITE + ANSI.DIM
             else:
                 color_by_key[key] = COLOR_BY_NAME.get(lowered, ANSI.FG_WHITE)
-        return color_by_key
+        return color_by_key, gradient_keys
 
-    color_by_key = build_color_by_key()
+    color_by_key, gradient_keys = build_color_by_key()
     color_rgb_by_key = {}
     for key, entry in (color_map or {}).items():
         if key == "random" or key in _MASK_DIGITS:
@@ -954,7 +997,8 @@ def render_scene_art(
         overlay_row: Optional[dict],
         overlay_color_key: str,
         overlay_variation: float,
-        overlay_jitter_stability: bool
+        overlay_jitter_stability: bool,
+        art_height: int
     ) -> str:
         if not mask:
             return line
@@ -975,6 +1019,9 @@ def render_scene_art(
                     code = _jitter_color_code(base_rgb, overlay_variation, overlay_seed)
                 else:
                     code = color_by_key.get(overlay_color_key, "")
+            elif mask_char in gradient_keys:
+                r, g, b = gradient_rgb(i, row_index, len(line), art_height)
+                code = f"\033[38;2;{r};{g};{b}m"
             elif mask_char in _MASK_DIGITS:
                 code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
             elif mask_char.isalpha() and mask_char in color_rgb_by_key and jitter_amount > 0:
@@ -1132,7 +1179,8 @@ def render_scene_art(
                             overlay_rows.get(idx) if overlay_rows else None,
                             overlay_color_key,
                             overlay_variation,
-                            overlay_jitter_stability
+                            overlay_jitter_stability,
+                            len(art_lines)
                         )
                     )
             art_lines = colored
@@ -1810,23 +1858,7 @@ def render_frame(frame: Frame):
         return f"\033[38;2;{r};{g};{b}m"
 
     def _gradient_rgb(x: int, y: int, width: int, height: int) -> tuple[int, int, int]:
-        # Diagonal gradient: light silver -> bright blue -> dark silver
-        if width <= 1 and height <= 1:
-            return (192, 192, 192)
-        denom = max(1, (width - 1) + (height - 1))
-        t = (x + y) / denom
-        if t <= 0.5:
-            t2 = t / 0.5
-            start = (192, 192, 192)
-            end = (77, 77, 255)
-        else:
-            t2 = (t - 0.5) / 0.5
-            start = (77, 77, 255)
-            end = (96, 96, 96)
-        r = int(round(start[0] + (end[0] - start[0]) * t2))
-        g = int(round(start[1] + (end[1] - start[1]) * t2))
-        b = int(round(start[2] + (end[2] - start[2]) * t2))
-        return (r, g, b)
+        return gradient_rgb(x, y, width, height)
 
     def _gradient_char(x: int, y: int, width: int, height: int, ch: str) -> str:
         r, g, b = _gradient_rgb(x, y, width, height)

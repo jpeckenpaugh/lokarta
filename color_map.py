@@ -153,5 +153,11 @@ def display_color_map():
         print("  ".join(row[5:]))
         print()
 
+    if isinstance(colors.get("@"), dict) and colors.get("@", {}).get("name") == "gradient":
+        print("Gradient Key")
+        print("------------")
+        print("@ uses the same diagonal gradient as the screen border.")
+        print()
+
 if __name__ == "__main__":
     display_color_map()

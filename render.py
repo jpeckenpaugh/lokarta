@@ -36,7 +36,12 @@ def build_color_lookup(colors: dict) -> dict:
     for key, color_data in colors.items():
         if key == "random" or key.isdigit():
             continue
-        rgb = hex_to_rgb(color_data['hex'])
+        if not isinstance(color_data, dict):
+            continue
+        hex_code = color_data.get('hex')
+        if not isinstance(hex_code, str) or not hex_code:
+            continue
+        rgb = hex_to_rgb(hex_code)
         color_by_key[key] = truecolor_fg(*rgb)
     return color_by_key
 

@@ -214,6 +214,13 @@ def generate_frame(
         scene_data = ctx.scenes.get("title", {})
         art_lines = scene_data.get("art", [])
         art_color = COLOR_BY_NAME.get(scene_data.get("color", "cyan").lower(), ANSI.FG_WHITE)
+        if scene_data.get("objects"):
+            art_lines, art_color = render_scene_art(
+                scene_data,
+                opponents,
+                objects_data=ctx.objects,
+                color_map_override=ctx.colors.all(),
+            )
         if getattr(player, "title_confirm", False):
             body = scene_data.get("confirm_narrative", [])
             actions = format_command_lines(scene_data.get("confirm_commands", []))

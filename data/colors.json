@@ -195,6 +195,9 @@
     "name": "bright zucchini",
     "hex": "#616644"
   },
+  "@": {
+    "name": "gradient"
+  },
   "random": {
     "mode": "hsl",
     "s_min": 0.4,
