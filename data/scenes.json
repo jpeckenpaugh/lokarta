@@ -4,7 +4,22 @@
     "min_height": 10,
     "objects": [
       {
-        "id": "grass"
+        "id": "water",
+        "repeat": 5
+      },
+      {
+        "id": "town_wall"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "bush_small"
+      },
+      {
+        "id": "grass",
+        "repeat": 1
       },
       {
         "id": "house",
@@ -45,7 +60,22 @@
         "label_jitter_stability": true
       },
       {
-        "id": "grass"
+        "id": "grass",
+        "repeat": 1
+      },
+      {
+        "id": "bush_small"
+      },
+      {
+        "id": "grass",
+        "repeat": 2
+      },
+      {
+        "id": "town_wall"
+      },
+      {
+        "id": "water",
+        "repeat": 5
       }
     ],
     "narrative": [
