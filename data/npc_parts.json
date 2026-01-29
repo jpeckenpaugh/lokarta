@@ -72,11 +72,11 @@
   "legs_dress": {
     "art": [
       " /###\\",
-      " |___|"
+      "_|___|_"
     ],
     "color_mask": [
       " fFFFf",
-      " fffff"
+      "zfffffZ"
     ]
   },
   "shoes_basic": {
@@ -136,11 +136,11 @@
   "legs_dress_shopkeeper": {
     "art": [
       " /###\\",
-      " |___|"
+      "_|___|_"
     ],
     "color_mask": [
       " oOoOo",
-      " ooooo"
+      "Xooooox"
     ]
   }
 }

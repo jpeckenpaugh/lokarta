@@ -261,7 +261,7 @@
     "art": [
       "o",
       "|",
-      "|_____________",
+      "|_____________o",
       "|#############|",
       "|             |",
       "o             o"
@@ -269,7 +269,7 @@
     "color_mask": [
       "w",
       "x",
-      "XbBbBbBbBbBbBb",
+      "XbBbBbBbBbBbBbw",
       "xBbBbBbBbBbBbBx",
       "x             x",
       "w             w"
@@ -278,7 +278,7 @@
   },
   "table_shop": {
     "art": [
-      "  ^  []  o",
+      "  ^      o",
       " _O__[]_(O)_",
       "|___________|",
       "|           |",
@@ -382,26 +382,24 @@
   },
   "bookshelf": {
     "art": [
-      " __________ ",
-      "|==========|",
-      "||[] [] []||",
-      "||[] [] []||",
-      "||[] [] []||",
-      "||[] [] []||",
-      "||[] [] []||",
-      "||________||",
-      "|__________|"
+      "o==========o",
+      "| [] [] [] |",
+      "|----------|",
+      "| [] [] [] |",
+      "|----------|",
+      "|   o||o   |",
+      "|__________|",
+      "O          O"
     ],
     "color_mask": [
-      " dddddddddd ",
+      "QDDDDDDDDDDQ",
+      "d 66 77 NN d",
+      "ddDDDDDDDDDdd",
+      "d RR 99 77 d",
+      "ddDDDDDDDDdd",
       "dDDDDDDDDDDd",
-      "dd11 44 66dd",
-      "dd99 55 33dd",
-      "dd22 66 77dd",
-      "dd88 44 22dd",
-      "dd33 77 88dd",
-      "dDDDDDDDDDDd",
-      "DddddddddddD"
+      "DddddddddddD",
+      "Q          Q"
     ],
     "align": 0
   },
@@ -496,7 +494,7 @@
       " / # # # # # # # # # # \\",
       "/_#_#_#_#_#_#_#_#_#_#_#_\\",
       "|   __    _____    __   |",
-      "|  [  ]  |     |  [  ]  |",
+      "|  [##]  |     |  [##]  |",
       "|  [__]  |     |  [__]  |",
       "|        |o    |        |",
       "|        |     |        |",
@@ -508,7 +506,7 @@
       " d D d D d D d D d D d d",
       "ddDdddddddddddddddddddddd",
       "d   SS    ddddd    SS   d",
-      "d  s  s  d     d  s  s  d",
+      "d  sSSs  d     d  sSss  d",
       "d  sSSs  d     d  sSSs  d",
       "d        dL    d        d",
       "d        d     d        d",
