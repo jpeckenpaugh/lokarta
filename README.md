@@ -17,7 +17,7 @@ Once validated locally, the same engine and assets can be migrated to:
 ## Design Goals
 
 - Fixed-size ASCII screen (**100 columns × 30 rows**)
-- Deterministic rendering (no scrolling UI)
+- Deterministic rendering (no scrolling UI in core gameplay screens)
 - Single-key input (no Enter required)
 - Nostalgic presentation with modern code structure
 - Clean separation between game logic and presentation
@@ -47,6 +47,7 @@ Once validated locally, the same engine and assets can be migrated to:
 ## Current Features
 
 - Title screen with Continue/New/Quit and save overwrite confirmation
+- Title screen uses a scrolling panorama with a centered logo overlay
 - Persistent save file (`saves/slot1.json`)
 - ANSI color rendering and ASCII scene art
 - Town hub with Inn, Shop, Hall, and Inventory (scene assembled from objects)
@@ -114,7 +115,7 @@ Game data is externalized into JSON:
 - `data/menus.json` — inventory/spellbook UI text and actions
 - `data/text.json` — message templates for battle text
 - `data/objects.json` — object art, color masks, dynamic object defs
-- `data/colors.json` — color palette, random bands
+- `data/colors.json` — color palette, gradient, random bands
 
 ---
 

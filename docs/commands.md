@@ -34,6 +34,34 @@ Optional fields:
 - `label_jitter_stability`: whether label jitter is stable per tick.
 - `scatter`: id of a dynamic object to scatter across a repeated base line (forest bottom).
 
+## Scene Gap Ground (scenes.json)
+
+When rendering a battle gap in a scene with left/right objects, you can add
+ground lines beneath opponents:
+
+```json
+"gap_ground": ["grass", "grass", "grass"],
+"gap_ground_scatter": "battle_ground"
+```
+
+`gap_ground` entries reference object ids. `gap_ground_scatter` points to a
+dynamic object definition used to randomly place glyphs on those lines.
+
+## Dynamic Objects (objects.json)
+
+Objects can define a `dynamic` block for scatter behavior:
+
+```json
+"dynamic": {
+  "mode": "scatter",
+  "glyphs": ["o", "O"],
+  "color_keys": ["z", "Z", "x", "X", "l", "L"],
+  "scatter_chance": 0.2
+}
+```
+
+These dynamic objects are referenced by `scatter` or `gap_ground_scatter`.
+
 ## Examples
 
 ```json

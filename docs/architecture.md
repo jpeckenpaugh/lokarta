@@ -26,3 +26,6 @@
 - Town/Forest scenes can be assembled from object strips (left/right/bottom) rather than static art.
 - Object composition supports dynamic labels (e.g., house signs) and per-object overrides.
 - Forest layout is regenerated on entry and when spawning an encounter.
+- Scenes can add dynamic scatter objects (e.g., pebbles/grass) via object definitions and scene wiring.
+- Art rendering supports per-object jitter/variation and stable randomness.
+- Title screen uses a scrolling panorama with a centered logo overlay.
