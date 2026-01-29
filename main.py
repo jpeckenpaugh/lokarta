@@ -117,6 +117,20 @@ def main():
                     sys.stdout.write("\033[?1049l")
                     sys.stdout.flush()
                 return
+            pre_frame = generate_frame(
+                APP.screen_ctx,
+                state.player,
+                state.opponents,
+                state.last_message,
+                state.leveling_mode,
+                state.shop_mode,
+                state.inventory_mode,
+                state.inventory_items,
+                state.hall_mode,
+                state.hall_view,
+                state.inn_mode,
+                state.spell_mode,
+            )
             state.title_mode = True
             state.player.location = "Title"
             state.player.title_confirm = False
@@ -136,6 +150,21 @@ def main():
             state.loot_bank = {"xp": 0, "gold": 0}
             state.battle_log = []
             state.last_message = ""
+            post_frame = generate_frame(
+                APP.screen_ctx,
+                state.player,
+                state.opponents,
+                state.last_message,
+                state.leveling_mode,
+                state.shop_mode,
+                state.inventory_mode,
+                state.inventory_items,
+                state.hall_mode,
+                state.hall_view,
+                state.inn_mode,
+                state.spell_mode,
+            )
+            animate_art_transition(pre_frame, post_frame, state.player, pause_ticks=2)
             continue
 
         if cmd is None and not handled_boost:
@@ -153,8 +182,10 @@ def main():
             continue
 
         pre_snapshot = None
-        if cmd in ("ENTER_VENUE", "ENTER_SCENE") or (
-            cmd == "B_KEY" and (state.shop_mode or state.hall_mode or state.inn_mode)
+        if (
+            cmd in ("ENTER_VENUE", "ENTER_SCENE")
+            or cmd.startswith("TITLE_")
+            or (cmd == "B_KEY" and (state.shop_mode or state.hall_mode or state.inn_mode))
         ):
             pre_snapshot = {
                 "player": copy.deepcopy(state.player),
