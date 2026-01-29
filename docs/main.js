@@ -1,7 +1,7 @@
 const statusEl = document.getElementById("status");
 const termEl = document.getElementById("terminal");
 const manifestUrl = new URL("asset-manifest.json", window.location.href);
-const rootUrl = new URL("..", window.location.href);
+const rootUrl = new URL(".", window.location.href);
 
 const term = new Terminal({
   cols: 100,

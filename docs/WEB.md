@@ -10,7 +10,7 @@ python3 -m http.server 8000
 2. Open the web demo:
 
 ```text
-http://localhost:8000/web/
+http://localhost:8000/docs/
 ```
 
 Note: do not use a file:// URL. The browser will block asset loading.
