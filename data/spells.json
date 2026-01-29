@@ -29,6 +29,27 @@
     "boosted_multiplier": 2,
     "stun_chance": 0.4,
     "boosted_stun_chance": 0.8,
-    "desc": "Arcane damage with a chance to stun."
+    "desc": "Arcane damage with a chance to stun.",
+    "effect": {
+      "type": "overlay",
+      "frames": [
+        [
+          "  <>"
+        ],
+        [
+          " <oo>"
+        ],
+        [
+          "  /\\ ",
+          "<<oo>>",
+          "  \\/"
+        ]
+      ],
+      "color_key": "y",
+      "variation": 0.12,
+      "jitter_stability": false,
+      "loops": 2,
+      "frame_delay": 0.06
+    }
   }
 }

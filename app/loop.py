@@ -11,7 +11,14 @@ from app.commands.scene_commands import scene_commands
 from app.combat import battle_action_delay, cast_spell, primary_opponent_index, roll_damage
 from app.state import GameState
 from app.ui.ansi import ANSI
-from app.ui.rendering import animate_battle_end, animate_battle_start, flash_opponent, melt_opponent, render_scene_frame
+from app.ui.rendering import (
+    animate_battle_end,
+    animate_battle_start,
+    animate_spell_overlay,
+    flash_opponent,
+    melt_opponent,
+    render_scene_frame,
+)
 from app.ui.text import format_text
 
 
@@ -352,18 +359,37 @@ def handle_offensive_action(ctx, state: GameState, action_cmd: Optional[str]) ->
     target_index = state.target_index
     if target_index is None:
         target_index = primary_opponent_index(state.opponents)
-    flash_opponent(
-        ctx.scenes,
-        ctx.commands_data,
-        "forest",
-        state.player,
-        state.opponents,
-        message,
-        target_index,
-        ANSI.FG_YELLOW,
-        objects_data=ctx.objects,
-        color_map_override=ctx.colors.all()
-    )
+    spell_entry = ctx.spells.by_command_id(action_cmd) if action_cmd else None
+    effect = None
+    if spell_entry:
+        _, spell = spell_entry
+        effect = spell.get("effect") if isinstance(spell, dict) else None
+    if isinstance(effect, dict) and effect.get("type") == "overlay":
+        animate_spell_overlay(
+            ctx.scenes,
+            ctx.commands_data,
+            "forest",
+            state.player,
+            state.opponents,
+            message,
+            target_index,
+            effect,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all()
+        )
+    else:
+        flash_opponent(
+            ctx.scenes,
+            ctx.commands_data,
+            "forest",
+            state.player,
+            state.opponents,
+            message,
+            target_index,
+            ANSI.FG_YELLOW,
+            objects_data=ctx.objects,
+            color_map_override=ctx.colors.all()
+        )
     defeated_indices = [
         i for i, m in enumerate(state.opponents)
         if m.hp <= 0 and not m.melted

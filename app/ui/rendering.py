@@ -638,6 +638,9 @@ def render_scene_art(
     gap_override: Optional[int] = None,
     flash_index: Optional[int] = None,
     flash_color: Optional[str] = None,
+    overlay_target_index: Optional[int] = None,
+    overlay_effect: Optional[dict] = None,
+    overlay_frame_index: int = 0,
     visible_indices: Optional[set] = None,
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None,
@@ -737,7 +740,11 @@ def render_scene_art(
         seed_base: int,
         jitter_amount: float,
         jitter_stability: bool,
-        tick: int
+        tick: int,
+        overlay_row: Optional[dict],
+        overlay_color_key: str,
+        overlay_variation: float,
+        overlay_jitter_stability: bool
     ) -> str:
         if not mask:
             return line
@@ -746,6 +753,19 @@ def render_scene_art(
         out = []
         for i, ch in enumerate(line):
             mask_char = mask[i] if i < len(mask) else ""
+            overlay_cell = overlay_row.get(i) if overlay_row else None
+            if overlay_cell:
+                overlay_char = overlay_cell
+                base_rgb = color_rgb_by_key.get(overlay_color_key)
+                if base_rgb:
+                    overlay_seed = seed_base ^ (ord(overlay_color_key) << 4) ^ (i * 0x85EBCA77) ^ (row_index * 0xC2B2AE3D)
+                    if not overlay_jitter_stability:
+                        overlay_seed ^= (tick * 0x9E3779B1)
+                    code = _jitter_color_code(base_rgb, overlay_variation, overlay_seed)
+                else:
+                    code = color_by_key.get(overlay_color_key, "")
+                out.append(code + overlay_char + ANSI.RESET)
+                continue
             code = ""
             if mask_char in _MASK_DIGITS:
                 code = _random_color_code(mask_char, i, row_index, seed_base, random_config)
@@ -809,6 +829,38 @@ def render_scene_art(
                 mask_lines = mask_lines + [""]
             if manual_lines_indices and i in manual_lines_indices and include_bars:
                 mask_lines.append("")
+        overlay_rows = None
+        overlay_color_key = "y"
+        overlay_variation = 0.0
+        overlay_jitter_stability = True
+        if overlay_effect and overlay_target_index == i:
+            frames = overlay_effect.get("frames", [])
+            if isinstance(frames, list) and frames:
+                frame_index = overlay_frame_index % len(frames)
+                overlay_frame = frames[frame_index]
+                if isinstance(overlay_frame, list) and overlay_frame:
+                    overlay_color_key = str(overlay_effect.get("color_key", "y"))[:1] or "y"
+                    overlay_variation = float(overlay_effect.get("variation", 0.0) or 0.0)
+                    overlay_jitter_stability = bool(overlay_effect.get("jitter_stability", True))
+                    overlay_height = len(overlay_frame)
+                    overlay_width = max((len(line) for line in overlay_frame), default=0)
+                    bar_lines = 1 if include_bars else 0
+                    if manual_lines_indices and i in manual_lines_indices and include_bars:
+                        bar_lines += 1
+                    art_height = max(0, len(art_lines) - bar_lines)
+                    row_start = max(0, (art_height - overlay_height) // 2)
+                    col_start = max(0, (OPPONENT_ART_WIDTH - overlay_width) // 2)
+                    overlay_rows = {}
+                    for r_idx, row in enumerate(overlay_frame):
+                        target_row = row_start + r_idx
+                        if target_row < 0 or target_row >= art_height:
+                            continue
+                        for c_idx, ch in enumerate(row):
+                            if ch == " ":
+                                continue
+                            target_col = col_start + c_idx
+                            if 0 <= target_col < OPPONENT_ART_WIDTH:
+                                overlay_rows.setdefault(target_row, {})[target_col] = ch
         if has_mask:
             colored = []
             if flash_index == i and flash_color:
@@ -820,7 +872,21 @@ def render_scene_art(
                 jitter_stability = bool(getattr(opponent, "jitter_stability", True))
                 for idx, line in enumerate(art_lines):
                     mask_line = mask_lines[idx] if idx < len(mask_lines) else ""
-                    colored.append(apply_mask(line, mask_line, idx, seed_base, jitter_amount, jitter_stability, tick))
+                    colored.append(
+                        apply_mask(
+                            line,
+                            mask_line,
+                            idx,
+                            seed_base,
+                            jitter_amount,
+                            jitter_stability,
+                            tick,
+                            overlay_rows.get(idx) if overlay_rows else None,
+                            overlay_color_key,
+                            overlay_variation,
+                            overlay_jitter_stability
+                        )
+                    )
             art_lines = colored
             color_to_use = ""
         opponent_blocks.append(
@@ -988,6 +1054,9 @@ def render_scene_frame(
     art_opponents: Optional[List[Opponent]] = None,
     flash_index: Optional[int] = None,
     flash_color: Optional[str] = None,
+    overlay_target_index: Optional[int] = None,
+    overlay_effect: Optional[dict] = None,
+    overlay_frame_index: int = 0,
     visible_indices: Optional[set] = None,
     include_bars: bool = True,
     manual_lines_indices: Optional[set] = None,
@@ -1001,6 +1070,9 @@ def render_scene_frame(
         gap_override=gap_override,
         flash_index=flash_index,
         flash_color=flash_color,
+        overlay_target_index=overlay_target_index,
+        overlay_effect=overlay_effect,
+        overlay_frame_index=overlay_frame_index,
         visible_indices=visible_indices,
         include_bars=include_bars,
         manual_lines_indices=manual_lines_indices,
@@ -1173,6 +1245,47 @@ def flash_opponent(
         suppress_actions=True
     )
     time.sleep(max(0.08, battle_action_delay(player) / 2))
+
+
+def animate_spell_overlay(
+    scenes_data,
+    commands_data,
+    scene_id: str,
+    player: Player,
+    opponents: List[Opponent],
+    message: str,
+    index: Optional[int],
+    effect: dict,
+    objects_data: Optional[object] = None,
+    color_map_override: Optional[dict] = None
+):
+    if index is None:
+        return
+    frames = effect.get("frames", [])
+    if not isinstance(frames, list) or not frames:
+        return
+    loops = int(effect.get("loops", 1) or 1)
+    frame_delay = float(effect.get("frame_delay", 0.06) or 0.06)
+    scene_data = scenes_data.get(scene_id, {})
+    gap_target = compute_scene_gap_target(scene_data, opponents)
+    for _ in range(max(1, loops)):
+        for frame_index in range(len(frames)):
+            render_scene_frame(
+                scenes_data,
+                commands_data,
+                scene_id,
+                player,
+                opponents,
+                message,
+                gap_target,
+                objects_data=objects_data,
+                color_map_override=color_map_override,
+                overlay_target_index=index,
+                overlay_effect=effect,
+                overlay_frame_index=frame_index,
+                suppress_actions=True
+            )
+            time.sleep(max(0.03, min(frame_delay, battle_action_delay(player))))
 
 
 def melt_opponent(
