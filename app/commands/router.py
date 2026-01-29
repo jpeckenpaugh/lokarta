@@ -438,12 +438,9 @@ def _enter_scene(scene_id: str, state: CommandState, ctx: RouterContext) -> bool
         if state.player.location != "Forest":
             _build_forest_objects()
             state.player.location = "Forest"
-            state.opponents = ctx.opponents_data.spawn(state.player.level, ANSI.FG_WHITE)
+            state.opponents = []
             state.loot_bank = {"xp": 0, "gold": 0}
-            if state.opponents:
-                state.last_message = f"A {state.opponents[0].name} appears."
-            else:
-                state.last_message = "All is quiet. No enemies in sight."
+            state.last_message = "All is quiet. No enemies in sight."
             state.shop_mode = False
             state.inventory_mode = False
             state.hall_mode = False
