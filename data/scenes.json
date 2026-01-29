@@ -158,7 +158,8 @@
     "color": "cyan",
     "scroll": {
       "height": 10,
-      "speed": 1
+      "speed": 1,
+      "forest_width_scale": 0.5
     },
     "objects": [
       {

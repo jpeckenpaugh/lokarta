@@ -279,12 +279,15 @@ def generate_frame(
         if scroll_cfg:
             height = int(scroll_cfg.get("height", 10) or 10)
             speed = float(scroll_cfg.get("speed", 1) or 1)
+            forest_scale = float(scroll_cfg.get("forest_width_scale", 1) or 1)
+            forest_scale = max(0.1, min(1.0, forest_scale))
             pano_lines = scene_data.get("_panorama_lines")
             pano_width = scene_data.get("_panorama_width")
             if not pano_lines or not pano_width:
                 forest_scene = ctx.scenes.get("forest", {})
                 gap_min = int(forest_scene.get("gap_min", 0) or 0)
-                target_width = max(0, (SCREEN_WIDTH - 2 - gap_min) // 2)
+                base_width = max(0, (SCREEN_WIDTH - 2 - gap_min) // 2)
+                target_width = max(1, int(base_width * forest_scale))
                 objects_data = ctx.objects
                 if objects_data:
                     def obj_width(obj_id: str) -> int:
@@ -350,6 +353,8 @@ def generate_frame(
             ]
 
             logo_lines = []
+            blocking_map = []
+            blocking_char = None
             if scene_data.get("objects"):
                 venue_stub = {
                     "objects": scene_data.get("objects"),
@@ -361,6 +366,17 @@ def generate_frame(
                     ctx.objects,
                     ctx.colors.all(),
                 )
+                first_obj = scene_data.get("objects")[0] if scene_data.get("objects") else None
+                obj_id = first_obj.get("id") if isinstance(first_obj, dict) else None
+                if isinstance(obj_id, str):
+                    obj_def = ctx.objects.get(obj_id, {})
+                    blocking_char = obj_def.get("blocking_space")
+                    if isinstance(blocking_char, str) and len(blocking_char) == 1:
+                        art = obj_def.get("art", [])
+                        if isinstance(art, list):
+                            for line in art:
+                                row = [(ch == blocking_char) for ch in line]
+                                blocking_map.append(row)
             if logo_lines:
                 logo_height = len(logo_lines)
                 logo_width = max((len(strip_ansi(line)) for line in logo_lines), default=0)
@@ -374,6 +390,11 @@ def generate_frame(
                     logo_cells = _ansi_cells(logo_line)
                     for col, (ch, code) in enumerate(logo_cells):
                         if ch == " ":
+                            if blocking_map and idx < len(blocking_map) and col < len(blocking_map[idx]):
+                                if blocking_map[idx][col]:
+                                    pos = start_x + col
+                                    if 0 <= pos < len(base_cells):
+                                        base_cells[pos] = (" ", "")
                             continue
                         pos = start_x + col
                         if 0 <= pos < len(base_cells):

@@ -757,7 +757,8 @@ def render_venue_objects(
         seed_base: int,
         jitter_amount: float,
         jitter_stability: bool,
-        mask_override: Optional[str] = None
+        mask_override: Optional[str] = None,
+        blocking_char: Optional[str] = None
     ):
         for row_idx, line in enumerate(art):
             target_y = y + row_idx
@@ -767,6 +768,12 @@ def render_venue_objects(
             for col_idx, ch in enumerate(line):
                 target_x = x + col_idx
                 if target_x < 0 or target_x >= cursor:
+                    continue
+                if blocking_char and ch == blocking_char:
+                    canvas[target_y][target_x] = " "
+                    mask_canvas[target_y][target_x] = " "
+                    rand_canvas[target_y][target_x] = None
+                    jitter_canvas[target_y][target_x] = None
                     continue
                 if ch != " ":
                     canvas[target_y][target_x] = ch
@@ -789,6 +796,9 @@ def render_venue_objects(
         x = item["x"]
         seed_base = _random_seed_base(f"{obj_id}:{idx}")
         obj_def = _obj_def(obj_id)
+        blocking_char = obj_def.get("blocking_space")
+        if not isinstance(blocking_char, str) or len(blocking_char) != 1:
+            blocking_char = None
         jitter_source = obj_def
         if obj_id == "npc":
             jitter_source = npc if isinstance(npc, dict) else {}
@@ -863,11 +873,11 @@ def render_venue_objects(
                     max_x = max((len(line) for line in art), default=1) - 1
                 npc_anchor = x + min_x + max(0, (max_x - min_x) // 2)
             if npc_has_mask:
-                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability)
+                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability, blocking_char=blocking_char)
             else:
-                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability, mask_override=npc_key)
+                _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability, mask_override=npc_key, blocking_char=blocking_char)
         else:
-            _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability)
+            _blit(art, mask, x, y, seed_base, jitter_amount, jitter_stability, blocking_char=blocking_char)
 
     max_width = max(len(row) for row in canvas) if canvas else 0
     art_lines = []
